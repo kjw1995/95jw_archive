@@ -22,3 +22,4 @@ Java Persistence API (JPA) 핵심 개념 요약입니다.
 - [Chapter 04. 엔티티 생명주기](04-entity-lifecycle) - 비영속, 영속, 준영속, 삭제
 - [Chapter 05. 영속성 컨텍스트 특징](05-persistence-features) - 1차 캐시, 쓰기 지연, 변경 감지
 - [Chapter 06. 플러시와 준영속](06-flush-and-detached) - 플러시, 준영속 상태, 병합
+- [Chapter 07. 엔티티 매핑](07-entity-mapping) - @Entity, @Table, 기본 키 전략, 필드/컬럼 매핑
