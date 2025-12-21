@@ -23,3 +23,4 @@ Java Persistence API (JPA) 핵심 개념 요약입니다.
 - [Chapter 05. 영속성 컨텍스트 특징](05-persistence-features) - 1차 캐시, 쓰기 지연, 변경 감지
 - [Chapter 06. 플러시와 준영속](06-flush-and-detached) - 플러시, 준영속 상태, 병합
 - [Chapter 07. 엔티티 매핑](07-entity-mapping) - @Entity, @Table, 기본 키 전략, 필드/컬럼 매핑
+- [Chapter 08. 다양한 연관관계 매핑](08-various-relationships) - 다대일, 일대다, 일대일, 다대다, 연결 엔티티
