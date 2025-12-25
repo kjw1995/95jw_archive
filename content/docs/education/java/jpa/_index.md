@@ -15,7 +15,7 @@ Java Persistence API (JPA) 핵심 개념 요약입니다.
 - 연관관계 매핑
 - JPQL
 
-### 목차
+### 자바 ORM 표준 JPA 프로그래밍
 - [Chapter 01. JPA 소개](01-jpa-intro) - 패러다임 불일치, ORM, JPA 개념
 - [Chapter 02. JPA 시작](02-jpa-start) - 엔티티 매핑, 설정, CRUD
 - [Chapter 03. 영속성 컨텍스트](03-persistence-context) - 엔티티 매니저, 영속성 컨텍스트
@@ -24,3 +24,6 @@ Java Persistence API (JPA) 핵심 개념 요약입니다.
 - [Chapter 06. 플러시와 준영속](06-flush-and-detached) - 플러시, 준영속 상태, 병합
 - [Chapter 07. 엔티티 매핑](07-entity-mapping) - @Entity, @Table, 기본 키 전략, 필드/컬럼 매핑
 - [Chapter 08. 다양한 연관관계 매핑](08-various-relationships) - 다대일, 일대다, 일대일, 다대다, 연결 엔티티
+- [Chapter 09. 고급 매핑](09-advanced-mapping) - 상속 매핑, 복합 키, 조인 테이블
+- [Chapter 10. 프록시와 연관관계 관리](10-proxy-loading) - 프록시, 즉시/지연 로딩, CASCADE
+- [Chapter 11. 값 타입](11-value-types) - 임베디드 타입, @AttributeOverride, 불변 객체
