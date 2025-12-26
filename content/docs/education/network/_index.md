@@ -20,3 +20,6 @@ sidebar:
 - [01. 네트워크의 구조](01-network-basics) - 네트워크 개념, 패킷, 대역폭, 프로토콜
 - [02. 비트와 바이트](02-bit-and-byte) - 정보 단위, 문자 코드, 데이터 전송
 - [03. LAN과 WAN](03-lan-and-wan) - 근거리/광역 통신망, ISP, 네트워크 범위
+
+### HTTP
+- [HTTP](http) - HTTP 프로토콜 기초부터 캐시까지
