@@ -13,3 +13,7 @@ sidebar:
 - [Kubernetes 기본 개념](kubernetes-concepts) - 컴포넌트, 컨트롤러, 서비스, 네트워크 통신
 - [Kubernetes 설치 및 환경구성](kubernetes-setup) - 설치 요구사항, 경량 버전, 클라우드 서비스
 - [Kubernetes 사용하기](kubernetes-usage) - YAML, 배포 전략, 레플리카셋, 데몬셋, 크론잡
+- [Kubernetes 영구 볼륨](kubernetes-volumes) - PV/PVC, StorageClass, 스테이트풀 스토리지
+- [Kubernetes 서비스와 보안](kubernetes-service-security) - ClusterIP, NodePort, Ingress, RBAC
+- [Kubernetes CI/CD](kubernetes-cicd) - Jenkins, ArgoCD, GitOps, 자동화 배포
+- [Kubernetes 리소스 관리](kubernetes-resources) - 모니터링, LimitRange, ResourceQuota, 오토스케일링
