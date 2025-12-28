@@ -26,3 +26,4 @@ sidebar:
 - [정규화](normalization) - 이상 현상, 함수 종속, 1NF~BCNF
 - [회복과 병행 제어](recovery-concurrency) - 트랜잭션, ACID, 로킹, 2PL
 - [보안과 권한 관리](security-authorization) - GRANT, REVOKE, Role, 암호화
+- [데이터베이스 응용 기술](db-applications) - 객체지향/분산/멀티미디어 DB, 웨어하우스
