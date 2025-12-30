@@ -25,12 +25,13 @@ if (조건식) {
 
 {{< callout type="info" >}}
 **조건식의 결과는 반드시 boolean 타입**이어야 한다. Java는 C/C++과 달리 정수를 조건식에 직접 사용할 수 없다.
+{{< /callout >}}
+
 ```java
 int num = 1;
 if (num) { }      // 컴파일 에러! Java에서는 불가
 if (num != 0) { } // 올바른 방법
 ```
-{{< /callout >}}
 
 #### 블럭(Block)
 
@@ -126,6 +127,8 @@ public char getGrade(int score) {
 
 {{< callout type="warning" >}}
 **조건 순서가 중요하다!** 조건식은 위에서부터 순서대로 평가되므로, 범위가 좁은 조건을 먼저 검사해야 한다.
+{{< /callout >}}
+
 ```java
 // 잘못된 예 - 모든 양수가 첫 번째 조건에 걸림
 if (score >= 60) {
@@ -141,7 +144,6 @@ if (score >= 90) {
     grade = 'D';
 }
 ```
-{{< /callout >}}
 
 ### 1.4 중첩 if문
 
@@ -423,12 +425,13 @@ for (String name : names) {
 1. 인덱스 접근 불가 - 현재 위치를 알 수 없음
 2. 읽기 전용 - 요소 수정 시 원본에 영향 없음
 3. 역순 순회 불가
+{{< /callout >}}
+
 ```java
 for (int num : numbers) {
     num = num * 2;  // 원본 배열은 변경되지 않음!
 }
 ```
-{{< /callout >}}
 
 ### 2.2 while문
 
@@ -480,10 +483,8 @@ while ((line = reader.readLine()) != null) {
 
 {{< callout type="info" >}}
 **주의:** for문과 달리 while문의 조건식은 생략할 수 없다.
-```java
-while () { }  // 컴파일 에러!
-while (true) { }  // 무한 루프 - 올바른 방법
-```
+- `while () { }` → 컴파일 에러!
+- `while (true) { }` → 무한 루프 (올바른 방법)
 {{< /callout >}}
 
 ### 2.3 do-while문
@@ -602,9 +603,11 @@ while (i < 5) {
 ```
 
 {{< callout type="warning" >}}
-**while문에서 continue 사용 시 주의:**
-증감식이 continue 아래에 있으면 무한 루프에 빠질 수 있다.
+**while문에서 continue 사용 시 주의:** 증감식이 continue 아래에 있으면 무한 루프에 빠질 수 있다.
+{{< /callout >}}
+
 ```java
+// 잘못된 예 - 무한 루프 발생!
 int i = 0;
 while (i < 5) {
     if (i == 2) {
@@ -614,7 +617,6 @@ while (i < 5) {
     i++;
 }
 ```
-{{< /callout >}}
 
 ### 2.6 이름 붙은 반복문 (Labeled Loop)
 
