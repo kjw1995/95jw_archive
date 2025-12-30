@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://kjw1995.github.io/95jw_archive/sitemap.xml
