@@ -493,11 +493,11 @@ netstat -an
 수신: 물리 → 데이터링크 → 네트워크 → 전송 → 응용 (헤더 제거)
 ```
 
-{{< hint info >}}
+{{< callout type="info" >}}
 **용어 정리**
 - **VPN**: Virtual Private Network (가상 사설망) - 암호화된 터널로 안전한 통신
 - **인터넷 VPN**: 공용 인터넷망 사용, IPsec 또는 SSL/TLS로 암호화
 - **IP-VPN**: MPLS 기술로 통신사업자 전용 폐쇄망 사용, 암호화 불필요
 - **IPsec**: IP 계층에서 보안을 제공하는 프로토콜 (AH, ESP)
 - **MPLS**: Multi-Protocol Label Switching - 레이블 기반 고속 패킷 전달
-{{< /hint >}}
+{{< /callout >}}

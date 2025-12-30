@@ -468,10 +468,10 @@ PC (192.168.1.10) ─→ [라우터A] ─→ [라우터B] ─→ [라우터C] �
 | 2 | 데이터링크 | MAC, 프레임 | 프레임 | 스위치 |
 | 1 | 물리 | 전기신호 | 비트 | 허브 |
 
-{{< hint info >}}
+{{< callout type="info" >}}
 **용어 정리**
 - **규격**: 기술적인 사항에 대해 제정한 기준 (기술적 표준)
 - **ISO**: International Organization for Standardization (국제표준화기구)
 - **OSI**: Open Systems Interconnection (개방형 시스템 상호연결)
 - **TCP/IP**: Transmission Control Protocol / Internet Protocol
-{{< /hint >}}
+{{< /callout >}}

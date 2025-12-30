@@ -464,7 +464,7 @@ A쪽 (T568A)                    B쪽 (T568B)
 | 크로스 | 1,2 ↔ 3,6 교차, 같은 장비 연결 |
 | 광케이블 | 빛으로 데이터 전송, 장거리 고속 |
 
-{{< hint info >}}
+{{< callout type="info" >}}
 **용어 정리**
 - **UTP**: Unshielded Twisted Pair (비차폐 연선) - 실드 없는 꼬인 케이블
 - **STP**: Shielded Twisted Pair (차폐 연선) - 금속 실드가 있는 케이블
@@ -472,4 +472,4 @@ A쪽 (T568A)                    B쪽 (T568B)
 - **RJ-45**: Registered Jack-45, 8핀 모듈러 커넥터
 - **T568A/T568B**: 케이블 배선 표준 규격
 - **Auto MDI-X**: 자동으로 송수신 핀을 전환하는 기능
-{{< /hint >}}
+{{< /callout >}}
