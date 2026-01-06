@@ -5,25 +5,20 @@ sidebar:
   open: true
 ---
 
-Java Persistence API (JPA) 핵심 개념 요약입니다.
+ORM과 영속성 컨텍스트를 다룹니다.
 
-## 주제
+---
 
-- ORM과 패러다임 불일치
-- 영속성 컨텍스트
-- 엔티티 매핑
-- 연관관계 매핑
-- JPQL
-
-### 자바 ORM 표준 JPA 프로그래밍
-- [Chapter 01. JPA 소개](01-jpa-intro) - 패러다임 불일치, ORM, JPA 개념
-- [Chapter 02. JPA 시작](02-jpa-start) - 엔티티 매핑, 설정, CRUD
-- [Chapter 03. 영속성 컨텍스트](03-persistence-context) - 엔티티 매니저, 영속성 컨텍스트
-- [Chapter 04. 엔티티 생명주기](04-entity-lifecycle) - 비영속, 영속, 준영속, 삭제
-- [Chapter 05. 영속성 컨텍스트 특징](05-persistence-features) - 1차 캐시, 쓰기 지연, 변경 감지
-- [Chapter 06. 플러시와 준영속](06-flush-and-detached) - 플러시, 준영속 상태, 병합
-- [Chapter 07. 엔티티 매핑](07-entity-mapping) - @Entity, @Table, 기본 키 전략, 필드/컬럼 매핑
-- [Chapter 08. 다양한 연관관계 매핑](08-various-relationships) - 다대일, 일대다, 일대일, 다대다, 연결 엔티티
-- [Chapter 09. 고급 매핑](09-advanced-mapping) - 상속 매핑, 복합 키, 조인 테이블
-- [Chapter 10. 프록시와 연관관계 관리](10-proxy-loading) - 프록시, 즉시/지연 로딩, CASCADE
-- [Chapter 11. 값 타입](11-value-types) - 임베디드 타입, @AttributeOverride, 불변 객체
+| 주제 | 설명 |
+|:-----|:-----|
+| [JPA 소개](01-jpa-intro) | ORM과 패러다임 불일치 |
+| [JPA 시작](02-jpa-start) | 엔티티 매핑, CRUD |
+| [영속성 컨텍스트](03-persistence-context) | 엔티티 매니저 |
+| [엔티티 생명주기](04-entity-lifecycle) | 비영속, 영속, 준영속 |
+| [영속성 특징](05-persistence-features) | 1차 캐시, 쓰기 지연 |
+| [플러시](06-flush-and-detached) | 플러시, 병합 |
+| [엔티티 매핑](07-entity-mapping) | @Entity, 키 전략 |
+| [연관관계](08-various-relationships) | 다대일, 일대다, 다대다 |
+| [고급 매핑](09-advanced-mapping) | 상속, 복합 키 |
+| [프록시](10-proxy-loading) | 지연 로딩, CASCADE |
+| [값 타입](11-value-types) | 임베디드 타입, 불변 객체 |

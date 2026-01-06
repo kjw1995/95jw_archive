@@ -9,50 +9,40 @@ toc: false
 
 <br>
 
-**Java/Spring 기반 백엔드 개발자**로서 핀테크 도메인에서 결제 시스템, 정산 배치, 레거시 리팩토링 경험을 쌓아왔습니다.
+핀테크 도메인에서 결제 시스템, 정산 배치, 레거시 리팩토링을 경험한 Java/Spring 백엔드 개발자입니다.
 
 <br>
 
 {{< cards >}}
-  {{< card link="about" title="About Me" icon="user" subtitle="경력, 기술스택, 프로젝트" >}}
-  {{< card link="docs" title="Tech Archive" icon="book-open" subtitle="기술 문서 및 학습 노트" >}}
+  {{< card link="about" title="About Me" icon="user" subtitle="경력과 프로젝트" >}}
+  {{< card link="docs" title="Tech Archive" icon="book-open" subtitle="학습 노트와 기록" >}}
 {{< /cards >}}
 
-<br>
-
 ---
 
-## 블로그 URL
+## 둘러보기
 
-> **https://kjw1995.github.io/95jw_archive/**
+### 학습 노트
 
-이 주소를 통해 어디서든 블로그에 접근할 수 있습니다.
+| 주제 | 내용 |
+|:-----|:-----|
+| [Java](docs/education/java/) | 언어, JVM, JPA, 동시성 |
+| [Spring](docs/education/spring/) | 핵심 원리, Batch |
+| [Database](docs/education/database/) | DB 개론, SQL |
+| [Network](docs/education/network/) | OSI 7계층, HTTP |
+| [DevOps](docs/education/devops/) | Kubernetes, CI/CD |
+| [Linux](docs/education/linux/) | 셸, 파일 시스템 |
+| [Architecture](docs/education/architecture/) | REST API 설계 |
 
----
+### 블로그
 
-## 빠른 탐색
-
-### Education (학습 노트)
-
-| 카테고리 | 내용 | 바로가기 |
-|:---------|:-----|:---------|
-| **Java** | Java 언어, JVM, JPA, 동시성, 웹 프로그래밍 | [보기](/docs/education/java/) |
-| **Spring** | Spring Core, Boot, Batch | [보기](/docs/education/spring/) |
-| **Database** | DB 개론, SQL, 정규화, 트랜잭션 | [보기](/docs/education/database/) |
-| **Network** | OSI 7계층, TCP/IP, HTTP | [보기](/docs/education/network/) |
-| **DevOps** | Kubernetes, CI/CD | [보기](/docs/education/devops/) |
-| **Linux** | 셸, 파일 시스템, 명령어 | [보기](/docs/education/linux/) |
-| **Architecture** | REST API 설계, 아키텍처 패턴 | [보기](/docs/education/architecture/) |
-
-### Blog (경험 기록)
-
-- [회고](/docs/blog/retrospective/) - 프로젝트 회고, 기술 선택 이유
-- [트러블슈팅](/docs/blog/troubleshooting/) - 문제 해결 경험
-- [기술 리뷰](/docs/blog/tech-review/) - 기술 분석 및 비교
+| 주제 | 내용 |
+|:-----|:-----|
+| [회고](docs/blog/retrospective/) | 프로젝트 회고 |
+| [트러블슈팅](docs/blog/troubleshooting/) | 문제 해결 기록 |
+| [기술 리뷰](docs/blog/tech-review/) | 기술 분석 |
 
 ---
-
-## Quick Links
 
 [![Blog](https://img.shields.io/badge/Blog-95JW_Archive-2E8B57?style=flat-square)](https://kjw1995.github.io/95jw_archive/)
 [![Velog](https://img.shields.io/badge/Velog-20C997?style=flat-square&logo=velog&logoColor=white)](https://velog.io/@kjw1995)

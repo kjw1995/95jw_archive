@@ -1,56 +1,66 @@
 ---
-title: "네트워크"
+title: "Network"
 weight: 6
 sidebar:
   open: true
 ---
 
-컴퓨터 네트워크의 기초 개념부터 OSI 7계층까지 핵심 내용을 정리합니다.
-
-> **직접 접근**: https://kjw1995.github.io/95jw_archive/docs/education/network/
+네트워크의 기초 개념부터 OSI 7계층, HTTP까지 다룹니다.
 
 ---
 
-## 목차
+## 기초
 
-### 네트워크 기초
-| 챕터 | 제목 | 내용 |
-|:-----|:-----|:-----|
-| 01 | [네트워크의 구조](01-network-basics) | 네트워크 개념, 패킷, 대역폭, 프로토콜 |
-| 02 | [비트와 바이트](02-bit-and-byte) | 정보 단위, 문자 코드, 데이터 전송 |
-| 03 | [LAN과 WAN](03-lan-and-wan) | 근거리/광역 통신망, ISP, 네트워크 범위 |
-
-### 네트워크 구성
-| 챕터 | 제목 | 내용 |
-|:-----|:-----|:-----|
-| 04 | [가정에서의 LAN 구성](04-home-lan-configuration) | 공유기, NAT, DHCP, 유무선 LAN |
-| 05 | [회사에서의 LAN 구성](05-office-lan-configuration) | DMZ, 온프레미스, 클라우드, VLAN |
-
-### OSI 모델과 프로토콜
-| 챕터 | 제목 | 내용 |
-|:-----|:-----|:-----|
-| 06 | [네트워크의 규칙 (프로토콜)](06-network-protocol) | TCP, UDP, IP, HTTP, 표준화 기관 |
-| 07 | [OSI 모델과 TCP/IP 모델](07-osi-tcpip-model) | 7계층, 4계층, 계층별 역할, PDU |
-| 08 | [캡슐화와 역캡슐화](08-encapsulation-decapsulation) | 헤더, 트레일러, VPN, IPsec |
-
-### 물리 계층
-| 챕터 | 제목 | 내용 |
-|:-----|:-----|:-----|
-| 09 | [물리 계층과 랜 카드](09-physical-layer-nic) | 전기 신호, NIC, MAC 주소, 인코딩 |
-| 10 | [케이블의 종류와 구조](10-cable-types-structure) | UTP, STP, 광케이블, RJ-45 |
-
-### HTTP 심화
-| 주제 | 내용 |
+| 주제 | 설명 |
 |:-----|:-----|
-| [HTTP](http/) | HTTP 프로토콜 기초부터 캐시, 헤더까지 |
+| [네트워크 구조](01-network-basics) | 패킷, 대역폭, 프로토콜 |
+| [비트와 바이트](02-bit-and-byte) | 정보 단위, 문자 코드 |
+| [LAN과 WAN](03-lan-and-wan) | 근거리/광역 통신망 |
 
----
+## 구성
 
-## 주요 키워드
+| 주제 | 설명 |
+|:-----|:-----|
+| [가정 LAN](04-home-lan-configuration) | 공유기, NAT, DHCP |
+| [회사 LAN](05-office-lan-configuration) | DMZ, VLAN, 클라우드 |
 
-- **네트워크 기초**: 패킷, LAN/WAN, 대역폭
-- **OSI 7계층**: 물리, 데이터링크, 네트워크, 전송, 세션, 표현, 응용
-- **TCP/IP 4계층**: 네트워크 접속, 인터넷, 전송, 응용
-- **프로토콜**: TCP, UDP, IP, HTTP, HTTPS, DNS
-- **주소 체계**: IP 주소, MAC 주소, 포트 번호
-- **네트워크 장비**: 라우터, 스위치, 허브, 공유기
+## OSI 모델
+
+| 주제 | 설명 |
+|:-----|:-----|
+| [프로토콜](06-network-protocol) | TCP, UDP, IP |
+| [OSI/TCP-IP](07-osi-tcpip-model) | 7계층과 4계층 |
+| [캡슐화](08-encapsulation-decapsulation) | 헤더, PDU, VPN |
+
+## 물리 계층
+
+| 주제 | 설명 |
+|:-----|:-----|
+| [랜 카드](09-physical-layer-nic) | NIC, MAC 주소 |
+| [케이블](10-cable-types-structure) | UTP, 광케이블 |
+
+## 데이터 링크 ~ 전송 계층
+
+| 주제 | 설명 |
+|:-----|:-----|
+| [리피터와 허브](11-repeater-hub) | 물리 계층 장비 |
+| [이더넷](12-ethernet) | CSMA/CD, 이더넷 프레임 |
+| [스위치](13-switch) | MAC 주소 테이블, VLAN |
+| [데이터 링크 심화](14-data-link-advanced) | ARP, 전이중/반이중 |
+| [네트워크 계층](15-network-layer) | IP, 라우팅, 서브넷 |
+| [IP 주소](16-ip-addressing) | 클래스, 서브넷 마스크 |
+| [전송 계층](17-transport-layer) | TCP, UDP, 포트 |
+| [TCP 연결](18-tcp-connection) | 3-way handshake, 흐름 제어 |
+| [응용 계층](19-application-layer) | DNS, HTTP, SMTP |
+| [무선 랜](20-wireless-lan) | Wi-Fi, 암호화 |
+| [네트워크 보안](21-network-security) | 방화벽, IDS/IPS |
+| [가상화와 클라우드](22-virtualization-cloud) | 가상 네트워크, SDN |
+| [실전 네트워크](23-practical-network) | 트러블슈팅, 도구 |
+| [네트워크 설계](24-network-design) | 토폴로지, 이중화 |
+| [미래 기술](25-future-network) | IoT, 5G, IPv6 |
+
+## HTTP
+
+| 주제 | 설명 |
+|:-----|:-----|
+| [HTTP](http/) | HTTP 프로토콜과 캐시 |
