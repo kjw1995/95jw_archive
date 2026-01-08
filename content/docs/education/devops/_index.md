@@ -20,3 +20,4 @@ Kubernetes와 CI/CD 파이프라인을 다룹니다.
 | [서비스와 보안](kubernetes-service-security) | Ingress, RBAC |
 | [CI/CD](kubernetes-cicd) | Jenkins, ArgoCD, GitOps |
 | [리소스 관리](kubernetes-resources) | 모니터링, 오토스케일링 |
+| [CKA 학습 노트](k8s-basics) | CKA 시험 대비 Core Concepts |
