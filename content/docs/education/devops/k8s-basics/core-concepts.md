@@ -3,7 +3,7 @@ title: "CKA Core Concepts"
 weight: 1
 ---
 
-CKA(Certified Kubernetes Administrator) 시험의 Core Concepts 섹션을 다룹니다. 클러스터 아키텍처, 워크로드, 서비스, 네임스페이스, kubectl 명령어 등 쿠버네티스의 핵심 개념을 정리합니다.
+Kubernetes Core Concepts
 
 ---
 
