@@ -1,11 +1,11 @@
 ---
-title: "CKA 학습 노트"
+title: "Kubernetes 학습 노트"
 weight: 10
 sidebar:
   open: true
 ---
 
-Certified Kubernetes Administrator (CKA) 시험 대비 학습 노트입니다.
+Kubernetes 핵심 개념과 운영 실무를 다룹니다.
 
 ---
 
@@ -16,3 +16,5 @@ Certified Kubernetes Administrator (CKA) 시험 대비 학습 노트입니다.
 | [Logging & Monitoring](logging-monitoring) | Metrics Server, 로그 조회, 이벤트, 디버깅 |
 | [Application Lifecycle](application-lifecycle) | Rolling Updates, ConfigMap, Secret, HPA, VPA |
 | [Cluster Maintenance](cluster-maintenance) | 노드 유지보수, 버전 업그레이드, 백업/복원 |
+| [Security](security) | 인증, 인가, RBAC, ServiceAccount, Network Policy |
+| [Storage](storage) | Volume, PV/PVC, StorageClass, CSI |
