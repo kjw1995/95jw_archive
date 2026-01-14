@@ -18,3 +18,4 @@ Kubernetes 핵심 개념과 운영 실무를 다룹니다.
 | [Cluster Maintenance](cluster-maintenance) | 노드 유지보수, 버전 업그레이드, 백업/복원 |
 | [Security](security) | 인증, 인가, RBAC, ServiceAccount, Network Policy |
 | [Storage](storage) | Volume, PV/PVC, StorageClass, CSI |
+| [Networking](networking) | CNI, Service, DNS, Ingress, Gateway API |
