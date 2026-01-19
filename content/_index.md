@@ -3,15 +3,37 @@ title: Jeongwoo Kim
 toc: false
 ---
 
-<div align="center">
-  <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&size=28&duration=3000&pause=1000&color=2E8B57&center=true&width=500&lines=Backend+Developer;Java+%7C+Spring+Boot+%7C+MSA" alt="Typing SVG" />
-</div>
+## 👨‍💻 About Me
 
-<br>
+핀테크 도메인에서 결제 시스템, 정산 배치, 레거시 리팩토링을 경험한 **Java/Spring 백엔드 개발자**입니다.
 
-핀테크 도메인에서 결제 시스템, 정산 배치, 레거시 리팩토링을 경험한 Java/Spring 백엔드 개발자입니다.
+- 🔭 **헬로핀테크** (2023.02 ~ 2025.08) - 결제/정산 시스템 개발
+- 🔭 **(주)티엔씨테크날로지** (2025.11 ~) - PG 솔루션 구축
+- 🌱 **Java/Spring Boot** 생태계와 **MSA** 아키텍처에 관심이 많습니다
+- 📊 **MySQL, Redis** 데이터베이스 운영 경험
+- 🚀 **Docker, Kubernetes** 기반 인프라 운영 경험
 
-<br>
+---
+
+## 🛠️ Tech Stack
+
+### Backend
+<p>
+  <img src="https://img.shields.io/badge/Java-007396?style=for-the-badge&logo=java&logoColor=white" />
+  <img src="https://img.shields.io/badge/Spring_Boot-6DB33F?style=for-the-badge&logo=spring-boot&logoColor=white" />
+  <img src="https://img.shields.io/badge/Spring_Batch-6DB33F?style=for-the-badge&logo=spring&logoColor=white" />
+  <img src="https://img.shields.io/badge/JPA-59666C?style=for-the-badge&logo=hibernate&logoColor=white" />
+</p>
+
+### Database & Infra
+<p>
+  <img src="https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white" />
+  <img src="https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white" />
+  <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" />
+  <img src="https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white" />
+</p>
+
+---
 
 {{< cards >}}
   {{< card link="about" title="About Me" icon="user" subtitle="경력과 프로젝트" >}}
