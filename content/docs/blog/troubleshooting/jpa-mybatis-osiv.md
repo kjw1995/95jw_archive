@@ -3,8 +3,6 @@ title: "JPA + MyBatis 혼용 시 OSIV 커넥션 풀 고갈 문제"
 weight: 1
 ---
 
-# JPA + MyBatis 혼용 시 OSIV 커넥션 풀 고갈 문제
-
 JPA와 MyBatis를 함께 사용하는 환경에서 발생한 DB 커넥션 풀 고갈 문제와 해결 과정을 정리한다.
 
 ---
