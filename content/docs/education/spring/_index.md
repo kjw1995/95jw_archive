@@ -29,3 +29,11 @@ sidebar:
 |:-----|:-----|
 | [배치 소개](spring-batch-intro) | 배치 처리 개념과 아키텍처 |
 | [핵심 개념](spring-batch-core) | Job, Step, 실행 메커니즘 |
+
+---
+
+## Spring Security
+
+| 주제 | 설명 |
+|:-----|:-----|
+| [오늘날의 보안](security/01-security-today) | 보안 개념, 취약성, 아키텍처별 보안 설계 |
