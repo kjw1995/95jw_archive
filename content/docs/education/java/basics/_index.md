@@ -18,6 +18,7 @@ Java 프로그래밍의 기초 개념을 다룹니다.
 | [배열](05-array) | 1차원/다차원 배열, Arrays 유틸리티 |
 | [객체지향 프로그래밍 I](06-oop-basics) | 클래스, 객체, 메서드, 생성자, 오버로딩 |
 | [객체지향 프로그래밍 II](07-oop-advanced) | 상속, 다형성, 추상클래스, 인터페이스 |
+| [예외처리](08-exception-handling) | try-catch, throws, 사용자 정의 예외 |
 | [날짜와 시간 & 형식화](10-date-time-formatting) | Date, Calendar, java.time 패키지 |
 | [컬렉션 프레임웍](11-collections-framework) | List, Set, Map 인터페이스 |
 | [지네릭스, 열거형, 애너테이션](12-generics-enum-annotation) | 타입 안정성, Enum, Annotation |
