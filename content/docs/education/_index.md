@@ -12,6 +12,7 @@ sidebar:
 
 {{< cards >}}
   {{< card link="java" title="Java" icon="code" subtitle="언어 기초부터 JVM, JPA, 동시성까지" >}}
+  {{< card link="kotlin" title="Kotlin" icon="code" subtitle="코틀린 기초 문법과 핵심 원리" >}}
   {{< card link="spring" title="Spring" icon="cube" subtitle="스프링 핵심 원리와 배치 처리" >}}
   {{< card link="database" title="Database" icon="database" subtitle="데이터베이스 이론과 SQL" >}}
   {{< card link="network" title="Network" icon="globe-alt" subtitle="네트워크 기초와 HTTP" >}}
@@ -34,6 +35,12 @@ sidebar:
 | [JVM](java/jvm/) | 메모리 구조와 가비지 컬렉션 |
 | [JPA](java/jpa/) | ORM과 영속성 컨텍스트 |
 | [웹 프로그래밍](java/web-programming/) | JSP, Servlet 기초 |
+
+### Kotlin
+
+| 주제 | 설명 |
+|:-----|:-----|
+| [변수와 자료형, 연산자](kotlin/basics/02-variables-types-operators) | val/var, 자료형 체계, Null 안전성, 연산자 |
 
 ### Spring
 
