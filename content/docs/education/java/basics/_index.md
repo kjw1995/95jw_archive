@@ -21,9 +21,10 @@ Java 프로그래밍의 기초 개념을 다룹니다.
 | [예외처리](08-exception-handling) | try-catch, throws, 사용자 정의 예외 |
 | [java.lang패키지와 유용한 클래스](09-java-lang-package) | Object, String, StringBuffer, Math, Wrapper 클래스 |
 | [날짜와 시간 & 형식화](10-date-time-formatting) | Date, Calendar, java.time 패키지 |
-| [컬렉션 프레임웍](11-collections-framework) | List, Set, Map 인터페이스 |
+| [컬렉션 프레임웍](11-collections-framework) | List, Set, Map, 정렬, 해싱 |
 | [지네릭스, 열거형, 애너테이션](12-generics-enum-annotation) | 타입 안정성, Enum, Annotation |
 | [쓰레드](13-thread) | 멀티쓰레딩, 동기화, Lock, Fork/Join |
 | [람다와 스트림](14-lambda-stream) | 람다식, 함수형 인터페이스, Stream API |
 | [입출력 (I/O)](15-io) | 스트림, 바이트/문자 기반, File, 직렬화 |
+| [네트워킹 (Networking)](16-networking) | IP 주소, URL, TCP/UDP 소켓 프로그래밍 |
 
