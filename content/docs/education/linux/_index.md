@@ -16,3 +16,4 @@ sidebar:
 | [셸 활용](03-shell-advanced) | 단축키, 자동완성, 히스토리 |
 | [파일과 디렉터리](04-files-and-directories) | 경로, 파일 조작, 링크 |
 | [파일과 디렉터리 심화](05-files-and-directories-advanced) | 퍼미션, 검색, 아카이브 |
+| [파일 검색 및 명령어 사용법](06-file-search-and-commands) | find, locate, man, which |
