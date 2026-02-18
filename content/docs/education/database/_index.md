@@ -24,3 +24,4 @@ sidebar:
 | [트랜잭션](recovery-concurrency) | ACID, 로킹 |
 | [보안](security-authorization) | 권한 관리와 암호화 |
 | [응용 기술](db-applications) | 분산 DB, 웨어하우스 |
+| [데이터 과학과 빅데이터](data-science-bigdata) | NoSQL, 데이터 마이닝, 시각화 |

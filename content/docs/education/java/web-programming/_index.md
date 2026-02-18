@@ -15,4 +15,5 @@ JSP와 Servlet 기반 웹 프로그래밍을 다룹니다.
 | [서블릿](03-servlet) | 생명주기, 매핑 |
 | [서블릿 기초](04-servlet-basic) | 요청/응답 API, form, GET/POST |
 | [서블릿 비즈니스 로직](05-servlet-business-logic) | PreparedStatement, 커넥션풀, DAO |
+| [서블릿 확장 API](06-servlet-extension-api) | 포워드, 바인딩, ServletContext |
 | [JNDI](jndi) | 네이밍 서비스, DataSource |
