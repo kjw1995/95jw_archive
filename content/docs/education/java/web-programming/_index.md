@@ -18,4 +18,5 @@ JSP와 Servlet 기반 웹 프로그래밍을 다룹니다.
 | [서블릿 확장 API](06-servlet-extension-api) | 포워드, 바인딩, ServletContext |
 | [쿠키와 세션](07-cookie-and-session) | 세션 트래킹, Cookie, HttpSession |
 | [필터와 리스너](08-filter-and-listener) | 속성/스코프, Filter, Listener |
+| [JSP 등장 배경](09-jsp-intro) | JSP 변환 과정, 디렉티브 태그 |
 | [JNDI](jndi) | 네이밍 서비스, DataSource |
