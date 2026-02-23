@@ -5,6 +5,9 @@ baseURL: https://kjw1995.github.io/95jw_archive/
 # SEO & Search Console
 enableRobotsTXT: true
 
+ignoreFiles:
+  - "CLAUDE\\.md$"
+
 # import hextra as module
 module:
   imports:
