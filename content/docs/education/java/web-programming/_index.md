@@ -20,4 +20,5 @@ JSP와 Servlet 기반 웹 프로그래밍을 다룹니다.
 | [필터와 리스너](08-filter-and-listener) | 속성/스코프, Filter, Listener |
 | [JSP 등장 배경](09-jsp-intro) | JSP 변환 과정, 디렉티브 태그 |
 | [JSP 스크립트 요소](10-jsp-script-elements) | 선언문, 스크립트릿, 표현식, 내장 객체 |
+| [모델2 개발](13-model2-development) | MVC 패턴, 커맨드 패턴, FrontController |
 | [JNDI](jndi) | 네이밍 서비스, DataSource |
