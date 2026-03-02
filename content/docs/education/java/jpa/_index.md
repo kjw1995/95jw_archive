@@ -22,3 +22,4 @@ ORM과 영속성 컨텍스트를 다룹니다.
 | [고급 매핑](09-advanced-mapping) | 상속, 복합 키 |
 | [프록시](10-proxy-loading) | 지연 로딩, CASCADE |
 | [값 타입](11-value-types) | 임베디드 타입, 불변 객체 |
+| [객체지향 쿼리](12-object-oriented-query) | JPQL, 페치 조인, QueryDSL |
