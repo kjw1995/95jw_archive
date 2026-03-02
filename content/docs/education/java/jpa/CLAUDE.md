@@ -5,5 +5,5 @@ title_format: "Chapter {NN}. 제목"
 style_ref: 03-persistence-context.md
 
 # 참고사항
-- 파일 번호 = 책 챕터 번호 (01~11)
+- 파일 번호 = 챕터 번호 (01~12)
 - weight = 파일 번호

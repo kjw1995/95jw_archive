@@ -1,9 +1,7 @@
 ---
-title: "Chapter 09. 값 타입"
+title: "Chapter 11. 값 타입"
 weight: 11
 ---
-
-# 값 타입 (Value Type)
 
 JPA의 데이터 타입은 크게 **엔티티 타입**과 **값 타입**으로 나눌 수 있다.
 
