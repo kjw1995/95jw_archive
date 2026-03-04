@@ -22,5 +22,5 @@ JSP와 Servlet 기반 웹 프로그래밍을 다룹니다.
 | [JSP 스크립트 요소](10-jsp-script-elements) | 선언문, 스크립트릿, 표현식, 내장 객체 |
 | [액션 태그](11-action-tags) | include, forward, useBean |
 | [표현 언어와 JSTL](12-expression-language-jstl) | EL, Core 태그, 포매팅 태그 |
-| [스프링 프레임워크 시작하기](14-spring-framework-intro) | IoC, DI, AOP, 스프링 MVC |
+| [스프링 프레임워크 시작하기](13-spring-framework-intro) | IoC, DI, AOP, 스프링 MVC |
 | [JNDI](jndi) | 네이밍 서비스, DataSource |
