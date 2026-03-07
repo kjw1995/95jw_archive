@@ -21,3 +21,4 @@ Kubernetes와 CI/CD 파이프라인을 다룹니다.
 | [CI/CD](kubernetes-cicd) | Jenkins, ArgoCD, GitOps |
 | [리소스 관리](kubernetes-resources) | 모니터링, 오토스케일링 |
 | [CKA 학습 노트](k8s-basics) | CKA 시험 대비 Core Concepts |
+| [시작하세요! 도커/쿠버네티스](docker-k8s) | 도커와 쿠버네티스 실전 |

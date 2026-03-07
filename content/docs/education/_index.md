@@ -97,6 +97,7 @@ sidebar:
 | [CI/CD](devops/kubernetes-cicd) | Jenkins, ArgoCD |
 | [리소스 관리](devops/kubernetes-resources) | 모니터링과 스케일링 |
 | [CKA 학습 노트](devops/k8s-basics/) | CKA 시험 대비 |
+| [시작하세요! 도커/쿠버네티스](devops/docker-k8s/) | 도커와 쿠버네티스 실전 |
 
 ### Linux
 
