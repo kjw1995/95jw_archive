@@ -19,6 +19,7 @@ sidebar:
   {{< card link="devops" title="DevOps" icon="server" subtitle="Kubernetes와 CI/CD" >}}
   {{< card link="linux" title="Linux" icon="terminal" subtitle="리눅스 기초와 셸 활용" >}}
   {{< card link="architecture" title="Architecture" icon="document-text" subtitle="REST API 설계" >}}
+  {{< card link="concurrency" title="동시성 프로그래밍" icon="refresh" subtitle="동시성과 병렬 프로그래밍 개념" >}}
 {{< /cards >}}
 
 ---
@@ -29,18 +30,18 @@ sidebar:
 
 | 주제 | 설명 |
 |:-----|:-----|
-| [Java 기초](java/01-java-intro) | 자바 시작하기 |
+| [Java 기초](java/basics) | 변수, 타입, 객체지향, 컬렉션 |
 | [Modern Java](java/modern-java-in-action/) | 람다, 스트림, 함수형 프로그래밍 |
 | [동시성](java/concurrency/) | 스레드 안전성과 동기화 |
 | [JVM](java/jvm/) | 메모리 구조와 가비지 컬렉션 |
 | [JPA](java/jpa/) | ORM과 영속성 컨텍스트 |
-| [웹 프로그래밍](java/web-programming/) | JSP, Servlet 기초 |
+| [웹 프로그래밍](java/web-programming/) | JSP, Servlet, 스프링 기초 |
 
 ### Kotlin
 
 | 주제 | 설명 |
 |:-----|:-----|
-| [변수와 자료형, 연산자](kotlin/basics/02-variables-types-operators) | val/var, 자료형 체계, Null 안전성, 연산자 |
+| [Kotlin 기초](kotlin/basics/) | 변수, 자료형, Null 안전성 |
 
 ### Spring
 
@@ -55,6 +56,7 @@ sidebar:
 | [빈 스코프](spring/spring-bean-scope) | 싱글톤, 프로토타입, 프록시 |
 | [SpEL](spring/spring-spel) | 표현식 언어 |
 | [Spring Batch](spring/spring-batch-intro) | 배치 처리 기초 |
+| [Spring Security](spring/security/) | 보안 개념과 구현 |
 
 ### Database
 
@@ -75,15 +77,11 @@ sidebar:
 | 주제 | 설명 |
 |:-----|:-----|
 | [기초](network/01-network-basics) | 네트워크 개념 잡기 |
-| [비트와 바이트](network/02-bit-and-byte) | 정보의 단위 |
-| [LAN과 WAN](network/03-lan-and-wan) | 네트워크 범위 |
-| [가정 LAN](network/04-home-lan-configuration) | 공유기와 NAT |
-| [회사 LAN](network/05-office-lan-configuration) | DMZ와 VLAN |
-| [프로토콜](network/06-network-protocol) | TCP, UDP, IP |
 | [OSI 모델](network/07-osi-tcpip-model) | 7계층과 4계층 |
-| [캡슐화](network/08-encapsulation-decapsulation) | 헤더와 PDU |
-| [물리 계층](network/09-physical-layer-nic) | NIC와 MAC 주소 |
-| [케이블](network/10-cable-types-structure) | UTP, 광케이블 |
+| [데이터 링크 계층](network/12-datalink-layer-ethernet) | 이더넷, MAC, 스위치 |
+| [네트워크 계층](network/17-network-layer-role) | IP, 라우팅, 서브넷 |
+| [전송 계층](network/23-transport-layer-role) | TCP, UDP, 포트 |
+| [응용 계층](network/28-application-layer-role) | DNS, HTTP, SMTP |
 | [HTTP](network/http/) | HTTP 프로토콜 |
 
 ### DevOps
@@ -98,6 +96,7 @@ sidebar:
 | [서비스와 보안](devops/kubernetes-service-security) | Ingress, RBAC |
 | [CI/CD](devops/kubernetes-cicd) | Jenkins, ArgoCD |
 | [리소스 관리](devops/kubernetes-resources) | 모니터링과 스케일링 |
+| [CKA 학습 노트](devops/k8s-basics/) | CKA 시험 대비 |
 
 ### Linux
 
@@ -107,6 +106,8 @@ sidebar:
 | [셸](linux/02-shell) | 셸의 역할과 종류 |
 | [셸 활용](linux/03-shell-advanced) | 단축키와 히스토리 |
 | [파일 시스템](linux/04-files-and-directories) | 경로와 파일 조작 |
+| [파일 조작의 기본](linux/05-file-manipulation-basics) | 파일 조작 기본 명령어 |
+| [파일 검색과 명령어](linux/06-file-search-and-commands) | find, locate, man |
 
 ### Architecture
 
@@ -118,3 +119,12 @@ sidebar:
 | [성능](architecture/restful-performance) | 캐싱과 비동기 처리 |
 | [고급 설계](architecture/restful-advanced) | Rate Limiting, HATEOAS |
 | [실시간 API](architecture/restful-realtime) | SSE, WebSocket |
+
+### 동시성 프로그래밍
+
+| 주제 | 설명 |
+|:-----|:-----|
+| [동시성이란](concurrency/01-what-is-concurrency) | 동시성의 정의와 필요성 |
+| [순차/병렬 실행](concurrency/02-sequential-and-parallel-execution) | 암달의 법칙, 구스타프슨의 법칙 |
+| [컴퓨터 동작 원리](concurrency/03-how-computers-work) | 플린 분류, CPU vs GPU |
+| [동시성 재료](concurrency/04-concurrency-ingredients) | 프로세스, 스레드, 컨텍스트 스위칭 |
