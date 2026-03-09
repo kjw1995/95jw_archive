@@ -25,4 +25,5 @@ JSP와 Servlet 기반 웹 프로그래밍을 다룹니다.
 | [스프링 프레임워크 시작하기](13-spring-framework-intro) | IoC, DI, AOP, 스프링 MVC |
 | [스프링 의존성 주입과 제어 역전](14-spring-di-ioc) | DI, IoC, 빈 설정, XML 주입 |
 | [스프링 AOP 기능](15-spring-aop) | Aspect, Advice, Pointcut, Weaving |
+| [스프링 MVC 기능](16-spring-mvc) | DispatcherServlet, 요청 처리 흐름 |
 | [JNDI](jndi) | 네이밍 서비스, DataSource |
