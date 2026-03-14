@@ -27,4 +27,5 @@ JSP와 Servlet 기반 웹 프로그래밍을 다룹니다.
 | [스프링 AOP 기능](15-spring-aop) | Aspect, Advice, Pointcut, Weaving |
 | [스프링 MVC 기능](16-spring-mvc) | DispatcherServlet, 요청 처리 흐름 |
 | [스프링 JDBC 기능](18-spring-jdbc) | JdbcTemplate, RowMapper, DataSource |
+| [마이바티스 프레임워크](19-mybatis) | SqlSession, 동적 SQL, 매퍼 XML |
 | [JNDI](jndi) | 네이밍 서비스, DataSource |
