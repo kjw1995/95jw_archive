@@ -29,4 +29,5 @@ JSP와 Servlet 기반 웹 프로그래밍을 다룹니다.
 | [스프링 JDBC 기능](18-spring-jdbc) | JdbcTemplate, RowMapper, DataSource |
 | [마이바티스 프레임워크](19-mybatis) | SqlSession, 동적 SQL, 매퍼 XML |
 | [스프링 트랜잭션](20-spring-transaction) | @Transactional, 전파 규칙, 격리 레벨 |
+| [스프링 애너테이션 기능](21-spring-annotations) | @Controller, @RequestParam, @Autowired |
 | [JNDI](jndi) | 네이밍 서비스, DataSource |
