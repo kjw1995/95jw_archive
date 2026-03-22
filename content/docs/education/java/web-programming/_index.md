@@ -30,4 +30,5 @@ JSP와 Servlet 기반 웹 프로그래밍을 다룹니다.
 | [마이바티스 프레임워크](19-mybatis) | SqlSession, 동적 SQL, 매퍼 XML |
 | [스프링 트랜잭션](20-spring-transaction) | @Transactional, 전파 규칙, 격리 레벨 |
 | [스프링 애너테이션 기능](21-spring-annotations) | @Controller, @RequestParam, @Autowired |
+| [메이븐 사용법](22-maven) | pom.xml, 의존성 관리, log4j |
 | [JNDI](jndi) | 네이밍 서비스, DataSource |
