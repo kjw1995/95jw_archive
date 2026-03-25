@@ -33,4 +33,5 @@ JSP와 Servlet 기반 웹 프로그래밍을 다룹니다.
 | [메이븐 사용법](22-maven) | pom.xml, 의존성 관리, log4j |
 | [스프링 여러 가지 기능](23-spring-features) | 파일 업로드, 이메일, 인터셉터, 다국어 |
 | [스프링 REST API](24-spring-rest-api) | @RestController, @PathVariable, ResponseEntity |
+| [스프링 부트](25-spring-boot) | 자동 설정, 타임리프, 그레이들, @Mapper |
 | [JNDI](jndi) | 네이밍 서비스, DataSource |
