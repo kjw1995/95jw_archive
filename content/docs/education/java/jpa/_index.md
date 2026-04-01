@@ -23,3 +23,4 @@ ORM과 영속성 컨텍스트를 다룹니다.
 | [프록시](10-proxy-loading) | 지연 로딩, CASCADE |
 | [값 타입](11-value-types) | 임베디드 타입, 불변 객체 |
 | [객체지향 쿼리](12-object-oriented-query) | JPQL, 페치 조인, QueryDSL |
+| [웹 애플리케이션 제작](13-web-application) | 스프링 + JPA 프로젝트 구성 |

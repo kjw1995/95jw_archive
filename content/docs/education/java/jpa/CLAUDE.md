@@ -1,5 +1,5 @@
 source: "자바 ORM 표준 JPA 프로그래밍"
-obsidian: D:\obsidian\Java\JPA\
+obsidian: D:\obsidian\Java\Java\JPA\
 naming: {nn}-kebab-case.md
 title_format: "Chapter {NN}. 제목"
 style_ref: 03-persistence-context.md
