@@ -17,3 +17,4 @@ sidebar:
 | [파일과 디렉터리](04-files-and-directories) | 경로, 파일 조작, 링크 |
 | [파일 조작의 기본](05-file-manipulation-basics) | 파일 조작 기본 명령어 |
 | [파일 검색 및 명령어 사용법](06-file-search-and-commands) | find, locate, man, which |
+| [텍스트 에디터](07-text-editor) | Vim 모드, 편집, 검색·치환, .vimrc |
