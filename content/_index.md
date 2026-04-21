@@ -36,6 +36,7 @@ toc: false
 .tech-stack {
   border-collapse: collapse;
   width: 100%;
+  margin: 1em 0;
 }
 .tech-stack thead tr {
   border-bottom: 2px solid rgba(128, 128, 128, 0.55);
@@ -43,12 +44,9 @@ toc: false
 .tech-stack tbody tr {
   border-bottom: 1px solid rgba(128, 128, 128, 0.35);
 }
-.tech-stack tbody tr:last-child {
-  border-bottom: none;
-}
 .tech-stack th,
 .tech-stack td {
-  padding: 8px 12px;
+  padding: 14px 14px;
   vertical-align: middle;
 }
 .tech-stack .category {
@@ -112,7 +110,7 @@ toc: false
       </td>
     </tr>
     <tr>
-      <td class="category"><strong>Infra & Monitoring</strong></td>
+      <td class="category"><strong>Infra &amp; Monitoring</strong></td>
       <td>
         <div class="badges">
           <img alt="Docker" src="https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white" />
