@@ -32,18 +32,18 @@ toc: false
 
 ## Tech Stack
 
-<table>
+<table style="border-collapse:collapse;">
   <thead>
-    <tr>
+    <tr style="border-bottom:2px solid rgba(128,128,128,0.5);">
       <th align="left">분류</th>
       <th align="left">기술</th>
     </tr>
   </thead>
   <tbody>
-    <tr>
+    <tr style="border-bottom:1px solid rgba(128,128,128,0.35);">
       <td style="white-space:nowrap;"><strong>Backend</strong></td>
       <td>
-        <div style="display:flex; flex-wrap:wrap; gap:4px;">
+        <div style="display:flex; flex-wrap:wrap; gap:2px;">
           <img alt="Java" src="https://img.shields.io/badge/Java-007396?style=flat-square&logo=openjdk&logoColor=white" />
           <img alt="Spring Boot" src="https://img.shields.io/badge/Spring_Boot-6DB33F?style=flat-square&logo=springboot&logoColor=white" />
           <img alt="Spring Batch" src="https://img.shields.io/badge/Spring_Batch-6DB33F?style=flat-square&logo=spring&logoColor=white" />
@@ -54,10 +54,10 @@ toc: false
         </div>
       </td>
     </tr>
-    <tr>
+    <tr style="border-bottom:1px solid rgba(128,128,128,0.35);">
       <td style="white-space:nowrap;"><strong>Frontend</strong></td>
       <td>
-        <div style="display:flex; flex-wrap:wrap; gap:4px;">
+        <div style="display:flex; flex-wrap:wrap; gap:2px;">
           <img alt="JavaScript" src="https://img.shields.io/badge/JavaScript-F7DF1E?style=flat-square&logo=javascript&logoColor=black" />
           <img alt="jQuery" src="https://img.shields.io/badge/jQuery-0769AD?style=flat-square&logo=jquery&logoColor=white" />
           <img alt="JSP" src="https://img.shields.io/badge/JSP-E76F00?style=flat-square&logo=java&logoColor=white" />
@@ -65,20 +65,20 @@ toc: false
         </div>
       </td>
     </tr>
-    <tr>
+    <tr style="border-bottom:1px solid rgba(128,128,128,0.35);">
       <td style="white-space:nowrap;"><strong>Database</strong></td>
       <td>
-        <div style="display:flex; flex-wrap:wrap; gap:4px;">
+        <div style="display:flex; flex-wrap:wrap; gap:2px;">
           <img alt="MySQL" src="https://img.shields.io/badge/MySQL-4479A1?style=flat-square&logo=mysql&logoColor=white" />
           <img alt="Oracle" src="https://img.shields.io/badge/Oracle-F80000?style=flat-square&logo=oracle&logoColor=white" />
           <img alt="Redis" src="https://img.shields.io/badge/Redis-DC382D?style=flat-square&logo=redis&logoColor=white" />
         </div>
       </td>
     </tr>
-    <tr>
+    <tr style="border-bottom:1px solid rgba(128,128,128,0.35);">
       <td style="white-space:nowrap;"><strong>Infra & Monitoring</strong></td>
       <td>
-        <div style="display:flex; flex-wrap:wrap; gap:4px;">
+        <div style="display:flex; flex-wrap:wrap; gap:2px;">
           <img alt="Docker" src="https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white" />
           <img alt="Kubernetes" src="https://img.shields.io/badge/Kubernetes-326CE5?style=flat-square&logo=kubernetes&logoColor=white" />
           <img alt="Prometheus" src="https://img.shields.io/badge/Prometheus-E6522C?style=flat-square&logo=prometheus&logoColor=white" />
