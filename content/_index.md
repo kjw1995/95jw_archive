@@ -32,18 +32,54 @@ toc: false
 
 ## Tech Stack
 
-<table style="border-collapse:collapse;">
+<style>
+.tech-stack {
+  border-collapse: collapse;
+  width: 100%;
+}
+.tech-stack thead tr {
+  border-bottom: 2px solid rgba(128, 128, 128, 0.55);
+}
+.tech-stack tbody tr {
+  border-bottom: 1px solid rgba(128, 128, 128, 0.35);
+}
+.tech-stack tbody tr:last-child {
+  border-bottom: none;
+}
+.tech-stack th,
+.tech-stack td {
+  padding: 8px 12px;
+  vertical-align: middle;
+}
+.tech-stack .category {
+  white-space: nowrap;
+  width: 1%;
+}
+.tech-stack .badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+}
+.tech-stack .badges img {
+  margin: 0 !important;
+  display: inline-block !important;
+  vertical-align: middle;
+}
+</style>
+
+<table class="tech-stack">
   <thead>
-    <tr style="border-bottom:2px solid rgba(128,128,128,0.5);">
+    <tr>
       <th align="left">분류</th>
       <th align="left">기술</th>
     </tr>
   </thead>
   <tbody>
-    <tr style="border-bottom:1px solid rgba(128,128,128,0.35);">
-      <td style="white-space:nowrap;"><strong>Backend</strong></td>
+    <tr>
+      <td class="category"><strong>Backend</strong></td>
       <td>
-        <div style="display:flex; flex-wrap:wrap; gap:2px;">
+        <div class="badges">
           <img alt="Java" src="https://img.shields.io/badge/Java-007396?style=flat-square&logo=openjdk&logoColor=white" />
           <img alt="Spring Boot" src="https://img.shields.io/badge/Spring_Boot-6DB33F?style=flat-square&logo=springboot&logoColor=white" />
           <img alt="Spring Batch" src="https://img.shields.io/badge/Spring_Batch-6DB33F?style=flat-square&logo=spring&logoColor=white" />
@@ -54,10 +90,10 @@ toc: false
         </div>
       </td>
     </tr>
-    <tr style="border-bottom:1px solid rgba(128,128,128,0.35);">
-      <td style="white-space:nowrap;"><strong>Frontend</strong></td>
+    <tr>
+      <td class="category"><strong>Frontend</strong></td>
       <td>
-        <div style="display:flex; flex-wrap:wrap; gap:2px;">
+        <div class="badges">
           <img alt="JavaScript" src="https://img.shields.io/badge/JavaScript-F7DF1E?style=flat-square&logo=javascript&logoColor=black" />
           <img alt="jQuery" src="https://img.shields.io/badge/jQuery-0769AD?style=flat-square&logo=jquery&logoColor=white" />
           <img alt="JSP" src="https://img.shields.io/badge/JSP-E76F00?style=flat-square&logo=java&logoColor=white" />
@@ -65,20 +101,20 @@ toc: false
         </div>
       </td>
     </tr>
-    <tr style="border-bottom:1px solid rgba(128,128,128,0.35);">
-      <td style="white-space:nowrap;"><strong>Database</strong></td>
+    <tr>
+      <td class="category"><strong>Database</strong></td>
       <td>
-        <div style="display:flex; flex-wrap:wrap; gap:2px;">
+        <div class="badges">
           <img alt="MySQL" src="https://img.shields.io/badge/MySQL-4479A1?style=flat-square&logo=mysql&logoColor=white" />
           <img alt="Oracle" src="https://img.shields.io/badge/Oracle-F80000?style=flat-square&logo=oracle&logoColor=white" />
           <img alt="Redis" src="https://img.shields.io/badge/Redis-DC382D?style=flat-square&logo=redis&logoColor=white" />
         </div>
       </td>
     </tr>
-    <tr style="border-bottom:1px solid rgba(128,128,128,0.35);">
-      <td style="white-space:nowrap;"><strong>Infra & Monitoring</strong></td>
+    <tr>
+      <td class="category"><strong>Infra & Monitoring</strong></td>
       <td>
-        <div style="display:flex; flex-wrap:wrap; gap:2px;">
+        <div class="badges">
           <img alt="Docker" src="https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white" />
           <img alt="Kubernetes" src="https://img.shields.io/badge/Kubernetes-326CE5?style=flat-square&logo=kubernetes&logoColor=white" />
           <img alt="Prometheus" src="https://img.shields.io/badge/Prometheus-E6522C?style=flat-square&logo=prometheus&logoColor=white" />
