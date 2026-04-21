@@ -3,58 +3,54 @@ title: "Chapter 08. 다양한 연관관계 매핑"
 weight: 8
 ---
 
-## 연관관계 매핑 핵심 3요소
+## 연관관계 매핑의 3요소
+
+엔티티 연관관계를 매핑할 때는 항상 세 가지를 결정한다.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│              연관관계 매핑 시 고려할 3가지                    │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  1️⃣ 다중성              2️⃣ 방향              3️⃣ 연관관계 주인 │
-│  ┌─────────────┐      ┌──────────┐       ┌──────────────┐  │
-│  │ @ManyToOne  │      │  단방향   │       │  외래 키를    │  │
-│  │ @OneToMany  │      │  ↓       │       │  관리하는 쪽  │  │
-│  │ @OneToOne   │      │  양방향   │       │  = 주인      │  │
-│  │ @ManyToMany │      │  ↕       │       │              │  │
-│  └─────────────┘      └──────────┘       └──────────────┘  │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+ ┌─────────────┐ ┌──────────┐ ┌──────────────┐
+ │   다중성     │ │  방향    │ │ 연관관계 주인│
+ │ @ManyToOne  │ │ 단방향   │ │  외래 키를   │
+ │ @OneToMany  │ │   ↓      │ │  관리하는 쪽  │
+ │ @OneToOne   │ │ 양방향   │ │    = 주인    │
+ │ @ManyToMany │ │   ↕      │ │              │
+ └─────────────┘ └──────────┘ └──────────────┘
 ```
 
-### 핵심 개념 정리
+### 핵심 개념
 
 | 구분 | 테이블 | 객체 |
-|------|--------|------|
-| **방향** | 외래 키 하나로 양방향 조인 가능 | 참조 필드가 있어야 탐색 가능 |
-| **연관관계** | 외래 키 1개로 관리 | 양방향 시 참조 2개 |
-| **주인** | 해당 없음 | 외래 키 관리자 지정 필요 |
+|:-----|:-------|:-----|
+| 방향 | FK 하나로 양방향 JOIN | 참조 있어야 탐색 |
+| 연관관계 | FK 1개 | 양방향 시 참조 2개 |
+| 주인 | 해당 없음 | FK 관리자 지정 필요 |
 
 **연관관계 주인 규칙**
-- 주인: 외래 키를 관리 (INSERT, UPDATE)
-- 주인이 아닌 쪽: `mappedBy` 속성 사용, 읽기만 가능
+- 주인: FK 관리 (INSERT, UPDATE)
+- 주인 아닌 쪽: `mappedBy` 로 지정, **읽기 전용**
+
+{{< callout type="info" >}}
+객체는 참조가 "단방향" 이지만 DB 는 FK 하나로 자동 "양방향 조인" 이 된다. 이 불일치를 메우기 위해 JPA 는 "둘 중 누가 FK 를 들고 있을지" 를 선언하게 만들고, 그 역할을 **연관관계 주인** 이라 부른다.
+{{< /callout >}}
 
 ---
 
 ## 1. 다대일 [N:1]
 
-> 가장 많이 사용하는 연관관계. **외래 키는 항상 N쪽에 존재**
+> 가장 많이 쓰는 관계. **외래 키는 항상 N 쪽에** 존재한다.
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│                    다대일 관계 구조                        │
-│                                                          │
-│    [Member] N ─────────────────────> 1 [Team]           │
-│       │                                  │               │
-│       │ TEAM_ID (FK)                    │               │
-│       ▼                                  │               │
-│  ┌─────────────┐                  ┌─────────────┐       │
-│  │   MEMBER    │                  │    TEAM     │       │
-│  ├─────────────┤                  ├─────────────┤       │
-│  │ MEMBER_ID PK│                  │ TEAM_ID  PK │       │
-│  │ TEAM_ID  FK │ ───────────────> │ NAME       │       │
-│  │ USERNAME    │                  └─────────────┘       │
-│  └─────────────┘                                        │
-└──────────────────────────────────────────────────────────┘
+  Member (N) ─────────► Team (1)
+     │
+     │ TEAM_ID (FK)
+     ▼
+  ┌──────────────┐   ┌──────────────┐
+  │   MEMBER     │   │     TEAM     │
+  │──────────────│   │──────────────│
+  │ MEMBER_ID PK │   │ TEAM_ID   PK │
+  │ TEAM_ID   FK │──►│ NAME         │
+  │ USERNAME     │   └──────────────┘
+  └──────────────┘
 ```
 
 ### 1.1 다대일 단방향
@@ -71,8 +67,6 @@ public class Member {
     @ManyToOne
     @JoinColumn(name = "TEAM_ID")
     private Team team;
-
-    // getter, setter
 }
 
 @Entity
@@ -82,8 +76,7 @@ public class Team {
     private Long id;
 
     private String name;
-
-    // Team에서는 Member를 참조하지 않음 (단방향)
+    // Member 를 참조하지 않음 → 단방향
 }
 ```
 
@@ -100,9 +93,9 @@ public class Member {
 
     @ManyToOne
     @JoinColumn(name = "TEAM_ID")
-    private Team team;  // ⭐ 연관관계 주인
+    private Team team;   // ⭐ 연관관계 주인
 
-    // 연관관계 편의 메소드
+    // 연관관계 편의 메서드
     public void setTeam(Team team) {
         this.team = team;
         if (!team.getMembers().contains(this)) {
@@ -119,10 +112,9 @@ public class Team {
 
     private String name;
 
-    @OneToMany(mappedBy = "team")  // 주인이 아님 (읽기 전용)
+    @OneToMany(mappedBy = "team")   // 주인 X (읽기 전용)
     private List<Member> members = new ArrayList<>();
 
-    // 연관관계 편의 메소드
     public void addMember(Member member) {
         this.members.add(member);
         if (member.getTeam() != this) {
@@ -134,42 +126,35 @@ public class Team {
 
 **양방향 매핑 규칙**
 
-```
-┌────────────────────────────────────────────────────────┐
-│              양방향 연관관계 핵심 규칙                    │
-├────────────────────────────────────────────────────────┤
-│ ✅ 외래 키가 있는 쪽이 연관관계의 주인                    │
-│ ✅ 양쪽 모두 서로 참조해야 함                            │
-│ ✅ 연관관계 편의 메소드를 작성하여 동기화                  │
-│ ⚠️  편의 메소드는 무한루프 방지 로직 필수                 │
-└────────────────────────────────────────────────────────┘
-```
+- 외래 키가 있는 쪽이 연관관계 주인
+- 양쪽 모두 서로 참조
+- 연관관계 편의 메서드로 동기화
+- 편의 메서드는 무한 루프 방지 로직 필수
 
 ---
 
 ## 2. 일대다 [1:N]
 
-> 일(1)쪽이 연관관계 주인. **권장하지 않는 방식**
+> 일(1)쪽이 주인. **권장하지 않는 방식**이다.
 
 ### 2.1 일대다 단방향
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│              일대다 단방향 (비권장)                        │
-│                                                          │
-│    [Team]                          [Member]              │
-│       │                               │                  │
-│       │ members ────────────────────> │                  │
-│       │           관리                │                  │
-│       ▼                               ▼                  │
-│  ┌─────────────┐               ┌─────────────┐          │
-│  │    TEAM     │               │   MEMBER    │          │
-│  ├─────────────┤               ├─────────────┤          │
-│  │ TEAM_ID  PK │ <──────────── │ TEAM_ID  FK │ ← 다른   │
-│  │ NAME        │               │ MEMBER_ID PK│   테이블! │
-│  └─────────────┘               └─────────────┘          │
-└──────────────────────────────────────────────────────────┘
+  Team (1) ─────────► Member (N)
+     │                  │
+     │ members (관리)    │
+     ▼                  ▼
+  ┌──────────┐      ┌──────────────┐
+  │   TEAM   │      │    MEMBER    │
+  │──────────│      │──────────────│
+  │TEAM_ID PK│◄─────│ TEAM_ID   FK │
+  │ NAME     │      │ MEMBER_ID PK │
+  └──────────┘      └──────────────┘
+       ▲                   ▲
+    주인                  FK 가 여기에!
 ```
+
+FK 가 **반대 테이블**(MEMBER)에 있지만, 주인은 **이쪽 테이블(Team)** 이 되는 구조다.
 
 ```java
 @Entity
@@ -181,7 +166,7 @@ public class Team {
     private String name;
 
     @OneToMany
-    @JoinColumn(name = "TEAM_ID")  // MEMBER 테이블의 FK
+    @JoinColumn(name = "TEAM_ID")   // MEMBER 테이블의 FK
     private List<Member> members = new ArrayList<>();
 }
 
@@ -198,55 +183,56 @@ public class Member {
 
 **일대다 단방향의 문제점**
 
-```
-┌────────────────────────────────────────────────────────┐
-│                 일대다 단방향 단점                       │
-├────────────────────────────────────────────────────────┤
-│ ❌ 외래 키가 다른 테이블에 있음                          │
-│ ❌ INSERT 후 UPDATE SQL 추가 실행 필요                  │
-│ ❌ 성능 저하 및 관리 복잡성 증가                         │
-│                                                        │
-│ 💡 해결책: 다대일 양방향 사용 권장!                      │
-└────────────────────────────────────────────────────────┘
+- FK 가 다른 테이블에 있어 관리가 어색
+- INSERT 후 추가 UPDATE SQL 실행
+- 연관관계 처리 로직 복잡
+
+```sql
+-- 일대다 단방향 저장 시
+INSERT INTO MEMBER (MEMBER_ID, USERNAME)
+  VALUES (1, '홍길동');
+UPDATE MEMBER SET TEAM_ID = 1
+  WHERE MEMBER_ID = 1;   -- 추가 UPDATE!
 ```
 
-```java
-// 일대다 단방향 저장 시 실행되는 SQL
-INSERT INTO MEMBER (MEMBER_ID, USERNAME) VALUES (1, '홍길동');
-UPDATE MEMBER SET TEAM_ID = 1 WHERE MEMBER_ID = 1;  // 추가 UPDATE!
-```
+{{< callout type="warning" >}}
+**일대다 단방향은 피하자**. 실무에서는 **다대일 양방향**으로 풀어 Member 가 FK 를 들고 관리하게 한다. 추가 UPDATE 가 없고 의도가 분명하다.
+{{< /callout >}}
 
 ### 2.2 일대다 양방향?
 
-> 공식적으로 존재하지 않음. **다대일 양방향 사용 권장**
-
-`@OneToMany`는 연관관계 주인이 될 수 없음 (DB 특성상 N쪽에만 FK 존재)
+공식 스펙에는 없다. `@OneToMany` 는 **주인이 될 수 없다** (DB 구조상 FK 가 N 쪽에 있기 때문). **다대일 양방향** 으로 설계하자.
 
 ---
 
 ## 3. 일대일 [1:1]
 
-> 양쪽 모두 하나의 관계만 가짐. **외래 키 위치 선택 가능**
+> 양쪽 모두 하나의 관계. **외래 키 위치를 선택**할 수 있다.
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│                 일대일 관계 외래 키 위치                   │
-│                                                          │
-│   ┌──────────────────┐      ┌──────────────────┐        │
-│   │     주 테이블     │      │    대상 테이블    │        │
-│   │     (MEMBER)     │      │    (LOCKER)      │        │
-│   ├──────────────────┤      ├──────────────────┤        │
-│   │ MEMBER_ID   PK   │      │ LOCKER_ID   PK   │        │
-│   │ LOCKER_ID   FK   │─────>│ NAME             │        │
-│   │ USERNAME         │      └──────────────────┘        │
-│   └──────────────────┘                                  │
-│                                                          │
-│   ✅ 주 테이블에 FK: 객체지향적, 주 테이블만 조회해도 확인  │
-│   ✅ 대상 테이블에 FK: 1:N으로 변경 시 테이블 구조 유지     │
-└──────────────────────────────────────────────────────────┘
+ [주 테이블 FK]           [대상 테이블 FK]
+
+  MEMBER                   MEMBER
+  ┌────────────┐           ┌────────────┐
+  │ MEMBER_ID  │           │ MEMBER_ID  │
+  │ LOCKER_ID  │──┐        │ USERNAME   │
+  │ USERNAME   │  │        └────────────┘
+  └────────────┘  │              ▲
+                  ▼              │
+  LOCKER          │        LOCKER│
+  ┌────────────┐  │        ┌────────────┐
+  │ LOCKER_ID  │◄─┘        │ LOCKER_ID  │
+  │ NAME       │           │ MEMBER_ID  │
+  └────────────┘           │ NAME       │
+                           └────────────┘
 ```
 
-### 3.1 주 테이블에 외래 키 - 단방향
+| 선택 | 장점 | 단점 |
+|:-----|:-----|:-----|
+| 주 테이블 FK | 주 테이블만 조회해도 연관 확인 | 값 없으면 FK NULL |
+| 대상 테이블 FK | 1:N 으로 변경 시 구조 유지 | 프록시 지연 로딩 한계 |
+
+### 3.1 주 테이블 FK — 단방향
 
 ```java
 @Entity
@@ -254,7 +240,6 @@ public class Member {
     @Id @GeneratedValue
     @Column(name = "MEMBER_ID")
     private Long id;
-
     private String username;
 
     @OneToOne
@@ -267,108 +252,63 @@ public class Locker {
     @Id @GeneratedValue
     @Column(name = "LOCKER_ID")
     private Long id;
-
     private String name;
 }
 ```
 
-### 3.2 주 테이블에 외래 키 - 양방향
+### 3.2 주 테이블 FK — 양방향
 
 ```java
 @Entity
 public class Member {
-    @Id @GeneratedValue
-    @Column(name = "MEMBER_ID")
-    private Long id;
-
-    private String username;
-
     @OneToOne
     @JoinColumn(name = "LOCKER_ID")
-    private Locker locker;  // ⭐ 연관관계 주인
+    private Locker locker;   // ⭐ 주인
 }
 
 @Entity
 public class Locker {
-    @Id @GeneratedValue
-    @Column(name = "LOCKER_ID")
-    private Long id;
-
-    private String name;
-
-    @OneToOne(mappedBy = "locker")  // 주인 아님
+    @OneToOne(mappedBy = "locker")   // 주인 X
     private Member member;
 }
 ```
 
-### 3.3 대상 테이블에 외래 키
+### 3.3 대상 테이블 FK
 
-```
-┌────────────────────────────────────────────────────────┐
-│            대상 테이블 외래 키 제약사항                   │
-├────────────────────────────────────────────────────────┤
-│ ❌ 단방향: JPA 지원 안 함                               │
-│ ✅ 양방향: 지원됨 (대상 테이블 쪽을 주인으로)             │
-│                                                        │
-│ ⚠️ 프록시 한계: 외래 키를 직접 관리하지 않으면            │
-│    지연 로딩 설정해도 즉시 로딩됨!                       │
-└────────────────────────────────────────────────────────┘
-```
+- **단방향**: JPA 미지원
+- **양방향**: 지원. 대상 테이블 쪽을 주인으로
 
 ```java
-// 대상 테이블에 외래 키 - 양방향
 @Entity
 public class Member {
-    @Id @GeneratedValue
-    @Column(name = "MEMBER_ID")
-    private Long id;
-
-    private String username;
-
-    @OneToOne(mappedBy = "member")  // 주인 아님
+    @OneToOne(mappedBy = "member")
     private Locker locker;
 }
 
 @Entity
 public class Locker {
-    @Id @GeneratedValue
-    @Column(name = "LOCKER_ID")
-    private Long id;
-
-    private String name;
-
     @OneToOne
     @JoinColumn(name = "MEMBER_ID")
-    private Member member;  // ⭐ 연관관계 주인
+    private Member member;   // ⭐ 주인
 }
 ```
 
-### 일대일 전략 비교
-
-| 전략 | 장점 | 단점 |
-|------|------|------|
-| **주 테이블 FK** | 주 테이블만 조회해도 연관관계 확인 가능 | 값이 없으면 FK에 NULL |
-| **대상 테이블 FK** | 1:N으로 변경 시 테이블 구조 유지 | 프록시 지연 로딩 불가 |
+{{< callout type="warning" >}}
+주 테이블에 FK 가 없으면 **프록시 지연 로딩이 즉시 로딩으로 바뀐다**. Member 를 조회한 시점에 Locker 가 있는지 없는지를 판단하려면 어차피 Locker 테이블을 조회해야 하기 때문이다. 프록시 한계를 피하려면 **주 테이블 FK + 양방향** 을 선호하자.
+{{< /callout >}}
 
 ---
 
 ## 4. 다대다 [N:N]
 
-> 관계형 DB는 다대다 표현 불가. **연결 테이블 필요**
+> 관계형 DB 는 다대다를 직접 표현할 수 없다. **연결 테이블**이 필요하다.
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                    다대다 관계 구조                           │
-│                                                              │
-│  객체                         테이블                          │
-│  ┌────────┐    ┌────────┐    ┌────────┐ ┌──────┐ ┌────────┐ │
-│  │ Member │───>│ Product│    │ MEMBER │─│ M_P  │─│PRODUCT │ │
-│  └────────┘<───└────────┘    └────────┘ └──────┘ └────────┘ │
-│    N    :    N                         연결 테이블            │
-│                                                              │
-│  객체: 컬렉션으로 다대다 표현 가능                             │
-│  테이블: 연결 테이블로 1:N + N:1로 풀어야 함                   │
-└──────────────────────────────────────────────────────────────┘
+ 객체 모델              DB 모델
+ ┌──────┐┌──────┐    ┌──────┐ ┌────┐ ┌──────┐
+ │Member││Prod. │    │MEMBER│─│M_P │─│PROD. │
+ └──────┘└──────┘    └──────┘ └────┘ └──────┘
+   N : N                     연결 테이블
 ```
 
 ### 4.1 다대다 단방향
@@ -379,14 +319,15 @@ public class Member {
     @Id @GeneratedValue
     @Column(name = "MEMBER_ID")
     private Long id;
-
     private String username;
 
     @ManyToMany
     @JoinTable(
-        name = "MEMBER_PRODUCT",              // 연결 테이블명
-        joinColumns = @JoinColumn(name = "MEMBER_ID"),  // 현재 엔티티
-        inverseJoinColumns = @JoinColumn(name = "PRODUCT_ID")  // 반대 엔티티
+        name = "MEMBER_PRODUCT",
+        joinColumns =
+            @JoinColumn(name = "MEMBER_ID"),
+        inverseJoinColumns =
+            @JoinColumn(name = "PRODUCT_ID")
     )
     private List<Product> products = new ArrayList<>();
 }
@@ -396,7 +337,6 @@ public class Product {
     @Id @GeneratedValue
     @Column(name = "PRODUCT_ID")
     private Long id;
-
     private String name;
 }
 ```
@@ -406,83 +346,65 @@ public class Product {
 ```java
 @Entity
 public class Member {
-    @Id @GeneratedValue
-    @Column(name = "MEMBER_ID")
-    private Long id;
-
-    private String username;
-
     @ManyToMany
-    @JoinTable(name = "MEMBER_PRODUCT",
-        joinColumns = @JoinColumn(name = "MEMBER_ID"),
-        inverseJoinColumns = @JoinColumn(name = "PRODUCT_ID"))
+    @JoinTable(
+        name = "MEMBER_PRODUCT",
+        joinColumns =
+            @JoinColumn(name = "MEMBER_ID"),
+        inverseJoinColumns =
+            @JoinColumn(name = "PRODUCT_ID")
+    )
     private List<Product> products = new ArrayList<>();
 
-    // 연관관계 편의 메소드
-    public void addProduct(Product product) {
-        products.add(product);
-        product.getMembers().add(this);
+    public void addProduct(Product p) {
+        products.add(p);
+        p.getMembers().add(this);
     }
 }
 
 @Entity
 public class Product {
-    @Id @GeneratedValue
-    @Column(name = "PRODUCT_ID")
-    private Long id;
-
-    private String name;
-
-    @ManyToMany(mappedBy = "products")  // 역방향
+    @ManyToMany(mappedBy = "products")
     private List<Member> members = new ArrayList<>();
 }
 ```
 
 ### 4.3 다대다의 한계
 
-```
-┌────────────────────────────────────────────────────────┐
-│               @ManyToMany 실무 사용 불가                 │
-├────────────────────────────────────────────────────────┤
-│ ❌ 연결 테이블에 추가 컬럼 불가 (수량, 날짜 등)           │
-│ ❌ 연결 테이블이 숨겨져 예상치 못한 쿼리 발생             │
-│ ❌ 중간 테이블에 비즈니스 로직 확장 불가                  │
-│                                                        │
-│ 💡 해결책: 연결 엔티티를 만들어 1:N + N:1로 풀기!        │
-└────────────────────────────────────────────────────────┘
-```
+- 연결 테이블에 **추가 컬럼을 넣을 수 없다** (주문 수량·날짜 등)
+- 연결 테이블이 숨겨져 **의도치 않은 쿼리** 발생
+- 중간 테이블에 **비즈니스 로직 확장 불가**
 
-### 4.4 다대다 → 일대다 + 다대일 (연결 엔티티)
+{{< callout type="warning" >}}
+**실무에서 `@ManyToMany` 는 쓰지 않는다**. 반드시 **연결 엔티티**를 만들어 `1:N + N:1` 로 분해하자. 초기에는 깨끗해 보여도 "주문 수량 추가 요청" 한 줄이 오는 순간 전체 구조가 깨진다.
+{{< /callout >}}
+
+### 4.4 다대다 → 일대다 + 다대일
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│              연결 엔티티를 통한 다대다 해소                    │
-│                                                              │
-│   [Member] 1 ─────< [Order] >───── 1 [Product]              │
-│                       │                                      │
-│                       │ 주문수량, 주문일자 등                  │
-│                       │ 추가 컬럼 가능!                       │
-│                       ▼                                      │
-│               ┌───────────────┐                              │
-│               │    ORDER      │                              │
-│               ├───────────────┤                              │
-│               │ ORDER_ID   PK │ ← 대리 키 사용 권장!          │
-│               │ MEMBER_ID  FK │                              │
-│               │ PRODUCT_ID FK │                              │
-│               │ ORDER_AMOUNT  │ ← 추가 컬럼                   │
-│               │ ORDER_DATE    │                              │
-│               └───────────────┘                              │
-└──────────────────────────────────────────────────────────────┘
+  Member (1) ──< Order >── (1) Product
+                  │
+                  │ 주문 수량, 주문 일자 등
+                  │ 추가 컬럼 가능!
+                  ▼
+            ┌──────────────┐
+            │    ORDER     │
+            │──────────────│
+            │ ORDER_ID  PK │ ← 대리 키 권장
+            │ MEMBER_ID FK │
+            │ PRODUCT_ID FK│
+            │ ORDER_AMOUNT │
+            │ ORDER_DATE   │
+            └──────────────┘
 ```
 
-#### 방법 1: 복합 기본 키 사용 (식별 관계)
+#### 방법 1: 복합 기본 키 (식별 관계)
 
 ```java
 @Entity
 public class Member {
     @Id @Column(name = "MEMBER_ID")
     private String id;
-
     private String username;
 
     @OneToMany(mappedBy = "member")
@@ -493,11 +415,9 @@ public class Member {
 public class Product {
     @Id @Column(name = "PRODUCT_ID")
     private String id;
-
     private String name;
 }
 
-// 연결 엔티티 - 복합 키
 @Entity
 @IdClass(MemberProductId.class)
 public class MemberProduct {
@@ -516,12 +436,10 @@ public class MemberProduct {
     private LocalDateTime orderDate;
 }
 
-// 복합 키 식별자 클래스
 public class MemberProductId implements Serializable {
-    private String member;   // MemberProduct.member와 매핑
-    private String product;  // MemberProduct.product와 매핑
+    private String member;    // MemberProduct.member
+    private String product;   // MemberProduct.product
 
-    // 기본 생성자 필수
     public MemberProductId() {}
 
     @Override
@@ -540,21 +458,15 @@ public class MemberProductId implements Serializable {
 }
 ```
 
-**복합 키 식별자 클래스 요구사항**
+**@IdClass 복합 키 요구사항**
 
-```
-┌────────────────────────────────────────────────────────┐
-│          @IdClass 복합 키 요구사항                       │
-├────────────────────────────────────────────────────────┤
-│ ✅ Serializable 구현 필수                               │
-│ ✅ equals(), hashCode() 오버라이드 필수                  │
-│ ✅ 기본 생성자 필수                                     │
-│ ✅ public 클래스                                       │
-│ ✅ 필드명이 엔티티 필드명과 일치해야 함                   │
-└────────────────────────────────────────────────────────┘
-```
+- `Serializable` 구현 필수
+- `equals()`, `hashCode()` 오버라이드
+- 기본 생성자 필수
+- `public` 클래스
+- 필드명이 엔티티 필드명과 일치
 
-#### 방법 2: 새로운 기본 키 사용 (비식별 관계) - 권장
+#### 방법 2: 새로운 대리 키 (비식별 관계) — 권장
 
 ```java
 @Entity
@@ -563,7 +475,7 @@ public class Order {
 
     @Id @GeneratedValue
     @Column(name = "ORDER_ID")
-    private Long id;  // ⭐ 대리 키 사용
+    private Long id;    // ⭐ 대리 키
 
     @ManyToOne
     @JoinColumn(name = "MEMBER_ID")
@@ -576,81 +488,49 @@ public class Order {
     private int orderAmount;
     private LocalDateTime orderDate;
 }
-
-@Entity
-public class Member {
-    @Id @GeneratedValue
-    @Column(name = "MEMBER_ID")
-    private Long id;
-
-    private String username;
-
-    @OneToMany(mappedBy = "member")
-    private List<Order> orders = new ArrayList<>();
-}
-
-@Entity
-public class Product {
-    @Id @GeneratedValue
-    @Column(name = "PRODUCT_ID")
-    private Long id;
-
-    private String name;
-}
 ```
 
 **사용 예시**
 
 ```java
-// 저장
-public void save(EntityManager em) {
-    Member member = new Member();
-    member.setUsername("홍길동");
-    em.persist(member);
+Member member = new Member();
+member.setUsername("홍길동");
+em.persist(member);
 
-    Product product = new Product();
-    product.setName("노트북");
-    em.persist(product);
+Product product = new Product();
+product.setName("노트북");
+em.persist(product);
 
-    Order order = new Order();
-    order.setMember(member);
-    order.setProduct(product);
-    order.setOrderAmount(2);
-    order.setOrderDate(LocalDateTime.now());
-    em.persist(order);
-}
+Order order = new Order();
+order.setMember(member);
+order.setProduct(product);
+order.setOrderAmount(2);
+order.setOrderDate(LocalDateTime.now());
+em.persist(order);
 
 // 조회
-public void find(EntityManager em, Long orderId) {
-    Order order = em.find(Order.class, orderId);
-
-    Member member = order.getMember();
-    Product product = order.getProduct();
-
-    System.out.println("회원: " + member.getUsername());
-    System.out.println("상품: " + product.getName());
-    System.out.println("수량: " + order.getOrderAmount());
-}
+Order found = em.find(Order.class, orderId);
+Member m = found.getMember();
+Product p = found.getProduct();
 ```
 
 ### 식별 vs 비식별 관계
 
 | 구분 | 식별 관계 | 비식별 관계 |
-|------|----------|------------|
-| **정의** | 부모 PK를 자식 PK + FK로 사용 | 부모 PK를 자식 FK로만 사용 |
-| **기본 키** | 복합 키 (부모 PK 포함) | 대리 키 (별도 생성) |
-| **장점** | 부모-자식 관계 명확 | 단순, 유연, 확장 용이 |
-| **단점** | 복잡, 식별자 클래스 필요 | 조인 시 한 번 더 참조 |
-| **권장** | ⭐ 비식별 관계 + 대리 키 권장! |
+|:-----|:---------|:-----------|
+| 정의 | 부모 PK = 자식 PK+FK | 부모 PK = 자식 FK 만 |
+| 기본 키 | 복합 키 | 대리 키 |
+| 장점 | 부모-자식 관계 명확 | 단순·유연 |
+| 단점 | 복잡, 식별자 클래스 | 조인 한 번 더 |
+| 권장 | ❌ | ✅ 비식별 + 대리 키 |
 
 ---
 
 ## 5. @EmbeddedId 방식 (대안)
 
-> `@IdClass` 대신 `@EmbeddedId` 사용 가능
+`@IdClass` 대신 `@EmbeddedId` 를 써서 복합 키를 **하나의 객체** 로 감쌀 수 있다.
 
 ```java
-// 복합 키를 @Embeddable로 정의
 @Embeddable
 public class MemberProductId implements Serializable {
 
@@ -670,12 +550,12 @@ public class MemberProduct {
     private MemberProductId id;
 
     @ManyToOne
-    @MapsId("memberId")  // EmbeddedId의 memberId와 매핑
+    @MapsId("memberId")
     @JoinColumn(name = "MEMBER_ID")
     private Member member;
 
     @ManyToOne
-    @MapsId("productId")  // EmbeddedId의 productId와 매핑
+    @MapsId("productId")
     @JoinColumn(name = "PRODUCT_ID")
     private Product product;
 
@@ -686,10 +566,10 @@ public class MemberProduct {
 **@IdClass vs @EmbeddedId**
 
 | 비교 | @IdClass | @EmbeddedId |
-|------|----------|-------------|
-| **식별자 접근** | 엔티티 필드로 직접 접근 | `getId().getMemberId()` |
-| **JPQL** | `SELECT m.member FROM` | `SELECT m.id.memberId FROM` |
-| **복잡도** | 상대적 단순 | 객체지향적 |
+|:-----|:---------|:------------|
+| 식별자 접근 | 엔티티 필드 직접 | `getId().getMemberId()` |
+| JPQL | `SELECT m.member` | `SELECT m.id.memberId` |
+| 복잡도 | 단순 | 객체지향적 |
 
 ---
 
@@ -697,56 +577,44 @@ public class MemberProduct {
 
 ### 연관관계 선택 가이드
 
-```
-┌──────────────────────────────────────────────────────────┐
-│                연관관계 매핑 의사결정 트리                  │
-│                                                          │
-│  1. 다중성 결정                                           │
-│     ├─ 1:N or N:1 → 다대일 양방향 (가장 일반적)            │
-│     ├─ 1:1 → 주 테이블에 FK + 양방향                      │
-│     └─ N:N → 연결 엔티티로 1:N + N:1 분해                  │
-│                                                          │
-│  2. 방향 결정                                             │
-│     ├─ 단방향으로 시작                                    │
-│     └─ 필요 시 양방향 추가 (JPQL, 객체 그래프)              │
-│                                                          │
-│  3. 연관관계 주인                                         │
-│     └─ 외래 키가 있는 쪽 = 주인 (무조건!)                  │
-└──────────────────────────────────────────────────────────┘
-```
+1. **다중성** 결정
+   - `1:N` / `N:1` → 다대일 양방향 (가장 일반적)
+   - `1:1` → 주 테이블 FK + 양방향
+   - `N:N` → 연결 엔티티로 `1:N + N:1` 분해
+2. **방향** 결정
+   - 단방향으로 시작
+   - 필요 시 양방향 추가 (JPQL·객체 그래프 탐색용)
+3. **연관관계 주인**
+   - 외래 키 가진 쪽 = 주인 (무조건)
 
 ### 실무 권장사항
 
-| 관계 | 권장 방식 | 비권장 |
-|------|----------|-------|
-| **N:1** | 다대일 양방향 | - |
-| **1:N** | 다대일 양방향으로 대체 | 일대다 단방향 ❌ |
-| **1:1** | 주 테이블 FK + 양방향 | 대상 테이블 FK 단방향 |
-| **N:N** | 연결 엔티티 + 비식별 관계 | @ManyToMany ❌ |
+| 관계 | 권장 | 비권장 |
+|:-----|:-----|:-------|
+| N:1 | 다대일 양방향 | — |
+| 1:N | 다대일 양방향으로 대체 | 일대다 단방향 ❌ |
+| 1:1 | 주 테이블 FK + 양방향 | 대상 테이블 FK 단방향 |
+| N:N | 연결 엔티티 + 비식별 | `@ManyToMany` ❌ |
 
 ### 핵심 체크리스트
 
-```
-✅ 연관관계 주인은 외래 키가 있는 쪽
-✅ 양방향 시 연관관계 편의 메소드 작성
-✅ 일대다 단방향 대신 다대일 양방향 사용
-✅ @ManyToMany 대신 연결 엔티티 사용
-✅ 복합 키보다 대리 키(Long) + 비식별 관계 선호
-✅ mappedBy는 주인이 아닌 쪽에만 설정
-```
+- 연관관계 주인 = 외래 키 가진 쪽
+- 양방향 시 연관관계 편의 메서드 필수
+- 일대다 단방향 대신 다대일 양방향
+- `@ManyToMany` 대신 연결 엔티티
+- 복합 키보다 대리 키 (`Long`) + 비식별 관계
+- `mappedBy` 는 주인이 아닌 쪽에
 
 ### 주의사항
 
-```
-⚠️ 절대 금지
-├─ 일대다 단방향 사용 (UPDATE 쿼리 추가 발생)
-├─ @ManyToMany 실무 사용 (추가 컬럼 불가)
-├─ 양방향 편의 메소드에서 무한루프
-└─ 연관관계 주인이 아닌 쪽에서 FK 수정 시도
+**절대 금지**
+- 일대다 단방향 (UPDATE 쿼리 추가)
+- `@ManyToMany` 실무 사용
+- 양방향 편의 메서드 무한 루프
+- 주인 아닌 쪽에서 FK 수정
 
-💡 권장사항
-├─ 단방향으로 설계 시작, 필요 시 양방향 추가
-├─ 연결 엔티티는 비식별 관계 + 대리 키 조합
-├─ toString(), JSON 직렬화 시 양방향 순환 참조 주의
-└─ cascade, orphanRemoval은 신중하게 사용
-```
+**권장**
+- 단방향으로 시작, 필요 시 양방향 추가
+- 연결 엔티티 = 비식별 관계 + 대리 키
+- toString·JSON 직렬화에서 양방향 순환 참조 주의
+- `cascade`, `orphanRemoval` 은 신중히
