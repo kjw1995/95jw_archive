@@ -16,6 +16,7 @@
 "리눅스 7장 추가"       → linux
 "HTTP 6장 추가"        → network/http
 "스프링 시큐리티 3장"   → spring/security
+"스프링 배치 추가"      → spring/batch
 "CKA 추가"             → devops/k8s-basics
 "코틀린 3장"           → kotlin/basics
 ```
@@ -62,6 +63,7 @@
 | HTTP | network/http | HTTP 웹 기본 지식 | `{nn}-kebab.md` |
 | 리눅스 | linux | - | `{nn}-kebab.md` |
 | 스프링 | spring | 스프링 핵심 원리 | `spring-kebab.md` |
+| 배치 | spring/batch | 스프링 배치 학습 노트 | `spring-batch-*.md` |
 | 시큐리티 | spring/security | Spring Security in Action | `{nn}-kebab.md` |
 | 쿠버네티스 | devops | - | `kubernetes-kebab.md` |
 | CKA | devops/k8s-basics | CKA 학습 노트 | `kebab.md` |

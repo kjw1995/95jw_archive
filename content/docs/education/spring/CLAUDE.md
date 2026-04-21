@@ -5,6 +5,6 @@ style_ref: spring-container-bean.md
 
 # 참고사항
 - 파일명은 spring- 접두사 사용
-- spring-batch-*.md 는 Spring Batch 관련
 - spring-spel.md 는 SpEL 관련
+- batch/ 서브디렉토리는 Spring Batch 관련 (해당 CLAUDE.md 참고)
 - security/ 서브디렉토리는 별도 소스 (해당 CLAUDE.md 참고)

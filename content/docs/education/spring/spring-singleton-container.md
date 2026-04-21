@@ -8,24 +8,25 @@ draft: false
 toc: true
 ---
 
-## 웹 애플리케이션과 싱글톤
+## 1. 웹 애플리케이션과 싱글톤
 
-### 순수 DI 컨테이너의 문제점
+### 순수 DI 컨테이너의 문제
 
-웹 애플리케이션은 여러 클라이언트가 동시에 요청을 보낸다. 순수한 DI 컨테이너는 요청마다 새로운 객체를 생성한다.
+웹 애플리케이션은 보통 여러 고객이 동시에 요청을 보낸다. 순수한 DI 컨테이너는 요청이 들어올 때마다 새로운 객체를 생성해서 반환하므로, 트래픽이 많은 환경에서는 메모리와 GC 부하가 급격히 증가한다.
 
 ```java
 public class AppConfig {
     public MemberService memberService() {
-        return new MemberServiceImpl(memberRepository());  // 매번 새 객체 생성
+        return new MemberServiceImpl(memberRepository());
     }
 
     public MemberRepository memberRepository() {
-        return new MemoryMemberRepository();  // 매번 새 객체 생성
+        return new MemoryMemberRepository();
     }
 }
+```
 
-// 문제 시연
+```java
 @Test
 void pureContainer() {
     AppConfig appConfig = new AppConfig();
@@ -33,32 +34,27 @@ void pureContainer() {
     MemberService memberService1 = appConfig.memberService();
     MemberService memberService2 = appConfig.memberService();
 
-    // 다른 객체
-    System.out.println("memberService1 = " + memberService1);
-    System.out.println("memberService2 = " + memberService2);
-
+    // 서로 다른 객체
     assertThat(memberService1).isNotSameAs(memberService2);
 }
 ```
 
 ```
-출력:
-memberService1 = hello.core.member.MemberServiceImpl@6a5fc7f7
-memberService2 = hello.core.member.MemberServiceImpl@3b6eb2ec
+memberService1 = MemberServiceImpl@6a5fc7f7
+memberService2 = MemberServiceImpl@3b6eb2ec
 ```
 
-**문제점**:
-- 초당 5만 건 요청 시 초당 5만 개 객체 생성 및 소멸
-- 메모리 낭비 심각
-- GC 부하 증가
+{{< callout type="warning" >}}
+초당 수만 건의 요청이 들어오는 환경에서 매 요청마다 새로운 객체를 만들면 메모리 낭비가 심각하고 GC 부하도 커진다. 해결책은 해당 객체가 딱 1개만 생성되고 공유되도록 설계하는 것이다.
+{{< /callout >}}
 
 ---
 
-## 싱글톤 패턴
+## 2. 싱글톤 패턴
 
-### 싱글톤 패턴이란?
+### 싱글톤 패턴의 개념
 
-클래스의 인스턴스가 딱 1개만 생성되는 것을 보장하는 디자인 패턴이다.
+클래스의 인스턴스가 단 1개만 생성되는 것을 보장하는 디자인 패턴이다. 외부에서 `new` 키워드로 생성할 수 없도록 생성자를 `private`으로 막고, `static` 메서드를 통해서만 인스턴스를 얻도록 한다.
 
 ```java
 public class SingletonService {
@@ -66,12 +62,12 @@ public class SingletonService {
     // 1. static 영역에 객체를 딱 1개만 생성
     private static final SingletonService instance = new SingletonService();
 
-    // 2. public으로 객체 인스턴스가 필요하면 이 static 메서드를 통해서만 조회하도록 허용
+    // 2. public static 메서드로만 인스턴스 조회 허용
     public static SingletonService getInstance() {
         return instance;
     }
 
-    // 3. 생성자를 private으로 선언해서 외부에서 new 키워드로 생성하는 것을 막음
+    // 3. 생성자는 private 으로 외부 생성 차단
     private SingletonService() {
     }
 
@@ -79,74 +75,30 @@ public class SingletonService {
         System.out.println("싱글톤 객체 로직 호출");
     }
 }
+```
 
-// 테스트
+```java
 @Test
 void singletonServiceTest() {
-    SingletonService singletonService1 = SingletonService.getInstance();
-    SingletonService singletonService2 = SingletonService.getInstance();
+    SingletonService instance1 = SingletonService.getInstance();
+    SingletonService instance2 = SingletonService.getInstance();
 
-    // 같은 객체
-    System.out.println("singletonService1 = " + singletonService1);
-    System.out.println("singletonService2 = " + singletonService2);
-
-    assertThat(singletonService1).isSameAs(singletonService2);
+    assertThat(instance1).isSameAs(instance2);
 }
 ```
 
-### 다양한 싱글톤 구현 방법
+### 다양한 구현 방식
 
-**1. Eager Initialization (즉시 초기화)**
+| 방식 | 특징 |
+|:---|:---|
+| Eager Initialization | 클래스 로딩 시점에 즉시 생성 |
+| Lazy Initialization | `getInstance()` 호출 시점에 생성, `synchronized` 비용 발생 |
+| Double-Checked Locking | `volatile`과 이중 검사로 성능 보완 |
+| Holder Idiom | 내부 정적 클래스 로딩 시점에 생성 (지연 + thread-safe) |
+| Enum Singleton | 직렬화와 리플렉션까지 방지, 가장 안전 |
+
 ```java
-public class EagerSingleton {
-    private static final EagerSingleton INSTANCE = new EagerSingleton();
-
-    private EagerSingleton() {}
-
-    public static EagerSingleton getInstance() {
-        return INSTANCE;
-    }
-}
-```
-
-**2. Lazy Initialization (지연 초기화)**
-```java
-public class LazySingleton {
-    private static LazySingleton instance;
-
-    private LazySingleton() {}
-
-    public static synchronized LazySingleton getInstance() {
-        if (instance == null) {
-            instance = new LazySingleton();
-        }
-        return instance;
-    }
-}
-```
-
-**3. Double-Checked Locking**
-```java
-public class DCLSingleton {
-    private static volatile DCLSingleton instance;
-
-    private DCLSingleton() {}
-
-    public static DCLSingleton getInstance() {
-        if (instance == null) {
-            synchronized (DCLSingleton.class) {
-                if (instance == null) {
-                    instance = new DCLSingleton();
-                }
-            }
-        }
-        return instance;
-    }
-}
-```
-
-**4. Holder Idiom (권장)**
-```java
+// Holder Idiom (권장)
 public class HolderSingleton {
     private HolderSingleton() {}
 
@@ -160,8 +112,8 @@ public class HolderSingleton {
 }
 ```
 
-**5. Enum Singleton (가장 안전)**
 ```java
+// Enum Singleton (가장 안전)
 public enum EnumSingleton {
     INSTANCE;
 
@@ -169,107 +121,88 @@ public enum EnumSingleton {
         System.out.println("싱글톤 로직");
     }
 }
-
-// 사용
-EnumSingleton.INSTANCE.logic();
 ```
 
-### 싱글톤 패턴의 문제점
+### 싱글톤 패턴의 한계
+
+| 문제 | 설명 |
+|:---|:---|
+| DIP 위반 | `getInstance()` 를 통해 구체 클래스에 의존 |
+| OCP 위반 | 구현체 교체가 어렵고 클라이언트 코드가 변경됨 |
+| 테스트 어려움 | 인스턴스를 미리 정해두어 Mock 교체가 까다로움 |
+| 유연성 저하 | 상속 어려움, 내부 속성 변경 어려움 |
+| 코드 복잡도 | 싱글톤 구현 상용구 코드가 추가됨 |
 
 ```java
-// 문제점 시연
 public class MemberServiceImpl implements MemberService {
-
-    // 싱글톤 패턴을 적용하면 구체 클래스에 의존해야 함 (DIP 위반)
-    private final MemberRepository memberRepository = SingletonMemberRepository.getInstance();
-
-    // 싱글톤 객체를 가져와야 함 → 유연한 테스트 불가
+    // 싱글톤 패턴을 쓰면 구체 클래스에 의존하게 됨 (DIP 위반)
+    private final MemberRepository memberRepository
+        = SingletonMemberRepository.getInstance();
 }
 ```
 
-| 문제점 | 설명 |
-|--------|------|
-| **DIP 위반** | `getInstance()`를 통해 구체 클래스에 의존 |
-| **OCP 위반** | 싱글톤 구현 변경 시 클라이언트 코드 변경 필요 |
-| **테스트 어려움** | 싱글톤 인스턴스를 미리 정해두어 유연성 저하 |
-| **내부 속성 변경 어려움** | private 생성자로 자식 클래스 만들기 곤란 |
-| **코드 복잡성** | 싱글톤 패턴 구현 코드가 추가됨 |
-| **안티패턴** | 유연성 저하로 객체 지향 설계에 어긋남 |
-
 ---
 
-## 스프링 싱글톤 컨테이너
+## 3. 싱글톤 컨테이너
 
-### 스프링의 싱글톤 관리
+### 스프링이 제공하는 싱글톤
 
-스프링 컨테이너는 싱글톤 패턴의 문제점을 해결하면서 객체 인스턴스를 싱글톤으로 관리한다.
+스프링 컨테이너는 위 단점을 모두 제거하면서 빈을 싱글톤으로 관리한다. 사용자는 일반 POJO 클래스만 작성하면 되고, 싱글톤 코드를 직접 작성할 필요가 없다.
 
 ```java
 @Test
 void springContainer() {
-    ApplicationContext ac = new AnnotationConfigApplicationContext(AppConfig.class);
+    ApplicationContext ac =
+        new AnnotationConfigApplicationContext(AppConfig.class);
 
-    MemberService memberService1 = ac.getBean("memberService", MemberService.class);
-    MemberService memberService2 = ac.getBean("memberService", MemberService.class);
+    MemberService memberService1
+        = ac.getBean("memberService", MemberService.class);
+    MemberService memberService2
+        = ac.getBean("memberService", MemberService.class);
 
-    // 같은 객체 (싱글톤)
-    System.out.println("memberService1 = " + memberService1);
-    System.out.println("memberService2 = " + memberService2);
-
+    // 같은 인스턴스
     assertThat(memberService1).isSameAs(memberService2);
 }
 ```
 
-```
-출력:
-memberService1 = hello.core.member.MemberServiceImpl@4b29d1d2
-memberService2 = hello.core.member.MemberServiceImpl@4b29d1d2
-```
-
-### 싱글톤 레지스트리
-
-스프링 컨테이너는 **싱글톤 레지스트리** 역할을 한다.
+### 싱글톤 레지스트리 구조
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│               스프링 컨테이너 (싱글톤 레지스트리)          │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │               싱글톤 빈 저장소                     │  │
-│  │  key: memberService  │  value: MemberServiceImpl │  │
-│  │  key: orderService   │  value: OrderServiceImpl  │  │
-│  │  key: discountPolicy │  value: RateDiscountPolicy│  │
-│  └──────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────┘
-            ↑                    ↑                    ↑
-       클라이언트 A          클라이언트 B          클라이언트 C
-       (같은 객체 사용)       (같은 객체 사용)       (같은 객체 사용)
+┌──────────────────────────────┐
+│     스프링 컨테이너             │
+│   (싱글톤 레지스트리)            │
+│  ┌────────────────────────┐  │
+│  │  memberService   : Impl│  │
+│  │  orderService    : Impl│  │
+│  │  memberRepository: Impl│  │
+│  └────────────────────────┘  │
+└──────────────────────────────┘
+     ▲         ▲         ▲
+     │         │         │
+  ClientA   ClientB   ClientC
+   (동일 인스턴스 공유)
 ```
 
-**스프링 싱글톤의 장점**:
-- 지저분한 싱글톤 패턴 코드 불필요
-- DIP, OCP 위반 없음
-- 테스트 용이
-- private 생성자 불필요
+{{< callout type="info" >}}
+싱글톤 컨테이너는 싱글톤 패턴의 단점 (DIP/OCP 위반, 테스트 어려움, private 생성자) 없이 같은 효과를 낸다. 개발자는 평범한 클래스만 작성하고, 컨테이너가 인스턴스 생명주기를 관리한다.
+{{< /callout >}}
 
 ---
 
-## 싱글톤 방식의 주의점
+## 4. 싱글톤 방식의 주의점
 
-### Stateful 문제
+### 무상태 (stateless) 설계
 
-> **"스프링 빈의 필드에 공유 값을 설정하면 정말 큰 장애가 발생할 수 있다!!!"**
-
-싱글톤 객체는 여러 클라이언트가 공유하므로 **무상태(stateless)**로 설계해야 한다.
+싱글톤 객체는 여러 클라이언트가 하나의 인스턴스를 공유한다. 따라서 특정 클라이언트의 값을 저장하는 가변 필드가 있으면 심각한 버그로 이어진다.
 
 ```java
-// ❌ 잘못된 예: 상태를 가진 서비스 (stateful)
+// 잘못된 예: stateful
 public class StatefulService {
 
-    private int price;  // 상태를 유지하는 필드 → 위험!
+    private int price; // 공유 필드 (위험)
 
     public void order(String name, int price) {
-        System.out.println("name = " + name + ", price = " + price);
-        this.price = price;  // 문제 발생 지점!
+        this.price = price;
     }
 
     public int getPrice() {
@@ -279,90 +212,84 @@ public class StatefulService {
 ```
 
 ```java
-// 문제 시나리오
 @Test
 void statefulServiceSingleton() {
-    ApplicationContext ac = new AnnotationConfigApplicationContext(TestConfig.class);
-    StatefulService statefulService1 = ac.getBean(StatefulService.class);
-    StatefulService statefulService2 = ac.getBean(StatefulService.class);
+    ApplicationContext ac =
+        new AnnotationConfigApplicationContext(TestConfig.class);
+    StatefulService a = ac.getBean(StatefulService.class);
+    StatefulService b = ac.getBean(StatefulService.class);
 
-    // ThreadA: 사용자A 10,000원 주문
-    statefulService1.order("userA", 10000);
-    // ThreadB: 사용자B 20,000원 주문 (중간에 끼어듬)
-    statefulService2.order("userB", 20000);
+    a.order("userA", 10000);
+    b.order("userB", 20000); // 사이에 끼어듦
 
-    // ThreadA: 사용자A 주문 금액 조회
-    int price = statefulService1.getPrice();
-    System.out.println("price = " + price);  // 기대: 10000, 실제: 20000 !!!
+    int price = a.getPrice();
+    System.out.println("price = " + price); // 기대 10000, 실제 20000
 }
 ```
 
 ```
-문제 발생 흐름:
-┌──────────────────────────────────────────────────────────┐
-│                    StatefulService (싱글톤)               │
-│                    price 필드                            │
-└──────────────────────────────────────────────────────────┘
-        ▲                                    ▲
-        │ 1. order("userA", 10000)          │ 2. order("userB", 20000)
-        │    price = 10000                  │    price = 20000 (덮어씀!)
-   Thread A                              Thread B
-        │
-        ▼
-   3. getPrice() → 20000 반환! (잘못된 결과)
+문제 발생 흐름
+┌──────────────────────────────┐
+│   StatefulService (싱글톤)     │
+│   price 필드 공유               │
+└──────────────────────────────┘
+   ▲                      ▲
+   │ ThreadA:             │ ThreadB:
+   │ order("A", 10000)    │ order("B", 20000)
+   │ price = 10000        │ price = 20000
+   │                      │
+   ▼
+ getPrice() → 20000 (오염됨)
 ```
 
-### Stateless 설계 원칙
+{{< callout type="warning" >}}
+"스프링 빈의 필드에 공유 값을 설정하면 정말 큰 장애가 발생할 수 있다." 싱글톤 빈은 반드시 무상태 (stateless) 로 설계해야 한다. 특정 요청의 값은 지역 변수, 파라미터, `ThreadLocal`, 반환값으로 전달하자.
+{{< /callout >}}
+
+### Stateless 설계 가이드
 
 ```java
-// ✅ 올바른 예: 무상태 서비스 (stateless)
+// 올바른 예: stateless
 public class StatelessService {
-
-    // 상태 필드 없음
-
     public int order(String name, int price) {
-        System.out.println("name = " + name + ", price = " + price);
-        return price;  // 결과를 바로 반환
+        System.out.println("name = " + name);
+        return price; // 지역값 즉시 반환
     }
 }
 ```
 
-**무상태 설계 가이드라인**:
-
 | 원칙 | 설명 |
-|------|------|
-| **공유 필드 사용 금지** | 특정 클라이언트에 의존적인 필드 금지 |
-| **변경 가능 필드 금지** | 특정 클라이언트가 값을 변경할 수 있는 필드 금지 |
-| **읽기 전용 필드만 허용** | 가급적 읽기만 허용 |
-| **지역 변수 활용** | 필드 대신 지역 변수, 파라미터, ThreadLocal 사용 |
+|:---|:---|
+| 공유 필드 금지 | 특정 클라이언트에 종속적인 필드를 두지 않음 |
+| 가변 필드 금지 | 값이 바뀌는 필드는 동시성 문제 유발 |
+| 읽기 전용만 허용 | 의존성 (`final`) 등 불변 필드만 유지 |
+| 지역 변수 활용 | 요청별 상태는 파라미터와 지역 변수로 처리 |
 
 ```java
-// ThreadLocal 활용 예
+// 요청별 상태는 ThreadLocal 로 격리
 public class ThreadLocalService {
 
-    // ThreadLocal: 스레드별로 독립적인 저장소
-    private ThreadLocal<Integer> price = new ThreadLocal<>();
+    private final ThreadLocal<Integer> price = new ThreadLocal<>();
 
     public void order(String name, int price) {
-        System.out.println("name = " + name + ", price = " + price);
-        this.price.set(price);  // 스레드별로 저장
+        this.price.set(price);
     }
 
     public int getPrice() {
-        return price.get();  // 해당 스레드의 값만 조회
+        return price.get();
     }
 
     public void clear() {
-        price.remove();  // 사용 후 반드시 제거 (메모리 누수 방지)
+        price.remove(); // 반드시 제거 (메모리 누수 방지)
     }
 }
 ```
 
 ---
 
-## @Configuration과 싱글톤
+## 5. @Configuration 과 싱글톤
 
-### 의문점: 싱글톤이 깨지는 것 아닌가?
+### 자바 코드만 보면 싱글톤이 깨져야 하는 구조
 
 ```java
 @Configuration
@@ -370,19 +297,18 @@ public class AppConfig {
 
     @Bean
     public MemberService memberService() {
-        System.out.println("call AppConfig.memberService");
         return new MemberServiceImpl(memberRepository());
     }
 
     @Bean
     public OrderService orderService() {
-        System.out.println("call AppConfig.orderService");
-        return new OrderServiceImpl(memberRepository(), discountPolicy());
+        return new OrderServiceImpl(
+            memberRepository(), discountPolicy());
     }
 
     @Bean
     public MemberRepository memberRepository() {
-        System.out.println("call AppConfig.memberRepository");
+        System.out.println("call memberRepository");
         return new MemoryMemberRepository();
     }
 
@@ -393,54 +319,49 @@ public class AppConfig {
 }
 ```
 
-자바 코드 상으로는 `memberRepository()`가 3번 호출될 것 같다:
-1. `@Bean memberRepository()` 직접 호출
-2. `memberService()` 내에서 호출
-3. `orderService()` 내에서 호출
+자바 코드만 보면 `memberRepository()` 가 세 번 호출되어야 한다.
+
+1. `@Bean memberRepository()` 직접 등록 시
+2. `memberService()` 내부 호출 시
+3. `orderService()` 내부 호출 시
+
+### 실제 실행 결과
 
 ```java
-// 테스트
 @Test
 void configurationTest() {
-    ApplicationContext ac = new AnnotationConfigApplicationContext(AppConfig.class);
+    ApplicationContext ac =
+        new AnnotationConfigApplicationContext(AppConfig.class);
 
-    MemberServiceImpl memberService = ac.getBean("memberService", MemberServiceImpl.class);
-    OrderServiceImpl orderService = ac.getBean("orderService", OrderServiceImpl.class);
-    MemberRepository memberRepository = ac.getBean("memberRepository", MemberRepository.class);
+    MemberServiceImpl memberService =
+        ac.getBean("memberService", MemberServiceImpl.class);
+    OrderServiceImpl orderService =
+        ac.getBean("orderService", OrderServiceImpl.class);
+    MemberRepository memberRepository =
+        ac.getBean("memberRepository", MemberRepository.class);
 
-    MemberRepository memberRepository1 = memberService.getMemberRepository();
-    MemberRepository memberRepository2 = orderService.getMemberRepository();
-
-    // 모두 같은 인스턴스!
-    System.out.println("memberService -> memberRepository = " + memberRepository1);
-    System.out.println("orderService -> memberRepository = " + memberRepository2);
-    System.out.println("memberRepository = " + memberRepository);
-
-    assertThat(memberRepository1).isSameAs(memberRepository);
-    assertThat(memberRepository2).isSameAs(memberRepository);
+    assertThat(memberService.getMemberRepository())
+        .isSameAs(memberRepository);
+    assertThat(orderService.getMemberRepository())
+        .isSameAs(memberRepository);
 }
 ```
 
 ```
-출력:
-call AppConfig.memberService
-call AppConfig.memberRepository
-call AppConfig.orderService
-memberService -> memberRepository = hello.core.member.MemoryMemberRepository@5679c6c6
-orderService -> memberRepository = hello.core.member.MemoryMemberRepository@5679c6c6
-memberRepository = hello.core.member.MemoryMemberRepository@5679c6c6
+call memberRepository   ← 단 1번만 출력!
 ```
 
-**결과**: `memberRepository()`는 **딱 1번만** 호출된다!
+모두 동일한 인스턴스이며, `memberRepository()` 는 **단 한 번만** 호출된다.
 
 ### CGLIB 바이트코드 조작
 
-스프링은 `@Configuration`이 붙은 클래스를 그대로 사용하지 않고, **CGLIB**라는 바이트코드 조작 라이브러리를 사용하여 상속받은 클래스를 생성한다.
+스프링은 `@Configuration` 이 붙은 클래스를 그대로 쓰지 않고, **CGLIB** 라이브러리로 상속받은 자식 클래스를 만들어서 빈으로 등록한다. 이 자식 클래스가 `@Bean` 메서드 호출을 가로채 컨테이너의 싱글톤을 반환한다.
 
 ```java
 @Test
 void configurationDeep() {
-    ApplicationContext ac = new AnnotationConfigApplicationContext(AppConfig.class);
+    ApplicationContext ac =
+        new AnnotationConfigApplicationContext(AppConfig.class);
     AppConfig bean = ac.getBean(AppConfig.class);
 
     System.out.println("bean = " + bean.getClass());
@@ -448,76 +369,71 @@ void configurationDeep() {
 ```
 
 ```
-출력:
 bean = class hello.core.AppConfig$$SpringCGLIB$$0
 ```
 
-`AppConfig$$SpringCGLIB$$0`라는 이름의 클래스가 스프링 빈으로 등록된다.
-
-### CGLIB 동작 원리
-
 ```java
-// CGLIB가 생성한 클래스의 예상 코드 (실제 코드 아님)
-@Configuration
+// CGLIB 가 만들어내는 자식 클래스의 개념적 의사 코드
 public class AppConfig$$SpringCGLIB$$0 extends AppConfig {
 
     @Override
     public MemberRepository memberRepository() {
-        // 스프링 컨테이너에 이미 등록되어 있으면 찾아서 반환
-        if (스프링_컨테이너.contains("memberRepository")) {
-            return 스프링_컨테이너.getBean("memberRepository", MemberRepository.class);
-        }
-        // 없으면 새로 생성해서 스프링 컨테이너에 등록
-        else {
-            MemberRepository memberRepository = super.memberRepository();
-            스프링_컨테이너.register("memberRepository", memberRepository);
-            return memberRepository;
+        if (container.contains("memberRepository")) {
+            // 이미 있으면 컨테이너에서 반환
+            return container.getBean("memberRepository",
+                MemberRepository.class);
+        } else {
+            // 없으면 부모의 원래 메서드 호출 후 등록
+            MemberRepository bean = super.memberRepository();
+            container.register("memberRepository", bean);
+            return bean;
         }
     }
 }
 ```
 
+### CGLIB 동작 다이어그램
+
 ```
-CGLIB 동작 흐름:
-┌──────────────────────────────────────────────────────────┐
-│                      스프링 컨테이너                       │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │  빈 저장소                                        │   │
-│  │  memberRepository: MemoryMemberRepository        │   │
-│  └──────────────────────────────────────────────────┘   │
-└──────────────────────────────────────────────────────────┘
-                            ▲
-                            │ 이미 있으면 반환
-                            │ 없으면 새로 생성 후 등록
-          ┌─────────────────┴─────────────────┐
-          │       AppConfig$$CGLIB            │
-          │       (바이트코드 조작된 클래스)     │
-          └─────────────────┬─────────────────┘
-                            │ extends
-          ┌─────────────────┴─────────────────┐
-          │            AppConfig              │
-          │          (원본 클래스)             │
-          └───────────────────────────────────┘
+  호출: memberRepository()
+         │
+         ▼
+┌────────────────────────┐
+│ AppConfig$$CGLIB       │
+│ (바이트코드 조작 클래스)  │
+│  - 빈 저장소 먼저 확인   │
+│  - 있으면 반환           │
+│  - 없으면 super 호출     │
+└───────────┬────────────┘
+            │ extends
+            ▼
+┌────────────────────────┐
+│      AppConfig         │
+│    (원본 설정 클래스)    │
+│   new MemoryMember...  │
+└───────────┬────────────┘
+            │ 등록
+            ▼
+┌────────────────────────┐
+│    스프링 컨테이너       │
+│ memberRepository: 1개   │
+└────────────────────────┘
 ```
 
-### @Bean만 사용하면?
-
-`@Configuration` 없이 `@Bean`만 사용하면 싱글톤이 보장되지 않는다.
+### @Configuration 을 제거하면?
 
 ```java
 // @Configuration 주석 처리
-// @Configuration
 public class AppConfig {
-
-    @Bean
-    public MemberService memberService() {
-        System.out.println("call AppConfig.memberService");
+    @Bean public MemberService memberService() {
         return new MemberServiceImpl(memberRepository());
     }
-
-    @Bean
-    public MemberRepository memberRepository() {
-        System.out.println("call AppConfig.memberRepository");
+    @Bean public OrderService orderService() {
+        return new OrderServiceImpl(
+            memberRepository(), discountPolicy());
+    }
+    @Bean public MemberRepository memberRepository() {
+        System.out.println("call memberRepository");
         return new MemoryMemberRepository();
     }
     // ...
@@ -525,99 +441,77 @@ public class AppConfig {
 ```
 
 ```
-출력:
-bean = class hello.core.AppConfig  // CGLIB 아님!
-call AppConfig.memberService
-call AppConfig.memberRepository
-call AppConfig.orderService
-call AppConfig.memberRepository  // 다시 호출됨!
-call AppConfig.memberRepository  // 또 호출됨!
+bean = class hello.core.AppConfig   ← CGLIB 아님
+call memberRepository
+call memberRepository   ← 또 호출
+call memberRepository   ← 또 호출
 ```
 
 | 설정 | CGLIB 적용 | 싱글톤 보장 |
-|------|-----------|------------|
+|:---|:---|:---|
 | `@Configuration` + `@Bean` | O | O |
-| `@Bean`만 사용 | X | X |
+| `@Bean` 만 사용 | X | X |
 
-> **결론**: 스프링 설정 정보에는 항상 `@Configuration`을 사용하자.
+{{< callout type="warning" >}}
+`@Configuration` 이 없으면 CGLIB 프록시가 만들어지지 않기 때문에, `@Bean` 메서드는 그저 평범한 자바 메서드 호출이 되어 매번 새로운 인스턴스를 반환한다. 설정 클래스에는 반드시 `@Configuration` 을 붙이자.
+{{< /callout >}}
 
 ---
 
-## 실전 예제: 싱글톤 주의사항
+## 6. 실전: 싱글톤 빈 설계
 
-### 싱글톤 빈의 필드 설계
+### 불변 의존성만 보관
 
 ```java
-// ❌ 위험한 설계
+// 안전한 설계: 생성자 주입 + final
 @Service
 public class OrderService {
 
-    private Order currentOrder;  // 상태를 가진 필드
+    private final MemberRepository memberRepository;
+    private final DiscountPolicy discountPolicy;
 
-    public void createOrder(Long memberId, String itemName, int price) {
-        currentOrder = new Order(memberId, itemName, price);
-    }
-
-    public Order getCurrentOrder() {
-        return currentOrder;  // 동시 접근 시 다른 주문이 반환될 수 있음
-    }
-}
-```
-
-```java
-// ✅ 안전한 설계
-@Service
-public class OrderService {
-
-    private final MemberRepository memberRepository;  // 불변 필드 (의존성)
-    private final DiscountPolicy discountPolicy;      // 불변 필드 (의존성)
-
-    // 생성자 주입 (불변)
-    public OrderService(MemberRepository memberRepository, DiscountPolicy discountPolicy) {
+    public OrderService(MemberRepository memberRepository,
+                        DiscountPolicy discountPolicy) {
         this.memberRepository = memberRepository;
         this.discountPolicy = discountPolicy;
     }
 
-    public Order createOrder(Long memberId, String itemName, int price) {
+    public Order createOrder(Long memberId, String name, int price) {
         Member member = memberRepository.findById(memberId);
-        int discountPrice = discountPolicy.discount(member, price);
-        return new Order(memberId, itemName, price, discountPrice);  // 바로 반환
+        int discount = discountPolicy.discount(member, price);
+        return new Order(memberId, name, price, discount);
     }
 }
 ```
 
-### 캐시 구현 시 주의사항
+### 동시성 안전한 캐시
 
 ```java
-// ❌ 위험한 캐시 구현
+// 위험한 캐시: 일반 HashMap
 @Service
-public class ProductService {
-
-    private Map<Long, Product> cache = new HashMap<>();  // 동시성 문제!
-
-    public Product getProduct(Long id) {
-        if (cache.containsKey(id)) {
-            return cache.get(id);
-        }
-        Product product = productRepository.findById(id);
-        cache.put(id, product);  // 동시 접근 시 문제 발생 가능
-        return product;
-    }
+public class UnsafeProductService {
+    private Map<Long, Product> cache = new HashMap<>(); // 동시성 X
 }
 ```
 
 ```java
-// ✅ 안전한 캐시 구현
+// 안전한 캐시: ConcurrentHashMap 또는 @Cacheable
 @Service
 public class ProductService {
 
-    private final ConcurrentHashMap<Long, Product> cache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, Product> cache
+        = new ConcurrentHashMap<>();
+    private final ProductRepository productRepository;
 
-    public Product getProduct(Long id) {
-        return cache.computeIfAbsent(id, k -> productRepository.findById(k));
+    public ProductService(ProductRepository productRepository) {
+        this.productRepository = productRepository;
     }
 
-    // 또는 @Cacheable 사용 권장
+    public Product getProduct(Long id) {
+        return cache.computeIfAbsent(id,
+            productRepository::findById);
+    }
+
     @Cacheable("products")
     public Product getProductWithCache(Long id) {
         return productRepository.findById(id);
@@ -627,28 +521,22 @@ public class ProductService {
 
 ---
 
-## 정리
-
-### 스프링 싱글톤의 핵심
+## 7. 정리
 
 | 항목 | 설명 |
-|------|------|
-| **싱글톤 패턴** | 인스턴스를 1개만 생성하는 디자인 패턴 |
-| **싱글톤 패턴 문제점** | DIP/OCP 위반, 테스트 어려움, 유연성 저하 |
-| **스프링 싱글톤 컨테이너** | 싱글톤 패턴의 문제점 해결, 빈을 싱글톤으로 관리 |
-| **싱글톤 주의점** | 무상태(stateless)로 설계해야 함 |
-| **@Configuration** | CGLIB로 싱글톤 보장 |
+|:---|:---|
+| 싱글톤 패턴 | 인스턴스를 1개만 만드는 디자인 패턴, 여러 단점 존재 |
+| 싱글톤 컨테이너 | 스프링이 POJO 를 싱글톤으로 관리, 패턴 단점 해소 |
+| 주의점 | 무상태로 설계할 것, 공유 가변 필드 금지 |
+| `@Configuration` | CGLIB 프록시로 `@Bean` 호출을 가로채 싱글톤 보장 |
+| `@Bean` 단독 사용 | 싱글톤 미보장, 매 호출마다 새 인스턴스 |
 
 ### 체크리스트
 
-- [ ] 스프링 빈에 상태를 저장하는 필드가 있는가?
-- [ ] 여러 스레드에서 동시에 접근하는 필드가 있는가?
-- [ ] `@Configuration` 없이 `@Bean`만 사용하고 있지 않은가?
-- [ ] 필드 대신 지역 변수, 파라미터를 사용하고 있는가?
-
-### 핵심 인용구
-
-> "스프링 빈의 필드에 공유 값을 설정하면 정말 큰 장애가 발생할 수 있다!!!"
+- [ ] 스프링 빈에 상태를 저장하는 가변 필드가 있는가?
+- [ ] 여러 스레드가 동시에 접근하는 필드가 있는가?
+- [ ] 설정 클래스에 `@Configuration` 이 붙어 있는가?
+- [ ] 요청별 상태는 지역 변수나 `ThreadLocal` 로 처리하고 있는가?
 
 ---
 

@@ -8,9 +8,40 @@ draft: false
 toc: true
 ---
 
-## 다양한 의존관계 주입 방법
+## 의존관계 주입의 큰 그림
 
-스프링의 의존관계 주입은 크게 4가지 방법이 있다.
+스프링 컨테이너는 빈을 생성한 뒤 이들 사이의 의존관계를 자동으로 연결한다. 이 연결을 "어느 지점에서 수행할 것인가"에 따라 네 가지 주입 방식이 나뉜다.
+
+```
+ ┌──────────────────┐
+ │ 1. 빈 인스턴스   │
+ │    생성           │
+ └────────┬─────────┘
+          │
+          ▼
+ ┌──────────────────┐
+ │ 2. 의존관계 주입  │
+ │    (아래 4가지)   │
+ └────────┬─────────┘
+          │
+   ┌──────┼──────┬──────┐
+   ▼      ▼      ▼      ▼
+ 생성자  수정자  필드   일반
+ (권장)           (지양) 메서드
+```
+
+각 방식은 주입 시점과 불변성 보장 여부가 다르다.
+
+| 방식 | 주입 시점 | 불변 보장 | 권장도 |
+|:-----|:----------|:----------|:-------|
+| 생성자 주입 | 객체 생성 시 | O (`final` 가능) | 권장 |
+| 수정자 주입 | setter 호출 시 | X | 선택적 의존에 한함 |
+| 필드 주입 | 리플렉션으로 직접 | X | 지양 |
+| 일반 메서드 주입 | 지정 메서드 호출 | X | 거의 사용 안 함 |
+
+---
+
+## 다양한 의존관계 주입 방법
 
 ### 1. 생성자 주입 (권장)
 
@@ -33,9 +64,9 @@ public class OrderServiceImpl implements OrderService {
 ```
 
 **특징**:
-- 생성자 호출 시점에 **딱 1번만** 호출됨
-- **불변**, **필수** 의존관계에 사용
-- 생성자가 1개면 `@Autowired` **생략 가능** (스프링 4.3+)
+- 생성자 호출 시점에 **딱 1번만** 호출된다.
+- **불변**, **필수** 의존관계에 사용한다.
+- 생성자가 1개이면 `@Autowired`를 **생략**할 수 있다 (스프링 4.3+).
 
 ```java
 // @Autowired 생략 가능 (생성자가 1개인 경우)
@@ -78,8 +109,8 @@ public class OrderServiceImpl implements OrderService {
 ```
 
 **특징**:
-- **선택**, **변경** 가능성이 있는 의존관계에 사용
-- 자바빈 프로퍼티 규약의 수정자 메서드 방식
+- **선택**, **변경** 가능성이 있는 의존관계에 사용한다.
+- 자바빈 프로퍼티 규약의 수정자 메서드 방식이다.
 
 ```java
 // 선택적 주입 (주입 대상이 없어도 오류 발생하지 않음)
@@ -106,9 +137,9 @@ public class OrderServiceImpl implements OrderService {
 ```
 
 **특징**:
-- 코드가 간결하지만 **외부에서 변경 불가능**
-- **테스트하기 어려움** (DI 컨테이너 없이 테스트 불가)
-- **사용하지 않는 것이 권장됨**
+- 코드가 간결하지만 **외부에서 변경이 불가능**하다.
+- **테스트하기 어렵다** (DI 컨테이너 없이 테스트 불가).
+- **사용하지 않는 것이 권장된다**.
 
 ```java
 // ❌ 테스트 시 문제 발생
@@ -120,7 +151,9 @@ void test() {
 }
 ```
 
-> **예외적 사용**: 테스트 코드나 `@Configuration` 같은 설정용 클래스에서는 사용할 수 있다.
+{{< callout type="warning" >}}
+필드 주입은 순수 자바 코드로 인스턴스를 만들었을 때 의존성이 비어 있어 즉시 NPE로 이어진다. 예외적으로 테스트 코드나 `@Configuration` 같은 설정용 클래스에서만 사용한다.
+{{< /callout >}}
 
 ### 4. 일반 메서드 주입
 
@@ -143,8 +176,8 @@ public class OrderServiceImpl implements OrderService {
 ```
 
 **특징**:
-- 한 번에 여러 필드를 주입받을 수 있음
-- 일반적으로 잘 사용하지 않음
+- 한 번에 여러 필드를 주입받을 수 있다.
+- 일반적으로 잘 사용하지 않는다.
 
 ---
 
@@ -228,7 +261,42 @@ public class OrderServiceImpl implements OrderService {
 }
 ```
 
-> **"컴파일 오류는 세상에서 가장 빠르고, 좋은 오류다!"**
+> "컴파일 오류는 세상에서 가장 빠르고, 좋은 오류다!"
+
+### 4. 순환 참조 조기 발견
+
+생성자 주입은 빈 생성 시점에 의존관계를 확인하므로, 두 빈이 서로를 필요로 하는 **순환 참조**가 있으면 스프링 부트 2.6 이상에서 기동 자체가 실패한다. 수정자/필드 주입은 애플리케이션이 일단 뜨고 나서 런타임에 문제가 드러날 수 있어 발견이 늦다.
+
+```
+ A (생성자 주입) ──필요──▶ B
+ B (생성자 주입) ──필요──▶ A
+                │
+                ▼
+ 기동 시점에 BeanCurrentlyInCreationException
+```
+
+### 5. 테스트 용이성
+
+생성자 주입은 순수 자바 코드로 의존성을 명시적으로 주입할 수 있어 스프링 컨테이너 없이 단위 테스트가 가능하다.
+
+```java
+@Test
+void createOrder_withMocks() {
+    // 스프링 컨테이너 없이 순수 자바 테스트
+    MemberRepository repo = new MemoryMemberRepository();
+    DiscountPolicy policy = new FixDiscountPolicy();
+
+    OrderServiceImpl service = new OrderServiceImpl(repo, policy);
+    // ... 검증
+}
+```
+
+{{< callout type="info" >}}
+**생성자 주입을 써야 하는 이유 한 줄 요약**
+
+불변(`final`) + 누락 컴파일 감지 + 순환 참조 기동 실패 + 테스트 용이성.
+이 네 가지는 다른 방식으로는 동시에 얻기 어렵다.
+{{< /callout >}}
 
 ---
 
@@ -236,7 +304,7 @@ public class OrderServiceImpl implements OrderService {
 
 ### @RequiredArgsConstructor
 
-롬복의 `@RequiredArgsConstructor`를 사용하면 `final`이 붙은 필드의 생성자를 자동 생성한다.
+롬복의 `@RequiredArgsConstructor`를 사용하면 `final`이 붙은 필드의 생성자를 자동으로 생성한다.
 
 ```java
 // 기존 코드
@@ -282,7 +350,7 @@ dependencies {
 ### 자주 사용하는 롬복 애노테이션
 
 | 애노테이션 | 설명 |
-|-----------|------|
+|:-----------|:-----|
 | `@Getter` | getter 메서드 생성 |
 | `@Setter` | setter 메서드 생성 |
 | `@ToString` | toString() 메서드 생성 |
@@ -290,7 +358,7 @@ dependencies {
 | `@NoArgsConstructor` | 기본 생성자 생성 |
 | `@AllArgsConstructor` | 모든 필드 생성자 생성 |
 | `@RequiredArgsConstructor` | final 필드 생성자 생성 |
-| `@Data` | Getter, Setter, ToString, Equals, HashCode 모두 생성 |
+| `@Data` | Getter/Setter/ToString/Equals/HashCode 모두 생성 |
 | `@Builder` | 빌더 패턴 생성 |
 
 ```java
@@ -336,10 +404,10 @@ public class OrderServiceImpl implements OrderService {
 }
 ```
 
-```
+```text
 NoUniqueBeanDefinitionException: No qualifying bean of type
-'hello.core.discount.DiscountPolicy' available: expected single matching bean
-but found 2: fixDiscountPolicy, rateDiscountPolicy
+'hello.core.discount.DiscountPolicy' available: expected single matching
+bean but found 2: fixDiscountPolicy, rateDiscountPolicy
 ```
 
 ### 해결 방법 1: @Autowired 필드명 매칭
@@ -356,7 +424,7 @@ private DiscountPolicy rateDiscountPolicy;  // rateDiscountPolicy 빈 주입
 // 파라미터명으로 매칭
 @Autowired
 public OrderServiceImpl(MemberRepository memberRepository,
-                       DiscountPolicy rateDiscountPolicy) {  // rateDiscountPolicy 빈 주입
+                       DiscountPolicy rateDiscountPolicy) {
     this.memberRepository = memberRepository;
     this.discountPolicy = rateDiscountPolicy;
 }
@@ -388,8 +456,9 @@ public class OrderServiceImpl implements OrderService {
     private final DiscountPolicy discountPolicy;
 
     @Autowired
-    public OrderServiceImpl(MemberRepository memberRepository,
-                           @Qualifier("mainDiscountPolicy") DiscountPolicy discountPolicy) {
+    public OrderServiceImpl(
+            MemberRepository memberRepository,
+            @Qualifier("mainDiscountPolicy") DiscountPolicy discountPolicy) {
         this.memberRepository = memberRepository;
         this.discountPolicy = discountPolicy;
     }
@@ -397,7 +466,7 @@ public class OrderServiceImpl implements OrderService {
 ```
 
 **@Qualifier 매칭 순서**:
-1. @Qualifier끼리 매칭
+1. `@Qualifier`끼리 매칭
 2. 빈 이름 매칭
 3. `NoSuchBeanDefinitionException` 예외 발생
 
@@ -426,10 +495,10 @@ public class OrderServiceImpl implements OrderService {
 ### @Primary vs @Qualifier
 
 | 비교 | @Primary | @Qualifier |
-|------|----------|------------|
-| **사용법** | 빈에 표시 | 주입 지점에 표시 |
-| **적합한 상황** | 메인으로 사용할 빈 | 서브로 사용할 빈 |
-| **우선순위** | 낮음 | 높음 |
+|:-----|:---------|:-----------|
+| 사용 위치 | 빈 선언부 | 주입 지점 |
+| 적합한 상황 | 메인으로 사용할 빈 | 서브로 사용할 빈 |
+| 우선순위 | 낮음 | 높음 |
 
 ```java
 // 실무 활용 예시
@@ -455,6 +524,10 @@ public class MemberService {
     private DataSource subDataSource;  // SubDataSource
 }
 ```
+
+{{< callout type="info" >}}
+`@Qualifier`가 `@Primary`보다 우선한다. 즉, 기본은 `@Primary`로 설정해 두고, 특수한 경우에만 `@Qualifier`로 명시적으로 덮어쓰는 전략이 자연스럽다.
+{{< /callout >}}
 
 ---
 
@@ -491,6 +564,10 @@ public class OrderServiceImpl implements OrderService {
     }
 }
 ```
+
+{{< callout type="warning" >}}
+커스텀 애노테이션은 강력하지만, 스프링이 아닌 개발자의 규약이므로 남용하면 의미 파악이 오히려 어려워진다. "정말 타입 안전성이 중요한 소수의 지점"에만 도입한다.
+{{< /callout >}}
 
 ---
 
@@ -535,24 +612,27 @@ void findAllBean() {
     Member member = new Member(1L, "userA", Grade.VIP);
 
     // 동적으로 할인 정책 선택
-    int fixDiscountPrice = discountService.discount(member, 10000, "fixDiscountPolicy");
+    int fixDiscountPrice =
+        discountService.discount(member, 10000, "fixDiscountPolicy");
     assertThat(fixDiscountPrice).isEqualTo(1000);
 
-    int rateDiscountPrice = discountService.discount(member, 20000, "rateDiscountPolicy");
+    int rateDiscountPrice =
+        discountService.discount(member, 20000, "rateDiscountPolicy");
     assertThat(rateDiscountPrice).isEqualTo(2000);
 }
 ```
 
-```
+```text
 출력:
-policyMap = {fixDiscountPolicy=FixDiscountPolicy@xxx, rateDiscountPolicy=RateDiscountPolicy@xxx}
+policyMap = {fixDiscountPolicy=FixDiscountPolicy@xxx,
+             rateDiscountPolicy=RateDiscountPolicy@xxx}
 policies = [FixDiscountPolicy@xxx, RateDiscountPolicy@xxx]
 ```
 
 ### Map, List 주입 정리
 
 | 타입 | 설명 |
-|------|------|
+|:-----|:-----|
 | `Map<String, Type>` | key: 빈 이름, value: 빈 객체 |
 | `List<Type>` | 해당 타입의 모든 빈을 리스트로 |
 
@@ -575,9 +655,9 @@ public class MemoryMemberRepository implements MemberRepository { }
 ```
 
 **자동 등록의 장점**:
-- 스프링 부트가 기본으로 제공
-- 빈의 갯수가 많아져도 관리가 편함
-- `@Component`만 붙이면 끝
+- 스프링 부트가 기본으로 제공한다.
+- 빈의 개수가 많아져도 관리가 편하다.
+- `@Component`만 붙이면 된다.
 
 ### 수동 등록이 적합한 경우
 
@@ -601,9 +681,9 @@ public class DataSourceConfig {
 ```
 
 **기술 지원 빈의 특징**:
-- 애플리케이션 전반에 광범위하게 영향
-- 문제 발생 시 어디서 발생했는지 파악 어려움
-- 설정 정보에 명시적으로 드러나는 것이 유지보수에 유리
+- 애플리케이션 전반에 광범위하게 영향을 준다.
+- 문제 발생 시 어디서 발생했는지 파악이 어렵다.
+- 설정 정보에 명시적으로 드러나는 것이 유지보수에 유리하다.
 
 > "애플리케이션에 광범위하게 영향을 미치는 기술 지원 객체는 수동 빈으로 등록해서 딱! 설정 정보에 바로 나타나게 하는 것이 유지보수하기 좋다."
 
@@ -627,22 +707,22 @@ public class DiscountPolicyConfig {
 }
 ```
 
-또는 자동 등록을 사용하되 **특정 패키지에 모아두기**:
+또는 자동 등록을 사용하되 **특정 패키지에 모아두는** 방법도 있다.
 
 ```
 discount
-├── DiscountPolicy.java           ← 인터페이스
-├── FixDiscountPolicy.java        ← @Component
-└── RateDiscountPolicy.java       ← @Component
+├── DiscountPolicy.java       ← 인터페이스
+├── FixDiscountPolicy.java    ← @Component
+└── RateDiscountPolicy.java   ← @Component
 ```
 
 ### 정리
 
 | 구분 | 권장 방식 | 이유 |
-|------|----------|------|
-| **비즈니스 로직 빈** | 자동 등록 | 갯수가 많고 유사한 패턴 |
-| **기술 지원 빈** | 수동 등록 | 명확하게 드러내기 위함 |
-| **다형성 활용 빈** | 수동 등록 또는 패키지 묶기 | 한눈에 파악하기 위함 |
+|:-----|:---------|:-----|
+| 비즈니스 로직 빈 | 자동 등록 | 개수가 많고 유사한 패턴 |
+| 기술 지원 빈 | 수동 등록 | 명확하게 드러내기 위함 |
+| 다형성 활용 빈 | 수동 등록 또는 패키지 묶기 | 한눈에 파악하기 위함 |
 
 ---
 
@@ -651,26 +731,26 @@ discount
 ### 의존관계 주입 방법 비교
 
 | 방법 | 사용 시점 | 특징 |
-|------|----------|------|
-| **생성자 주입** | 필수, 불변 | final 사용 가능, **권장** |
-| **수정자 주입** | 선택, 변경 가능 | 런타임에 변경 가능 |
-| **필드 주입** | - | **비권장** (테스트 어려움) |
-| **메서드 주입** | 특수한 경우 | 거의 사용 안 함 |
+|:-----|:---------|:-----|
+| 생성자 주입 | 필수, 불변 | `final` 사용 가능, **권장** |
+| 수정자 주입 | 선택, 변경 가능 | 런타임에 변경 가능 |
+| 필드 주입 | - | 비권장 (테스트 어려움) |
+| 메서드 주입 | 특수한 경우 | 거의 사용하지 않음 |
 
 ### 조회 빈이 2개 이상일 때
 
 | 방법 | 사용법 | 우선순위 |
-|------|--------|---------|
-| **필드명 매칭** | 필드명을 빈 이름으로 | - |
-| **@Qualifier** | 추가 구분자 | 높음 |
-| **@Primary** | 우선 빈 지정 | 낮음 |
+|:-----|:-------|:---------|
+| 필드명 매칭 | 필드명을 빈 이름으로 | - |
+| @Qualifier | 추가 구분자 | 높음 |
+| @Primary | 우선 빈 지정 | 낮음 |
 
 ### 핵심 권장 사항
 
-1. **생성자 주입**을 기본으로 사용
-2. **롬복 @RequiredArgsConstructor** 활용
-3. 조회 빈 충돌 시 **@Primary**, **@Qualifier** 활용
-4. 기술 지원 빈은 **수동 등록** 고려
+1. **생성자 주입**을 기본으로 사용한다.
+2. **롬복 `@RequiredArgsConstructor`** 로 보일러플레이트를 제거한다.
+3. 조회 빈 충돌 시 **`@Primary`**, **`@Qualifier`** 를 상황에 맞게 활용한다.
+4. 기술 지원 빈은 **수동 등록**을 고려한다.
 
 ---
 

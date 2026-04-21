@@ -27,8 +27,8 @@ sidebar:
 
 | 주제 | 설명 |
 |:-----|:-----|
-| [배치 소개](spring-batch-intro) | 배치 처리 개념과 아키텍처 |
-| [핵심 개념](spring-batch-core) | Job, Step, 실행 메커니즘 |
+| [배치 소개](batch/spring-batch-intro) | 배치 처리 개념과 아키텍처 |
+| [핵심 개념](batch/spring-batch-core) | Job, Step, 실행 메커니즘 |
 
 ---
 

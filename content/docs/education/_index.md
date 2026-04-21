@@ -55,7 +55,7 @@ sidebar:
 | [빈 생명주기](spring/spring-bean-lifecycle) | 초기화와 소멸 콜백 |
 | [빈 스코프](spring/spring-bean-scope) | 싱글톤, 프로토타입, 프록시 |
 | [SpEL](spring/spring-spel) | 표현식 언어 |
-| [Spring Batch](spring/spring-batch-intro) | 배치 처리 기초 |
+| [Spring Batch](spring/batch/) | 배치 처리 기초 |
 | [Spring Security](spring/security/) | 보안 개념과 구현 |
 
 ### Database

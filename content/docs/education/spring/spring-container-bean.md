@@ -13,12 +13,12 @@ toc: true
 ### IoC와 DI의 개념
 
 **IoC (Inversion of Control, 제어의 역전)**
-- 프로그램의 제어 흐름을 개발자가 아닌 프레임워크가 담당
-- 객체의 생성, 생명주기 관리를 외부에 위임
+- 프로그램의 제어 흐름을 개발자가 아닌 프레임워크가 담당한다.
+- 객체의 생성과 생명주기 관리를 외부에 위임한다.
 
 **DI (Dependency Injection, 의존관계 주입)**
-- 객체가 필요로 하는 의존 객체를 외부에서 주입
-- IoC를 구현하는 구체적인 방법 중 하나
+- 객체가 필요로 하는 의존 객체를 외부에서 주입한다.
+- IoC를 구현하는 구체적인 방법 중 하나다.
 
 ```java
 // DI 없이 직접 생성
@@ -35,6 +35,10 @@ public class OrderServiceImpl {
     }
 }
 ```
+
+{{< callout type="info" >}}
+IoC는 "누가 흐름을 제어하는가"에 대한 원칙이고, DI는 그 원칙을 "어떻게 구현할지"의 기법이다. 스프링 컨테이너는 두 개념을 함께 실현하는 도구다.
+{{< /callout >}}
 
 ### AppConfig: 수동 DI 컨테이너
 
@@ -88,42 +92,56 @@ ApplicationContext applicationContext =
     new AnnotationConfigApplicationContext(AppConfig.class);
 
 // 빈 조회
-MemberService memberService = applicationContext.getBean("memberService", MemberService.class);
+MemberService memberService =
+    applicationContext.getBean("memberService", MemberService.class);
 ```
 
 ### 스프링 컨테이너 생성 과정
 
+**1단계: 스프링 컨테이너 생성**
+
 ```
-1단계: 스프링 컨테이너 생성
-┌─────────────────────────────────────────┐
-│         스프링 컨테이너                   │
-│  ┌─────────────────────────────────┐    │
-│  │        스프링 빈 저장소           │    │
-│  │  빈 이름      │  빈 객체          │    │
-│  │  ─────────────────────────────  │    │
-│  │              │                  │    │
-│  │              │                  │    │
-│  └─────────────────────────────────┘    │
-└─────────────────────────────────────────┘
-                    ↓ AppConfig.class 정보 전달
+┌──────────────────────────┐
+│   스프링 컨테이너          │
+│  ┌────────────────────┐  │
+│  │   빈 저장소         │  │
+│  │  이름   │   객체    │  │
+│  │ ─────── │ ──────── │  │
+│  │         │          │  │
+│  └────────────────────┘  │
+└──────────────────────────┘
+            │
+            ▼
+   AppConfig.class 전달
+```
 
-2단계: 스프링 빈 등록
-┌─────────────────────────────────────────┐
-│         스프링 컨테이너                   │
-│  ┌─────────────────────────────────┐    │
-│  │        스프링 빈 저장소           │    │
-│  │  빈 이름          │  빈 객체      │    │
-│  │  ─────────────────────────────  │    │
-│  │  memberService   │  MemberServiceImpl  │
-│  │  orderService    │  OrderServiceImpl   │
-│  │  memberRepository│  MemoryMemberRepository│
-│  │  discountPolicy  │  RateDiscountPolicy │
-│  └─────────────────────────────────┘    │
-└─────────────────────────────────────────┘
+**2단계: 스프링 빈 등록**
 
-3단계: 의존관계 주입 (DI)
-- memberService → memberRepository 연결
-- orderService → memberRepository, discountPolicy 연결
+```
+┌──────────────────────────┐
+│   스프링 컨테이너          │
+│  ┌────────────────────┐  │
+│  │   빈 저장소         │  │
+│  │ memberService      │  │
+│  │ orderService       │  │
+│  │ memberRepository   │  │
+│  │ discountPolicy     │  │
+│  └────────────────────┘  │
+└──────────────────────────┘
+```
+
+**3단계: 의존관계 주입**
+
+```
+memberService
+      │
+      ▼
+memberRepository
+
+orderService
+      │
+      ├──▶ memberRepository
+      └──▶ discountPolicy
 ```
 
 ### 설정 클래스와 @Bean
@@ -134,19 +152,16 @@ public class AppConfig {
 
     @Bean
     public MemberService memberService() {
-        System.out.println("call AppConfig.memberService");
         return new MemberServiceImpl(memberRepository());
     }
 
     @Bean
     public OrderService orderService() {
-        System.out.println("call AppConfig.orderService");
         return new OrderServiceImpl(memberRepository(), discountPolicy());
     }
 
     @Bean
     public MemberRepository memberRepository() {
-        System.out.println("call AppConfig.memberRepository");
         return new MemoryMemberRepository();
     }
 
@@ -158,9 +173,12 @@ public class AppConfig {
 ```
 
 **빈 등록 규칙**:
-- `@Bean` 애노테이션이 붙은 메서드의 이름이 기본 빈 이름
-- 빈 이름 직접 지정: `@Bean(name = "customName")`
-- **주의**: 빈 이름은 항상 고유해야 함 (중복 시 오류 또는 덮어씀)
+- `@Bean` 애노테이션이 붙은 메서드의 이름이 기본 빈 이름이 된다.
+- 빈 이름을 직접 지정하려면 `@Bean(name = "customName")`을 사용한다.
+
+{{< callout type="warning" >}}
+빈 이름은 항상 고유해야 한다. 중복된 이름으로 빈을 등록하면 설정에 따라 오류가 발생하거나 기존 빈을 덮어쓰므로 예측 불가능한 버그로 이어진다.
+{{< /callout >}}
 
 ---
 
@@ -172,7 +190,8 @@ public class AppConfig {
 @Test
 void findBeanByName() {
     // 빈 이름으로 조회
-    MemberService memberService = ac.getBean("memberService", MemberService.class);
+    MemberService memberService =
+        ac.getBean("memberService", MemberService.class);
     assertThat(memberService).isInstanceOf(MemberServiceImpl.class);
 }
 
@@ -217,14 +236,16 @@ void findBeanByTypeDuplicate() {
 @Test
 void findBeanByName_Duplicate() {
     // 빈 이름을 지정하면 해결
-    MemberRepository memberRepository = ac.getBean("memberRepository1", MemberRepository.class);
+    MemberRepository memberRepository =
+        ac.getBean("memberRepository1", MemberRepository.class);
     assertThat(memberRepository).isInstanceOf(MemberRepository.class);
 }
 
 @Test
 void findAllBeanByType() {
     // 해당 타입의 모든 빈 조회
-    Map<String, MemberRepository> beansOfType = ac.getBeansOfType(MemberRepository.class);
+    Map<String, MemberRepository> beansOfType =
+        ac.getBeansOfType(MemberRepository.class);
     assertThat(beansOfType.size()).isEqualTo(2);
 }
 ```
@@ -257,14 +278,16 @@ void findBeanByParentType() {
 @Test
 void findBeanByParentTypeBeanName() {
     // 빈 이름을 지정하여 해결
-    DiscountPolicy rateDiscountPolicy = ac.getBean("rateDiscountPolicy", DiscountPolicy.class);
+    DiscountPolicy rateDiscountPolicy =
+        ac.getBean("rateDiscountPolicy", DiscountPolicy.class);
     assertThat(rateDiscountPolicy).isInstanceOf(RateDiscountPolicy.class);
 }
 
 @Test
 void findAllBeanByParentType() {
     // 부모 타입으로 모든 빈 조회
-    Map<String, DiscountPolicy> beansOfType = ac.getBeansOfType(DiscountPolicy.class);
+    Map<String, DiscountPolicy> beansOfType =
+        ac.getBeansOfType(DiscountPolicy.class);
     assertThat(beansOfType.size()).isEqualTo(2);
 }
 
@@ -313,30 +336,25 @@ void findApplicationBean() {
 ### 인터페이스 계층 구조
 
 ```
-                    ┌─────────────────────┐
-                    │     BeanFactory     │  ← 최상위 인터페이스
-                    └──────────┬──────────┘
-                               │
-        ┌──────────────────────┼──────────────────────┐
-        │                      │                      │
-        ▼                      ▼                      ▼
-┌───────────────┐    ┌─────────────────┐    ┌───────────────────┐
-│MessageSource  │    │ApplicationEvent │    │EnvironmentCapable│
-│(국제화)        │    │Publisher(이벤트)│    │(환경변수)         │
-└───────────────┘    └─────────────────┘    └───────────────────┘
-        │                      │                      │
-        └──────────────────────┼──────────────────────┘
-                               │
-                    ┌──────────▼──────────┐
-                    │ ApplicationContext  │  ← 실제 사용하는 인터페이스
-                    └──────────┬──────────┘
-                               │
-        ┌──────────────────────┼──────────────────────┐
-        ▼                      ▼                      ▼
-┌───────────────┐    ┌─────────────────┐    ┌───────────────────┐
-│AnnotationConfig│   │GenericXml       │    │GenericGroovy      │
-│ApplicationContext│  │ApplicationContext│   │ApplicationContext │
-└───────────────┘    └─────────────────┘    └───────────────────┘
+     ┌──────────────────┐
+     │   BeanFactory    │
+     └────────┬─────────┘
+              │
+              ▼
+   ┌──────────────────────┐
+   │ ApplicationContext   │
+   │ ─ MessageSource      │
+   │ ─ EventPublisher     │
+   │ ─ EnvironmentCapable │
+   │ ─ ResourceLoader     │
+   └──────────┬───────────┘
+              │
+   ┌──────────┴──────────┐
+   ▼                     ▼
+┌─────────────┐   ┌─────────────┐
+│ Annotation  │   │ GenericXml  │
+│ Config      │   │ Context     │
+└─────────────┘   └─────────────┘
 ```
 
 ### BeanFactory
@@ -353,10 +371,10 @@ public interface BeanFactory {
 }
 ```
 
-- 스프링 컨테이너의 최상위 인터페이스
-- 스프링 빈을 관리하고 조회하는 역할
-- `getBean()` 제공
-- 직접 사용할 일은 거의 없음
+- 스프링 컨테이너의 최상위 인터페이스다.
+- 스프링 빈을 관리하고 조회하는 역할을 한다.
+- `getBean()`을 제공한다.
+- 직접 사용할 일은 거의 없다.
 
 ### ApplicationContext
 
@@ -375,11 +393,11 @@ public interface ApplicationContext extends
 **ApplicationContext가 제공하는 부가 기능**:
 
 | 기능 | 설명 |
-|------|------|
-| **MessageSource** | 국제화 기능 (다국어 지원) |
-| **EnvironmentCapable** | 환경변수 처리 (로컬/개발/운영 분리) |
-| **ApplicationEventPublisher** | 애플리케이션 이벤트 발행/구독 |
-| **ResourceLoader** | 파일, 클래스패스 등 리소스 조회 |
+|:-----|:-----|
+| MessageSource | 국제화 기능 (다국어 지원) |
+| EnvironmentCapable | 환경변수 처리 (로컬/개발/운영 분리) |
+| ApplicationEventPublisher | 애플리케이션 이벤트 발행/구독 |
+| ResourceLoader | 파일, 클래스패스 등 리소스 조회 |
 
 ```java
 // MessageSource 사용 예
@@ -427,7 +445,8 @@ public class AppConfig {
 }
 
 // 사용
-ApplicationContext ac = new AnnotationConfigApplicationContext(AppConfig.class);
+ApplicationContext ac =
+    new AnnotationConfigApplicationContext(AppConfig.class);
 ```
 
 ### XML 기반 설정 (레거시)
@@ -444,20 +463,23 @@ ApplicationContext ac = new AnnotationConfigApplicationContext(AppConfig.class);
         <constructor-arg name="memberRepository" ref="memberRepository"/>
     </bean>
 
-    <bean id="memberRepository" class="hello.core.member.MemoryMemberRepository"/>
+    <bean id="memberRepository"
+          class="hello.core.member.MemoryMemberRepository"/>
 
     <bean id="orderService" class="hello.core.order.OrderServiceImpl">
         <constructor-arg name="memberRepository" ref="memberRepository"/>
         <constructor-arg name="discountPolicy" ref="discountPolicy"/>
     </bean>
 
-    <bean id="discountPolicy" class="hello.core.discount.RateDiscountPolicy"/>
+    <bean id="discountPolicy"
+          class="hello.core.discount.RateDiscountPolicy"/>
 </beans>
 ```
 
 ```java
 // XML 설정 사용
-ApplicationContext ac = new GenericXmlApplicationContext("appConfig.xml");
+ApplicationContext ac =
+    new GenericXmlApplicationContext("appConfig.xml");
 ```
 
 ---
@@ -469,22 +491,22 @@ ApplicationContext ac = new GenericXmlApplicationContext("appConfig.xml");
 ### BeanDefinition 구조
 
 ```
-┌──────────────────────────┐
-│      BeanDefinition      │  ← 빈 설정 메타 정보 (추상화)
-└────────────┬─────────────┘
-             │
-    ┌────────┴────────┐
-    ▼                 ▼
-┌─────────┐     ┌─────────┐
-│ Java 설정│     │ XML 설정 │
-│ Reader  │     │ Reader  │
-└─────────┘     └─────────┘
-    │                 │
-    ▼                 ▼
-┌─────────┐     ┌─────────┐
-│AppConfig│     │appConfig│
-│ .class  │     │  .xml   │
-└─────────┘     └─────────┘
+┌──────────────────────┐
+│   BeanDefinition     │
+│   (빈 메타 정보)      │
+└──────────┬───────────┘
+           │
+     ┌─────┴─────┐
+     ▼           ▼
+┌─────────┐ ┌─────────┐
+│ Java    │ │ XML     │
+│ Reader  │ │ Reader  │
+└────┬────┘ └────┬────┘
+     ▼           ▼
+┌─────────┐ ┌─────────┐
+│AppConfig│ │appConfig│
+│ .class  │ │  .xml   │
+└─────────┘ └─────────┘
 ```
 
 ### BeanDefinition 정보 확인
@@ -494,7 +516,8 @@ ApplicationContext ac = new GenericXmlApplicationContext("appConfig.xml");
 void findBeanDefinition() {
     String[] beanDefinitionNames = ac.getBeanDefinitionNames();
     for (String beanDefinitionName : beanDefinitionNames) {
-        BeanDefinition beanDefinition = ac.getBeanDefinition(beanDefinitionName);
+        BeanDefinition beanDefinition =
+            ac.getBeanDefinition(beanDefinitionName);
 
         if (beanDefinition.getRole() == BeanDefinition.ROLE_APPLICATION) {
             System.out.println("beanDefinitionName = " + beanDefinitionName);
@@ -507,7 +530,7 @@ void findBeanDefinition() {
 **BeanDefinition의 주요 속성**:
 
 | 속성 | 설명 |
-|------|------|
+|:-----|:-----|
 | `BeanClassName` | 빈의 클래스명 |
 | `Scope` | 싱글톤(기본값), 프로토타입 등 |
 | `LazyInit` | 지연 초기화 여부 |
@@ -516,14 +539,19 @@ void findBeanDefinition() {
 | `ConstructorArgumentValues` | 생성자 인자 정보 |
 | `PropertyValues` | 프로퍼티 정보 |
 
-```
+```text
 // BeanDefinition 출력 예시
 beanDefinitionName = memberService
-beanDefinition = Root bean: class [null]; scope=; abstract=false; lazyInit=null;
-  autowireMode=3; dependencyCheck=0; autowireCandidate=true; primary=false;
+beanDefinition = Root bean: class [null]; scope=; abstract=false;
+  lazyInit=null; autowireMode=3; dependencyCheck=0;
+  autowireCandidate=true; primary=false;
   factoryBeanName=appConfig; factoryMethodName=memberService;
   initMethodNames=null; destroyMethodNames=[(inferred)];
 ```
+
+{{< callout type="info" >}}
+`BeanDefinition`은 설정 형식(Java, XML, Groovy)과 무관하게 빈 메타데이터를 표현하는 추상화다. 애플리케이션 코드는 이 추상화 덕분에 설정 방식 변경에도 영향을 받지 않는다.
+{{< /callout >}}
 
 ---
 
@@ -652,12 +680,12 @@ class OrderServiceTest {
 ### 핵심 개념
 
 | 개념 | 설명 |
-|------|------|
-| **IoC** | 제어의 역전 - 프레임워크가 제어 |
-| **DI** | 의존관계 주입 - 외부에서 주입 |
-| **BeanFactory** | 스프링 빈 관리/조회 기본 기능 |
-| **ApplicationContext** | BeanFactory + 부가 기능 |
-| **BeanDefinition** | 빈 설정 메타 정보 추상화 |
+|:-----|:-----|
+| IoC | 제어의 역전, 프레임워크가 흐름을 제어 |
+| DI | 의존관계 주입, 외부에서 객체를 주입 |
+| BeanFactory | 스프링 빈 관리/조회 기본 기능 |
+| ApplicationContext | BeanFactory + 부가 기능 |
+| BeanDefinition | 빈 설정 메타 정보 추상화 |
 
 ### 자주 사용하는 빈 조회 메서드
 
