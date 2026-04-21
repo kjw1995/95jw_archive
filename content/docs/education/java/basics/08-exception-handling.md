@@ -3,243 +3,164 @@ title: "Chapter 08. 예외처리 (Exception Handling)"
 weight: 8
 ---
 
-# 예외처리 (Exception Handling)
-
-프로그램 실행 중 발생할 수 있는 예외 상황에 대비하여 코드를 작성하는 방법을 다룬다.
+실행 중 발생할 수 있는 예외 상황을 감지·복구·전파하는 방법과, 안전한 자원 해제 및 사용자 정의 예외 작성법을 다룬다.
 
 ---
 
 ## 1. 프로그램 오류
 
-프로그램이 실행 중 어떤 원인에 의해서 오작동을 하거나 비정상적으로 종료되는 경우가 있다. 이러한 결과를 초래하는 원인을 **프로그램 에러** 또는 **오류**라고 한다.
-
 ### 1.1 오류의 종류
 
 | 종류 | 발생 시점 | 설명 | 예시 |
-|:-----|:---------|:-----|:-----|
-| **컴파일 에러** | 컴파일 시 | 문법 오류, 타입 불일치 | 세미콜론 누락, 타입 오류 |
-| **런타임 에러** | 실행 시 | 실행 중 발생하는 오류 | 0으로 나누기, null 참조 |
-| **논리적 에러** | 실행 시 | 의도와 다른 동작 | 잘못된 계산 결과 |
+|:---|:---|:---|:---|
+| 컴파일 에러 | 컴파일 시 | 문법 오류, 타입 불일치 | 세미콜론 누락 |
+| 런타임 에러 | 실행 시 | 실행 중 발생 | `ArrayIndexOutOfBoundsException` |
+| 논리적 에러 | 실행 시 | 의도와 다른 동작 | 잘못된 계산 결과 |
 
 ```java
-// 컴파일 에러 예시
-int x = "hello";  // 타입 불일치
-
-// 런타임 에러 예시
+// 런타임 에러
 int[] arr = new int[5];
-System.out.println(arr[10]);  // ArrayIndexOutOfBoundsException
+System.out.println(arr[10]);   // ArrayIndexOutOfBoundsException
 
-// 논리적 에러 예시
+// 논리적 에러
 int sum = 0;
-for (int i = 1; i < 10; i++) {  // i <= 10이어야 함
-    sum += i;
-}
-// 의도: 1~10 합계 (55), 실제: 1~9 합계 (45)
+for (int i = 1; i < 10; i++) sum += i;   // 1~9만 더함 (의도: 1~10)
 ```
 
-### 1.2 에러와 예외
+### 1.2 에러(Error)와 예외(Exception)
 
-자바에서는 실행 시(runtime) 발생할 수 있는 프로그램 오류를 **에러(Error)**와 **예외(Exception)**로 구분한다.
+자바에서는 런타임 오류를 **에러**와 **예외**로 구분한다.
 
-| 구분 | 설명 | 복구 가능 여부 |
-|:-----|:-----|:-------------|
-| **에러 (Error)** | 메모리 부족, 스택오버플로우 등 심각한 오류 | 복구 불가능 |
-| **예외 (Exception)** | 코드에 의해 수습될 수 있는 오류 | 복구 가능 |
+| 구분 | 설명 | 복구 |
+|:---|:---|:---|
+| 에러 (Error) | `OutOfMemoryError`, `StackOverflowError` 등 시스템 수준의 치명적 문제 | 불가능 |
+| 예외 (Exception) | 코드에서 처리 가능한 비정상 상황 | 가능 |
 
-```java
-// Error 예시 - 복구 불가능
-public void infiniteRecursion() {
-    infiniteRecursion();  // StackOverflowError
-}
-
-// Exception 예시 - 복구 가능
-public void readFile(String path) {
-    try {
-        FileReader reader = new FileReader(path);
-    } catch (FileNotFoundException e) {
-        System.out.println("파일을 찾을 수 없습니다: " + path);
-        // 대체 로직 수행 가능
-    }
-}
-```
+예외 처리의 목표는 **프로그램의 비정상 종료를 막고 정상 흐름을 유지**하는 것이다.
 
 ---
 
 ## 2. 예외 클래스의 계층구조
 
-자바에서는 실행 시 발생할 수 있는 오류(Exception과 Error)를 클래스로 정의하였다.
-
 ### 2.1 계층 구조도
 
 ```
-                      Object
-                        │
-                    Throwable
-                   ┌────┴────┐
-                Error      Exception
-                  │           │
-           ┌──────┴──────┐    ├─── IOException
-           │             │    ├─── SQLException
-    OutOfMemoryError  StackOverflowError
-                              │
-                              └─── RuntimeException
-                                        │
-                              ┌─────────┼─────────┐
-                              │         │         │
-               NullPointerException     │    IndexOutOfBoundsException
-                       ArithmeticException
+         Object
+            │
+        Throwable
+         ┌──┴──┐
+       Error  Exception
+              ┌──┴────────────┐
+              │               │
+   (Checked)            RuntimeException
+  IOException                │  (Unchecked)
+  SQLException     NullPointerException
+                   ArithmeticException
+                   IndexOutOfBoundsException
+                   ClassCastException
 ```
 
-### 2.2 Exception 클래스의 두 그룹
+- `Throwable`: 모든 예외·에러의 최상위 조상. `getMessage()`, `printStackTrace()` 등을 정의
+- `Error`: JVM 수준 문제, 처리하지 않는 것이 일반적
+- `Exception`: 애플리케이션에서 처리할 수 있는 예외
+- `RuntimeException`: `Exception`의 자손이지만 **Unchecked**로 분류됨
 
-| 그룹 | 상위 클래스 | 특징 | 예외 처리 |
-|:-----|:-----------|:-----|:---------|
-| **Checked Exception** | Exception | 외부 요인에 의해 발생 | **필수** (컴파일러 체크) |
-| **Unchecked Exception** | RuntimeException | 프로그래머 실수에 의해 발생 | 선택 |
+### 2.2 Checked vs Unchecked
 
-#### Checked Exception (컴파일러가 체크)
+| 그룹 | 최상위 | 컴파일러 체크 | 예외 처리 |
+|:---|:---|:---|:---|
+| Checked Exception | `Exception` (RuntimeException 제외) | O | 필수 (try-catch 또는 throws) |
+| Unchecked Exception | `RuntimeException` | X | 선택 |
+
+**Checked 예시**
 
 ```java
-// IOException - 파일 입출력 관련
 public void readFile() throws IOException {
-    FileReader reader = new FileReader("test.txt");  // 반드시 예외처리 필요
-}
-
-// SQLException - 데이터베이스 관련
-public void queryDB() throws SQLException {
-    Connection conn = DriverManager.getConnection(url);  // 반드시 예외처리 필요
+    FileReader r = new FileReader("test.txt");   // 반드시 처리/선언
 }
 ```
 
-#### Unchecked Exception (RuntimeException)
+**Unchecked 예시**
 
 ```java
-// NullPointerException - null 참조
-String str = null;
-str.length();  // NullPointerException
-
-// ArrayIndexOutOfBoundsException - 배열 인덱스 초과
-int[] arr = new int[5];
-arr[10] = 100;  // ArrayIndexOutOfBoundsException
-
-// ArithmeticException - 산술 연산 오류
-int result = 10 / 0;  // ArithmeticException
-
-// ClassCastException - 잘못된 형변환
-Object obj = new Integer(100);
-String str = (String) obj;  // ClassCastException
-
-// IllegalArgumentException - 잘못된 인자
-Thread.sleep(-1000);  // IllegalArgumentException
+String s = null;
+s.length();                       // NullPointerException
+int x = 10 / 0;                   // ArithmeticException
+int[] a = new int[5]; a[10] = 1;  // ArrayIndexOutOfBoundsException
 ```
 
 {{< callout type="info" >}}
-**Checked vs Unchecked 선택 기준:**
-- **Checked Exception**: 호출자가 반드시 처리해야 하는 예외 (파일, 네트워크, DB 등)
-- **Unchecked Exception**: 프로그래머의 실수로 발생하며 코드 수정으로 해결 가능한 예외
+**Checked vs Unchecked 선택 기준**
+
+- **Checked**: 호출자가 반드시 인식해야 하는, 외부 요인에 의한 예외 (파일 없음, 네트워크 장애, DB 연결 실패 등). 호출자가 복구 전략을 세울 수 있는 경우.
+- **Unchecked**: 프로그래머의 버그로 간주되는 상황, 또는 모든 지점에서 강제 처리가 부담스러운 경우 (잘못된 인자, 잘못된 상태, 산술 오류 등).
+
+최근 추세는 **Unchecked 위주**다. 체크 예외를 남발하면 `throws` 선언이 호출 체인을 타고 퍼지면서 설계가 경직된다.
 {{< /callout >}}
 
 ---
 
-## 3. 예외처리하기 - try-catch문
+## 3. try-catch문
 
-### 3.1 예외처리의 정의와 목적
-
-| 항목 | 내용 |
-|:-----|:-----|
-| **정의** | 프로그램 실행 시 발생할 수 있는 예외에 대비한 코드를 작성하는 것 |
-| **목적** | 프로그램의 비정상 종료를 막고, 정상적인 실행 상태를 유지하는 것 |
-
-### 3.2 try-catch문의 구조
+### 3.1 기본 구조
 
 ```java
 try {
     // 예외가 발생할 가능성이 있는 문장들
 } catch (ExceptionType1 e1) {
-    // ExceptionType1이 발생했을 경우 처리할 문장
+    // ExceptionType1 처리
 } catch (ExceptionType2 e2) {
-    // ExceptionType2가 발생했을 경우 처리할 문장
+    // ExceptionType2 처리
 }
 ```
 
 {{< callout type="warning" >}}
-**주의:** if문과 달리 try블럭이나 catch블럭 내에 포함된 문장이 하나뿐이어도 괄호 `{}`를 생략할 수 없다.
+try/catch 블록은 문장이 하나뿐이어도 **`{}` 생략 불가**다.
 {{< /callout >}}
 
-### 3.3 실행 흐름
+### 3.2 실행 흐름
 
-#### 예외가 발생한 경우
-
-```java
-public class ExceptionFlowExample {
-    public static void main(String[] args) {
-        System.out.println("프로그램 시작");  // 1. 실행
-
-        try {
-            System.out.println("try 블럭 시작");  // 2. 실행
-            int result = 10 / 0;  // 3. 예외 발생!
-            System.out.println("이 문장은 실행되지 않음");  // 건너뜀
-        } catch (ArithmeticException e) {
-            System.out.println("예외 처리: " + e.getMessage());  // 4. 실행
-        }
-
-        System.out.println("프로그램 계속 진행");  // 5. 실행
-    }
-}
-```
-
-**출력 결과:**
-```
-프로그램 시작
-try 블럭 시작
-예외 처리: / by zero
-프로그램 계속 진행
-```
-
-#### 예외가 발생하지 않은 경우
+**예외 발생 시:** try 블록에서 예외 발생 지점부터 건너뛰고 일치하는 catch로 이동 → catch 실행 후 try-catch 이후 코드 진행.
 
 ```java
+System.out.println("시작");
 try {
-    System.out.println("try 블럭 시작");  // 1. 실행
-    int result = 10 / 2;  // 정상 실행
-    System.out.println("결과: " + result);  // 2. 실행
+    System.out.println("try 진입");
+    int r = 10 / 0;                    // 예외 발생
+    System.out.println("도달 X");
 } catch (ArithmeticException e) {
-    System.out.println("이 블럭은 실행되지 않음");  // 건너뜀
+    System.out.println("처리: " + e.getMessage());
 }
-System.out.println("프로그램 계속 진행");  // 3. 실행
+System.out.println("계속");
 ```
 
-### 3.4 여러 catch블럭 사용
-
-```java
-public class MultiCatchExample {
-    public static void main(String[] args) {
-        try {
-            int[] arr = new int[5];
-            arr[10] = 50 / 0;  // 어떤 예외가 먼저?
-        } catch (ArithmeticException e) {
-            System.out.println("산술 연산 예외: " + e.getMessage());
-        } catch (ArrayIndexOutOfBoundsException e) {
-            System.out.println("배열 인덱스 예외: " + e.getMessage());
-        } catch (Exception e) {
-            System.out.println("기타 예외: " + e.getMessage());
-        }
-    }
-}
+```
+출력:
+시작
+try 진입
+처리: / by zero
+계속
 ```
 
-{{< callout type="danger" >}}
-**catch 블럭 순서 주의:**
-상위 예외 클래스가 먼저 오면 하위 예외는 도달 불가(unreachable)하여 컴파일 에러가 발생한다.
+**예외 미발생 시:** catch 블록은 건너뛴다.
+
+### 3.3 여러 catch 블록
+
 ```java
-// 잘못된 순서 - 컴파일 에러!
 try {
     // ...
-} catch (Exception e) {           // 모든 예외를 잡음
-    // ...
-} catch (ArithmeticException e) { // 도달 불가!
-    // ...
-}
+} catch (ArithmeticException e)             { /* 산술 */ }
+catch (ArrayIndexOutOfBoundsException e)     { /* 인덱스 */ }
+catch (Exception e)                          { /* 그 외 모든 예외 */ }
+```
+
+{{< callout type="warning" >}}
+**catch 순서: 구체적인 예외가 먼저.** 상위(`Exception`)를 먼저 두면 그 뒤에 있는 자손 catch는 **도달 불가(unreachable)**가 되어 컴파일 에러가 발생한다.
+
+```java
+try { /* ... */ }
+catch (Exception e)           { /* 모든 예외 */ }
+catch (ArithmeticException e) { /* 도달 불가 — 컴파일 에러 */ }
 ```
 {{< /callout >}}
 
@@ -247,83 +168,33 @@ try {
 
 ## 4. 예외 정보 얻기
 
-### 4.1 printStackTrace()와 getMessage()
+### 4.1 주요 메서드
 
-예외가 발생하면 예외 클래스의 인스턴스가 생성되며, 이 인스턴스에는 발생한 예외에 대한 정보가 담겨 있다.
-
-| 메서드 | 반환 타입 | 설명 |
-|:-------|:---------|:-----|
-| `getMessage()` | String | 예외 메시지 반환 |
-| `printStackTrace()` | void | 호출스택 정보와 예외 메시지를 출력 |
-| `getStackTrace()` | StackTraceElement[] | 스택 트레이스 배열 반환 |
-| `getCause()` | Throwable | 원인 예외 반환 |
+| 메서드 | 반환 | 설명 |
+|:---|:---|:---|
+| `getMessage()` | `String` | 예외 메시지 |
+| `printStackTrace()` | `void` | 스택 트레이스를 표준 에러로 출력 |
+| `getStackTrace()` | `StackTraceElement[]` | 스택 트레이스 배열 |
+| `getCause()` | `Throwable` | 원인 예외 |
 
 ```java
-public class ExceptionInfoExample {
-    public static void main(String[] args) {
-        try {
-            method1();
-        } catch (Exception e) {
-            // 예외 메시지만 출력
-            System.out.println("getMessage(): " + e.getMessage());
-
-            System.out.println("\n--- printStackTrace() ---");
-            // 전체 스택 트레이스 출력
-            e.printStackTrace();
-
-            System.out.println("\n--- getStackTrace() ---");
-            // 스택 트레이스 배열로 접근
-            StackTraceElement[] trace = e.getStackTrace();
-            for (StackTraceElement element : trace) {
-                System.out.println("  at " + element.getClassName()
-                    + "." + element.getMethodName()
-                    + "(" + element.getFileName()
-                    + ":" + element.getLineNumber() + ")");
-            }
-        }
-    }
-
-    static void method1() {
-        method2();
-    }
-
-    static void method2() {
-        throw new RuntimeException("의도적으로 발생시킨 예외");
-    }
-}
-```
-
-**출력 결과:**
-```
-getMessage(): 의도적으로 발생시킨 예외
-
---- printStackTrace() ---
-java.lang.RuntimeException: 의도적으로 발생시킨 예외
-    at ExceptionInfoExample.method2(ExceptionInfoExample.java:30)
-    at ExceptionInfoExample.method1(ExceptionInfoExample.java:26)
-    at ExceptionInfoExample.main(ExceptionInfoExample.java:5)
-
---- getStackTrace() ---
-  at ExceptionInfoExample.method2(ExceptionInfoExample.java:30)
-  at ExceptionInfoExample.method1(ExceptionInfoExample.java:26)
-  at ExceptionInfoExample.main(ExceptionInfoExample.java:5)
-```
-
-### 4.2 멀티 catch 블럭 (JDK 1.7+)
-
-여러 예외를 하나의 catch 블럭에서 처리할 수 있다.
-
-```java
-// Before JDK 1.7
 try {
-    // ...
-} catch (IOException e) {
+    method1();
+} catch (Exception e) {
+    System.out.println(e.getMessage());
     e.printStackTrace();
-} catch (SQLException e) {
-    e.printStackTrace();
-}
 
-// After JDK 1.7 - 멀티 catch
+    for (StackTraceElement el : e.getStackTrace()) {
+        System.out.println("  at " + el);
+    }
+}
+```
+
+### 4.2 멀티 catch 블록 (JDK 1.7+)
+
+하나의 catch에서 여러 예외를 처리한다.
+
+```java
 try {
     // ...
 } catch (IOException | SQLException e) {
@@ -332,611 +203,341 @@ try {
 ```
 
 {{< callout type="warning" >}}
-**멀티 catch 제약사항:**
-1. `|`로 연결된 예외가 조상-자손 관계면 컴파일 에러 (조상만 쓰면 됨)
-2. 참조변수 `e`로는 공통 조상의 멤버만 사용 가능
-3. 참조변수 `e`는 묵시적으로 `final`이므로 재할당 불가
+**멀티 catch 제약**
+
+1. `|`로 연결된 예외가 **조상-자손 관계면 컴파일 에러** (조상만 쓰면 됨)
+2. `e`로 접근할 수 있는 것은 **공통 조상의 멤버**뿐
+3. `e`는 묵시적으로 `final` — 재할당 불가
 {{< /callout >}}
-
-```java
-// 컴파일 에러 - 조상-자손 관계
-try {
-    // ...
-} catch (Exception | RuntimeException e) {  // 에러!
-    // RuntimeException은 Exception의 자손
-}
-
-// 올바른 사용
-try {
-    // ...
-} catch (IOException | SQLException e) {
-    // 공통 조상인 Exception의 메서드만 사용 가능
-    e.printStackTrace();
-
-    // e = new IOException();  // 에러! e는 final
-}
-```
 
 ---
 
-## 5. 예외 발생시키기
+## 5. 예외 발생시키기 — throw
 
 ### 5.1 throw 키워드
 
-`throw` 키워드를 사용하여 프로그래머가 의도적으로 예외를 발생시킬 수 있다.
+예외 객체를 직접 생성해서 `throw`로 던진다.
 
 ```java
-// 방법 1: 예외 객체 생성 후 throw
-Exception e = new Exception("고의로 발생시킨 예외");
-throw e;
-
-// 방법 2: 한 줄로 작성
-throw new Exception("고의로 발생시킨 예외");
+throw new IllegalArgumentException("음수는 허용되지 않습니다: " + n);
 ```
 
-### 5.2 실용적인 예제
+### 5.2 실전 예시
 
 ```java
 public class Account {
-    private String owner;
     private int balance;
-
-    public Account(String owner, int balance) {
-        this.owner = owner;
-        this.balance = balance;
-    }
 
     public void deposit(int amount) {
         if (amount <= 0) {
-            throw new IllegalArgumentException("입금액은 0보다 커야 합니다: " + amount);
+            throw new IllegalArgumentException("입금액은 0보다 커야 합니다");
         }
         balance += amount;
     }
 
     public void withdraw(int amount) {
         if (amount <= 0) {
-            throw new IllegalArgumentException("출금액은 0보다 커야 합니다: " + amount);
+            throw new IllegalArgumentException("출금액은 0보다 커야 합니다");
         }
         if (balance < amount) {
             throw new IllegalStateException(
-                "잔액이 부족합니다. 현재 잔액: " + balance + ", 요청액: " + amount);
+                "잔액 부족. balance=" + balance + ", 요청=" + amount);
         }
         balance -= amount;
     }
-
-    public int getBalance() {
-        return balance;
-    }
-}
-
-// 사용 예시
-public class AccountTest {
-    public static void main(String[] args) {
-        Account account = new Account("홍길동", 10000);
-
-        try {
-            account.withdraw(50000);  // 잔액 부족
-        } catch (IllegalStateException e) {
-            System.out.println("출금 실패: " + e.getMessage());
-        }
-
-        try {
-            account.deposit(-1000);  // 잘못된 금액
-        } catch (IllegalArgumentException e) {
-            System.out.println("입금 실패: " + e.getMessage());
-        }
-    }
 }
 ```
 
-### 5.3 Checked vs Unchecked 예외
+### 5.3 Checked vs Unchecked throw
 
 ```java
-// Checked Exception - 반드시 예외처리 필요
-public void checkedExample() {
-    throw new Exception("checked");  // 컴파일 에러!
-}
-
-// 해결 방법 1: try-catch
-public void checkedExample1() {
-    try {
-        throw new Exception("checked");
-    } catch (Exception e) {
-        e.printStackTrace();
-    }
-}
-
-// 해결 방법 2: throws 선언
-public void checkedExample2() throws Exception {
+// Checked: 반드시 처리하거나 throws 선언
+public void a() throws Exception {
     throw new Exception("checked");
 }
 
-// Unchecked Exception - 예외처리 선택
-public void uncheckedExample() {
-    throw new RuntimeException("unchecked");  // 컴파일 OK
+// Unchecked: 선언 없이도 가능
+public void b() {
+    throw new RuntimeException("unchecked");
 }
 ```
 
 ---
 
-## 6. 메서드에 예외 선언하기 (throws)
+## 6. throws — 메서드에 예외 선언하기
 
-### 6.1 throws 키워드
-
-메서드 선언부에 `throws` 키워드를 사용하여 해당 메서드가 발생시킬 수 있는 예외를 명시한다.
+### 6.1 문법
 
 ```java
-반환타입 메서드명(매개변수) throws 예외타입1, 예외타입2, ... {
-    // 메서드 내용
-}
+반환타입 메서드명(매개변수) throws 예외1, 예외2 { /* ... */ }
 ```
+
+`throws` 에 선언된 예외는 **메서드가 처리하지 않고 호출자에게 넘긴다**는 의미다.
 
 ### 6.2 예외 전파 (Exception Propagation)
 
-예외를 메서드 선언부에 throws로 명시하면, 해당 메서드를 호출한 곳으로 예외가 전파된다.
+예외는 처리되지 않으면 호출 스택을 거슬러 올라간다. 어떤 메서드도 처리하지 않으면 JVM이 최종적으로 프로그램을 종료시킨다.
 
 ```java
-public class ExceptionPropagation {
-    public static void main(String[] args) {
-        try {
-            method1();  // 3. 예외를 받아서 처리
-        } catch (Exception e) {
-            System.out.println("main에서 예외 처리: " + e.getMessage());
-        }
-    }
-
-    static void method1() throws Exception {
-        method2();  // 2. 예외가 전파됨
-    }
-
-    static void method2() throws Exception {
-        throw new Exception("method2에서 발생");  // 1. 예외 발생
-    }
+static void main(String[] a) {
+    try { method1(); }
+    catch (Exception e) { /* 최종 처리 */ }
 }
+
+static void method1() throws Exception { method2(); }
+static void method2() throws Exception { throw new Exception("원인"); }
 ```
 
-**예외 전파 흐름:**
-
 ```
-┌─────────────────────────────────────────────────┐
-│  Call Stack                                      │
-│                                                  │
-│  ┌──────────┐                                   │
-│  │ method2  │ ← 예외 발생                       │
-│  └────┬─────┘                                   │
-│       │ throws Exception                        │
-│       ↓                                         │
-│  ┌──────────┐                                   │
-│  │ method1  │ ← 예외 전달받음, 다시 던짐        │
-│  └────┬─────┘                                   │
-│       │ throws Exception                        │
-│       ↓                                         │
-│  ┌──────────┐                                   │
-│  │  main    │ ← catch로 예외 처리              │
-│  └──────────┘                                   │
-└─────────────────────────────────────────────────┘
-```
-
-### 6.3 예외 처리 위치 결정
-
-```java
-// 방법 1: 예외가 발생한 곳에서 처리
-public void processFile() {
-    try {
-        readFile("data.txt");
-    } catch (IOException e) {
-        // 여기서 처리
-        System.out.println("파일 읽기 실패, 기본값 사용");
-    }
-}
-
-// 방법 2: 호출한 곳으로 던지기
-public void processFile() throws IOException {
-    readFile("data.txt");  // 호출한 곳에서 처리하도록
-}
-
-// 방법 3: 일부 처리 후 다시 던지기 (예외 되던지기)
-public void processFile() throws IOException {
-    try {
-        readFile("data.txt");
-    } catch (IOException e) {
-        System.out.println("파일 읽기 실패 로그 기록");
-        throw e;  // 다시 던지기
-    }
-}
+   예외 발생
+        │
+   ┌─────────┐
+   │ method2 │  throws Exception
+   └────┬────┘
+        ▼ 전파
+   ┌─────────┐
+   │ method1 │  throws Exception
+   └────┬────┘
+        ▼ 전파
+   ┌─────────┐
+   │  main   │  try-catch로 처리
+   └─────────┘
 ```
 
 {{< callout type="info" >}}
-**예외 처리 위치 선택 기준:**
-- 예외를 **복구**할 수 있다면 → 발생한 곳에서 처리
-- 호출한 쪽에서 **결정**해야 한다면 → throws로 전파
-- **로깅** 후 상위로 알려야 한다면 → 예외 되던지기
+**throws 전파 규칙**
+
+- 호출 체인에서 **한 메서드라도 Checked 예외를 던질 수 있으면**, 그 윗단 메서드들은 모두 같은 예외를 선언하거나 처리해야 한다.
+- 오버라이딩할 때 **자손 메서드는 조상보다 많은 Checked 예외를 선언할 수 없다.** 조상 타입으로 호출하는 코드가 깨질 수 있기 때문이다.
 {{< /callout >}}
+
+### 6.3 처리 위치 결정
+
+```java
+// 1) 여기서 복구 가능 → 직접 처리
+public void processFile() {
+    try { readFile("data.txt"); }
+    catch (IOException e) { /* 기본값으로 대체 */ }
+}
+
+// 2) 상위에서 정책 결정 → 전파
+public void processFile() throws IOException {
+    readFile("data.txt");
+}
+
+// 3) 로깅 후 다시 던지기
+public void processFile() throws IOException {
+    try { readFile("data.txt"); }
+    catch (IOException e) {
+        log.error("읽기 실패", e);
+        throw e;
+    }
+}
+```
 
 ---
 
-## 7. finally 블럭
+## 7. finally 블록
 
 ### 7.1 finally의 역할
 
-`finally` 블럭은 예외 발생 여부와 관계없이 **항상 실행**되어야 하는 코드를 넣는다.
+예외 발생 여부와 무관하게 **항상 실행**되어야 하는 코드(자원 정리 등)를 넣는다.
 
 ```java
 try {
-    // 예외가 발생할 가능성이 있는 문장
+    // ...
 } catch (Exception e) {
-    // 예외 처리 문장
+    // ...
 } finally {
-    // 예외 발생 여부와 관계없이 항상 실행되는 문장
-    // 주로 자원 정리(cleanup) 코드
+    // 정리 코드
 }
 ```
-
-### 7.2 실행 순서
 
 | 상황 | 실행 순서 |
-|:-----|:---------|
-| 예외 발생 O | try → catch → finally |
-| 예외 발생 X | try → finally |
-| return 있음 | try/catch의 return 전에 finally 실행 |
+|:---|:---|
+| 예외 발생 | try(발생 시점까지) → catch → finally |
+| 예외 없음 | try → finally |
+| return 있음 | try/catch의 return 계산 → finally → 반환 |
 
-### 7.3 finally와 return
+### 7.2 finally와 return
 
 ```java
-public class FinallyReturnExample {
-    public static void main(String[] args) {
-        System.out.println("결과: " + test());
-    }
-
-    static int test() {
-        try {
-            System.out.println("try 블럭");
-            return 1;  // finally 실행 후 반환
-        } catch (Exception e) {
-            System.out.println("catch 블럭");
-            return 2;
-        } finally {
-            System.out.println("finally 블럭 - 항상 실행");
-            // return 3;  // 권장하지 않음!
-        }
-    }
+static int test() {
+    try { return 1; }
+    finally { System.out.println("finally"); }
 }
+// 출력: finally
+// 반환: 1
 ```
 
-**출력 결과:**
-```
-try 블럭
-finally 블럭 - 항상 실행
-결과: 1
-```
-
-{{< callout type="danger" >}}
-**finally에서 return 사용 금지:**
-finally 블럭에서 return을 사용하면 try/catch의 return 값을 덮어쓰므로 예측하기 어려운 결과가 발생한다.
+{{< callout type="warning" >}}
+**finally 에서 `return`/`throw` 는 피하자.** try/catch의 반환값이나 던진 예외를 덮어써서 디버깅이 매우 어려워진다.
 {{< /callout >}}
 
-### 7.4 자원 정리 패턴
+### 7.3 전통적인 자원 정리 패턴
 
 ```java
-public void readFile(String path) {
-    FileReader reader = null;
-    try {
-        reader = new FileReader(path);
-        // 파일 읽기 작업
-    } catch (IOException e) {
-        System.out.println("파일 읽기 오류: " + e.getMessage());
-    } finally {
-        // 자원 정리 - 예외 여부와 관계없이 실행
-        if (reader != null) {
-            try {
-                reader.close();
-            } catch (IOException e) {
-                System.out.println("파일 닫기 오류");
-            }
-        }
+FileReader reader = null;
+try {
+    reader = new FileReader(path);
+    // ...
+} catch (IOException e) {
+    // ...
+} finally {
+    if (reader != null) {
+        try { reader.close(); }
+        catch (IOException ignore) { }
     }
 }
 ```
 
 ---
 
-## 8. try-with-resources (자동 자원 반환)
+## 8. try-with-resources
 
 ### 8.1 기존 방식의 문제점
 
-```java
-// 문제 1: 코드가 복잡함
-// 문제 2: close()에서 예외 발생 시 처리 필요
-// 문제 3: close() 호출을 잊을 수 있음
-FileInputStream fis = null;
-try {
-    fis = new FileInputStream("file.txt");
-    // 작업 수행
-} catch (IOException e) {
-    e.printStackTrace();
-} finally {
-    if (fis != null) {
-        try {
-            fis.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-}
-```
+- 코드가 길고 복잡하다
+- `close()`에서도 예외가 발생할 수 있다
+- `close()` 호출을 빠뜨리기 쉽다
 
 ### 8.2 try-with-resources 문법 (JDK 1.7+)
 
+`try` 뒤 괄호 안에 선언한 자원은 **자동으로 `close()`가 호출**된다.
+
 ```java
-// 괄호 안에 선언된 자원은 자동으로 close() 호출
 try (FileInputStream fis = new FileInputStream("file.txt")) {
-    // 작업 수행
+    // 작업
 } catch (IOException e) {
     e.printStackTrace();
 }
 // fis.close()가 자동 호출됨
 ```
 
-### 8.3 여러 자원 사용
+여러 자원은 세미콜론으로 구분한다.
 
 ```java
-// 세미콜론으로 구분하여 여러 자원 선언
-try (FileInputStream fis = new FileInputStream("input.txt");
-     FileOutputStream fos = new FileOutputStream("output.txt")) {
-
-    int data;
-    while ((data = fis.read()) != -1) {
-        fos.write(data);
-    }
-} catch (IOException e) {
-    e.printStackTrace();
+try (FileInputStream  fis = new FileInputStream("in.txt");
+     FileOutputStream fos = new FileOutputStream("out.txt")) {
+    int d;
+    while ((d = fis.read()) != -1) fos.write(d);
 }
-// fos.close() → fis.close() 순서로 자동 호출 (선언의 역순)
+// close 호출 순서: fos → fis (선언의 역순)
 ```
 
-### 8.4 AutoCloseable 인터페이스
+### 8.3 AutoCloseable 인터페이스
 
-try-with-resources를 사용하려면 해당 클래스가 `AutoCloseable` 인터페이스를 구현해야 한다.
+try-with-resources에 쓰려면 `AutoCloseable`을 구현해야 한다.
 
 ```java
 public interface AutoCloseable {
     void close() throws Exception;
 }
 
-// 사용자 정의 자원 클래스
-public class MyResource implements AutoCloseable {
-    private String name;
-
-    public MyResource(String name) {
-        this.name = name;
-        System.out.println(name + " 자원 생성");
-    }
-
-    public void doSomething() {
-        System.out.println(name + " 작업 수행");
-    }
-
-    @Override
-    public void close() {
-        System.out.println(name + " 자원 해제");
-    }
-}
-
-// 사용 예시
-public class AutoCloseableExample {
-    public static void main(String[] args) {
-        try (MyResource resource1 = new MyResource("Resource1");
-             MyResource resource2 = new MyResource("Resource2")) {
-
-            resource1.doSomething();
-            resource2.doSomething();
-        }
+class MyResource implements AutoCloseable {
+    @Override public void close() {
+        System.out.println("해제");
     }
 }
 ```
 
-**출력 결과:**
-```
-Resource1 자원 생성
-Resource2 자원 생성
-Resource1 작업 수행
-Resource2 작업 수행
-Resource2 자원 해제
-Resource1 자원 해제
-```
+{{< callout type="info" >}}
+**try-with-resources 를 우선 사용하자.** `finally` 기반 정리는 코드가 길고, close에서 예외가 발생하면 원본 예외를 삼켜버리기 쉽다. try-with-resources는 **원본 예외를 보존하고 close 예외는 "억제된 예외(suppressed)"로 첨부**한다.
+{{< /callout >}}
 
-### 8.5 억제된 예외 (Suppressed Exception)
+### 8.4 억제된 예외 (Suppressed Exception)
 
-try 블럭과 close()에서 모두 예외가 발생하면, close()의 예외는 억제되어 저장된다.
+try 블록과 `close()`에서 모두 예외가 발생하면, `close()`의 예외는 주 예외에 첨부된다.
 
 ```java
-public class SuppressedExceptionExample {
-    public static void main(String[] args) {
-        try (MyResource resource = new MyResource()) {
-            throw new RuntimeException("try 블럭에서 예외 발생");
-        } catch (Exception e) {
-            System.out.println("주 예외: " + e.getMessage());
-
-            // 억제된 예외 확인
-            Throwable[] suppressed = e.getSuppressed();
-            for (Throwable t : suppressed) {
-                System.out.println("억제된 예외: " + t.getMessage());
-            }
-        }
+try (MyResource r = new MyResource()) {
+    throw new RuntimeException("try 예외");
+} catch (Exception e) {
+    System.out.println("주: " + e.getMessage());
+    for (Throwable s : e.getSuppressed()) {
+        System.out.println("억제됨: " + s.getMessage());
     }
 }
-
-class MyResource implements AutoCloseable {
-    @Override
-    public void close() {
-        throw new RuntimeException("close()에서 예외 발생");
-    }
-}
-```
-
-**출력 결과:**
-```
-주 예외: try 블럭에서 예외 발생
-억제된 예외: close()에서 예외 발생
 ```
 
 ---
 
 ## 9. 사용자 정의 예외
 
-### 9.1 사용자 정의 예외 만들기
-
-필요에 따라 새로운 예외 클래스를 정의할 수 있다.
+### 9.1 예외 클래스 만들기
 
 ```java
-// Checked Exception (Exception 상속)
+// Checked
 public class InsufficientBalanceException extends Exception {
-    private int balance;
-    private int amount;
+    private final int balance;
+    private final int amount;
 
-    public InsufficientBalanceException(String message, int balance, int amount) {
-        super(message);
+    public InsufficientBalanceException(String msg, int balance, int amount) {
+        super(msg);
         this.balance = balance;
-        this.amount = amount;
+        this.amount  = amount;
     }
-
     public int getBalance() { return balance; }
-    public int getAmount() { return amount; }
+    public int getAmount()  { return amount; }
 }
 
-// Unchecked Exception (RuntimeException 상속) - 최근 권장 방식
+// Unchecked (최근 권장)
 public class InvalidOrderException extends RuntimeException {
-    private String orderId;
-
-    public InvalidOrderException(String message) {
-        super(message);
-    }
-
-    public InvalidOrderException(String message, String orderId) {
-        super(message);
-        this.orderId = orderId;
-    }
-
-    public InvalidOrderException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
-    public String getOrderId() { return orderId; }
+    public InvalidOrderException(String msg)                   { super(msg); }
+    public InvalidOrderException(String msg, Throwable cause)  { super(msg, cause); }
 }
 ```
 
-### 9.2 사용자 정의 예외 활용
+### 9.2 활용
 
 ```java
-public class BankAccount {
-    private String accountNumber;
-    private int balance;
-
-    public BankAccount(String accountNumber, int initialBalance) {
-        this.accountNumber = accountNumber;
-        this.balance = initialBalance;
+public void withdraw(int amount) throws InsufficientBalanceException {
+    if (amount > balance) {
+        throw new InsufficientBalanceException("잔액 부족", balance, amount);
     }
-
-    public void withdraw(int amount) throws InsufficientBalanceException {
-        if (amount > balance) {
-            throw new InsufficientBalanceException(
-                "잔액이 부족합니다",
-                balance,
-                amount
-            );
-        }
-        balance -= amount;
-    }
-
-    public int getBalance() { return balance; }
-}
-
-// 사용 예시
-public class BankAccountTest {
-    public static void main(String[] args) {
-        BankAccount account = new BankAccount("123-456", 10000);
-
-        try {
-            account.withdraw(50000);
-        } catch (InsufficientBalanceException e) {
-            System.out.println("출금 실패: " + e.getMessage());
-            System.out.println("현재 잔액: " + e.getBalance());
-            System.out.println("요청 금액: " + e.getAmount());
-            System.out.println("부족 금액: " + (e.getAmount() - e.getBalance()));
-        }
-    }
+    balance -= amount;
 }
 ```
 
 {{< callout type="info" >}}
-**최근 트렌드:**
-과거에는 주로 `Exception`을 상속받아 Checked Exception으로 만들었지만, 최근에는 예외 처리의 유연성을 위해 `RuntimeException`을 상속받아 Unchecked Exception으로 만드는 경우가 많다.
+**사용자 정의 예외의 실용 팁**
+
+- 도메인 의미가 담긴 이름을 쓴다 (`OrderNotFoundException`, `PaymentFailedException`)
+- 원인 예외를 받는 생성자를 꼭 제공한다 (`Throwable cause`)
+- 꼭 필요한 정보(잔액, 주문ID 등)만 필드로 담는다
+- 특별한 복구 전략이 없다면 기본 Unchecked로 설계한다
 {{< /callout >}}
 
 ---
 
-## 10. 예외 되던지기 (Exception Re-throwing)
+## 10. 예외 되던지기 (Re-throwing)
 
-### 10.1 예외 되던지기란?
-
-예외를 처리한 후 다시 발생시켜 호출한 메서드에서도 처리할 수 있게 하는 기법이다.
+예외를 잡아 처리(로깅 등) 후 **다시 던져 상위에서도 대응**하게 한다.
 
 ```java
-public class ReThrowingExample {
-    public static void main(String[] args) {
-        try {
-            method1();
-        } catch (Exception e) {
-            System.out.println("main에서 최종 처리");
-        }
-    }
-
-    static void method1() throws Exception {
-        try {
-            throw new Exception("원본 예외");
-        } catch (Exception e) {
-            System.out.println("method1에서 예외 로깅: " + e.getMessage());
-            throw e;  // 예외 되던지기
-        }
-    }
-}
-```
-
-### 10.2 활용 패턴
-
-```java
-public class OrderService {
-    private OrderRepository repository;
-    private Logger logger;
-
-    public Order processOrder(Order order) throws OrderProcessingException {
-        try {
-            validateOrder(order);
-            Order savedOrder = repository.save(order);
-            return savedOrder;
-        } catch (ValidationException e) {
-            // 로깅 후 다시 던지기
-            logger.error("주문 검증 실패: " + order.getId(), e);
-            throw new OrderProcessingException("주문 처리 실패", e);
-        } catch (DatabaseException e) {
-            // 롤백 수행 후 다시 던지기
-            logger.error("DB 저장 실패: " + order.getId(), e);
-            throw new OrderProcessingException("주문 저장 실패", e);
-        }
-    }
-}
-```
-
-### 10.3 반환값과 예외 되던지기
-
-```java
-// catch 블럭에서 return 또는 throw 중 하나 필요
-public int divide(int a, int b) throws ArithmeticException {
+static void method1() throws Exception {
     try {
-        return a / b;
-    } catch (ArithmeticException e) {
-        System.out.println("0으로 나눌 수 없습니다");
-        throw e;  // return 대신 throw
+        throw new Exception("원본");
+    } catch (Exception e) {
+        log.error("로깅", e);
+        throw e;                  // 되던지기
+    }
+}
+```
+
+서비스 계층에서 자주 쓰인다.
+
+```java
+public Order processOrder(Order o) throws OrderProcessingException {
+    try {
+        validate(o);
+        return repository.save(o);
+    } catch (ValidationException e) {
+        log.error("검증 실패", e);
+        throw new OrderProcessingException("주문 처리 실패", e);
+    } catch (DatabaseException e) {
+        log.error("DB 오류", e);
+        throw new OrderProcessingException("주문 저장 실패", e);
     }
 }
 ```
@@ -945,66 +546,39 @@ public int divide(int a, int b) throws ArithmeticException {
 
 ## 11. 연결된 예외 (Chained Exception)
 
-### 11.1 원인 예외 (Cause Exception)
+### 11.1 원인 예외
 
-한 예외가 다른 예외를 발생시켰을 때, 원래의 예외를 새 예외의 "원인"으로 등록할 수 있다.
+한 예외가 다른 예외를 유발했을 때, 원래 예외를 **원인(cause)**으로 등록해서 정보를 보존한다.
 
 ```java
-// Throwable의 메서드
-Throwable initCause(Throwable cause)  // 원인 예외 등록
-Throwable getCause()                   // 원인 예외 반환
+Throwable initCause(Throwable cause);   // 원인 설정
+Throwable getCause();                   // 원인 조회
 ```
 
-### 11.2 예외 연결하기
+### 11.2 예외 감싸기 (wrapping)
 
 ```java
-public class ChainedExceptionExample {
-    public static void main(String[] args) {
-        try {
-            startProcess();
-        } catch (ProcessException e) {
-            System.out.println("예외: " + e.getMessage());
-            System.out.println("원인: " + e.getCause().getMessage());
-        }
-    }
-
-    static void startProcess() throws ProcessException {
-        try {
-            doSomething();
-        } catch (IOException e) {
-            // 원인 예외를 포함하여 새 예외 발생
-            throw new ProcessException("프로세스 실패", e);
-        }
-    }
-
-    static void doSomething() throws IOException {
-        throw new IOException("파일 읽기 실패");
-    }
-}
-
 class ProcessException extends Exception {
-    public ProcessException(String message, Throwable cause) {
-        super(message, cause);  // 생성자에서 원인 예외 설정
+    public ProcessException(String msg, Throwable cause) { super(msg, cause); }
+}
+
+static void startProcess() throws ProcessException {
+    try { doSomething(); }
+    catch (IOException e) {
+        throw new ProcessException("프로세스 실패", e);   // 원인 포함
     }
 }
 ```
 
-### 11.3 Checked를 Unchecked로 변환
+### 11.3 Checked → Unchecked 변환
 
-연결된 예외를 사용하면 Checked Exception을 Unchecked Exception으로 감쌀 수 있다.
+Checked 예외를 Unchecked로 감싸면 호출자의 `throws` 부담을 줄일 수 있다.
 
 ```java
-// 기존: Checked Exception을 반드시 처리해야 함
-public void process() throws IOException {
-    throw new IOException("파일 없음");
-}
-
-// 변환: Unchecked로 감싸서 처리를 선택적으로
 public void process() {
-    try {
-        throw new IOException("파일 없음");
-    } catch (IOException e) {
-        throw new RuntimeException("처리 실패", e);  // Unchecked로 변환
+    try { doIO(); }
+    catch (IOException e) {
+        throw new RuntimeException("처리 실패", e);
     }
 }
 ```
@@ -1013,74 +587,56 @@ public void process() {
 
 ## 12. 예외 처리 베스트 프랙티스
 
-### 12.1 예외 처리 원칙
+### 12.1 원칙
 
 | 원칙 | 설명 |
-|:-----|:-----|
-| **구체적인 예외 사용** | `Exception` 대신 구체적인 예외 타입 사용 |
-| **의미있는 메시지** | 예외 발생 원인을 파악할 수 있는 메시지 포함 |
-| **원인 예외 보존** | 예외를 변환할 때 원인 예외를 함께 전달 |
-| **적절한 수준에서 처리** | 예외를 처리할 수 있는 곳에서만 catch |
-| **빈 catch 블럭 금지** | 예외를 무시하지 않고 최소한 로깅 |
+|:---|:---|
+| 구체적인 예외 | `Exception` 대신 구체 타입 사용 |
+| 의미 있는 메시지 | 원인·상태·값을 메시지에 포함 |
+| 원인 보존 | 감쌀 때 `cause`를 꼭 전달 |
+| 처리 위치 | 실제로 처리할 수 있는 곳에서만 catch |
+| 빈 catch 금지 | 최소한 로깅이라도 남긴다 |
 
 ### 12.2 안티 패턴
 
 ```java
-// ❌ 나쁜 예: 모든 예외를 무시
-try {
-    doSomething();
-} catch (Exception e) {
-    // 아무것도 안 함 - 절대 금지!
-}
+// 예외 삼킴
+try { doSomething(); }
+catch (Exception e) { /* 아무것도 안 함 */ }
 
-// ❌ 나쁜 예: 너무 넓은 예외 타입
-try {
-    doSomething();
-} catch (Exception e) {  // 모든 예외를 잡음
-    e.printStackTrace();
-}
+// 너무 넓은 catch
+try { doSomething(); }
+catch (Exception e) { e.printStackTrace(); }
 
-// ❌ 나쁜 예: 예외 정보 손실
-try {
-    doSomething();
-} catch (IOException e) {
-    throw new RuntimeException("실패");  // 원인 예외 누락
-}
+// 원인 손실
+try { doSomething(); }
+catch (IOException e) { throw new RuntimeException("실패"); }   // cause 누락
 
-// ❌ 나쁜 예: 로직 제어에 예외 사용
-try {
-    int value = Integer.parseInt(str);
-} catch (NumberFormatException e) {
-    value = 0;  // 예외를 정상 로직처럼 사용
-}
+// 정상 흐름에 예외 사용
+try { value = Integer.parseInt(str); }
+catch (NumberFormatException e) { value = 0; }
 ```
 
 ### 12.3 권장 패턴
 
 ```java
-// ✅ 좋은 예: 구체적인 예외 타입
-try {
-    doSomething();
-} catch (FileNotFoundException e) {
-    // 파일 없음 처리
-} catch (IOException e) {
-    // 기타 IO 오류 처리
+// 구체적인 예외부터
+try { doSomething(); }
+catch (FileNotFoundException e) { /* ... */ }
+catch (IOException e)           { /* ... */ }
+
+// 의미있는 메시지
+throw new IllegalArgumentException("나이는 0 이상: 입력=" + age);
+
+// 원인 보존
+try { readFile(path); }
+catch (IOException e) {
+    throw new DataLoadException("로드 실패: " + path, e);
 }
 
-// ✅ 좋은 예: 의미있는 예외 메시지
-throw new IllegalArgumentException(
-    "나이는 0 이상이어야 합니다. 입력값: " + age);
-
-// ✅ 좋은 예: 원인 예외 보존
-try {
-    readFile(path);
-} catch (IOException e) {
-    throw new DataLoadException("데이터 로드 실패: " + path, e);
-}
-
-// ✅ 좋은 예: 예외 전 검증
+// 예외 전 검증
 if (str != null && !str.isEmpty()) {
-    int value = Integer.parseInt(str);
+    value = Integer.parseInt(str);
 }
 ```
 
@@ -1088,49 +644,44 @@ if (str != null && !str.isEmpty()) {
 
 ## 13. 요약
 
-### 핵심 개념 정리
-
 | 개념 | 설명 |
-|:-----|:-----|
-| **Exception** | 프로그램 코드로 수습 가능한 오류 |
-| **Error** | 복구 불가능한 심각한 오류 |
-| **Checked Exception** | 컴파일러가 예외 처리를 강제 |
-| **Unchecked Exception** | RuntimeException 계열, 처리 선택 |
-| **try-catch** | 예외 발생 시 처리하는 구문 |
-| **finally** | 예외 여부와 관계없이 항상 실행 |
-| **throws** | 메서드가 발생시킬 수 있는 예외 선언 |
-| **throw** | 예외를 명시적으로 발생 |
-| **try-with-resources** | 자원 자동 해제 구문 (JDK 1.7+) |
-| **연결된 예외** | 예외의 원인을 다른 예외로 지정 |
+|:---|:---|
+| Exception / Error | 처리 가능한 오류 / 복구 불가한 치명 오류 |
+| Checked / Unchecked | 컴파일러가 강제 / 선택적 처리 |
+| try-catch | 예외 발생 시 분기 처리 |
+| finally | 항상 실행, 자원 정리 |
+| throws | 메서드가 던질 수 있는 예외 선언 |
+| throw | 예외를 명시적으로 발생 |
+| try-with-resources | 자원 자동 해제 (JDK 1.7+) |
+| 연결된 예외 | 원인 보존, 타입 변환 |
 
-### 예외 처리 흐름도
+**예외 처리 흐름**
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    예외 발생                                  │
-│                       │                                      │
-│         ┌─────────────┴─────────────┐                       │
-│         ↓                           ↓                       │
-│   현재 메서드에서              호출한 메서드로                │
-│   try-catch로 처리             throws로 전파                 │
-│         │                           │                       │
-│         ↓                           ↓                       │
-│    catch 블럭 실행          상위 메서드에서 처리              │
-│         │                    또는 다시 전파                  │
-│         ↓                           │                       │
-│    finally 실행 ←───────────────────┘                       │
-│    (있는 경우)                                               │
-│         │                                                    │
-│         ↓                                                    │
-│    프로그램 계속 실행                                        │
-└─────────────────────────────────────────────────────────────┘
+예외 발생
+    │
+ ┌──┴────────────┐
+ ▼               ▼
+현재 메서드      호출자에게
+try-catch       throws 전파
+    │               │
+    ▼               ▼
+catch 실행      상위에서 처리
+    │           또는 재전파
+    ▼               │
+finally ◀──────────┘
+(있으면)
+    │
+    ▼
+정상 흐름 재개
 ```
 
 {{< callout type="info" >}}
-**예외 처리의 핵심:**
-1. 예외는 **예측 가능한 오류 상황**에 대비하는 것
-2. 복구할 수 있으면 **try-catch**로 처리
-3. 호출자가 결정해야 하면 **throws**로 전파
-4. 자원은 **try-with-resources**로 안전하게 해제
-5. 사용자 정의 예외로 **도메인 특화** 오류 표현
+**예외 처리의 5가지 핵심**
+
+1. 예외는 **예측 가능한 비정상 상황**에 대비하는 도구다
+2. 복구 가능하면 **try-catch**, 결정권이 호출자에게 있으면 **throws**
+3. 자원은 **try-with-resources**로 안전하게 해제
+4. 예외를 **감쌀 때는 원인(cause)을 반드시 보존**
+5. 도메인에 의미를 주고 싶으면 **사용자 정의 예외**를 만든다
 {{< /callout >}}

@@ -3,8 +3,6 @@ title: "Chapter 11. 컬렉션 프레임웍 (Collections Framework)"
 weight: 11
 ---
 
-# 컬렉션 프레임웍 (Collections Framework)
-
 컬렉션 프레임웍의 핵심 인터페이스(List, Set, Map), 주요 구현 클래스, 정렬과 검색, 해싱의 원리를 다룬다.
 
 ---
@@ -155,8 +153,10 @@ list.ensureCapacity(200);   // 최소 용량 200 확보
 단방향 링크드 리스트:
 [A|→] → [B|→] → [C|→] → null
 
-더블 링크드 리스트 (실제 Java LinkedList):
-null ← [←|A|→] ⇄ [←|B|→] ⇄ [←|C|→] → null
+더블 링크드 리스트 (Java LinkedList):
+[A] ⇄ [B] ⇄ [C]
+ ↑              ↑
+head          tail
 ```
 
 ```java
@@ -752,7 +752,8 @@ hashCode() → 해시코드 → 배열 인덱스
 배열: [0][ ][ ][3][ ][ ][ ]
                 │
                 ▼
-          [Java=10] → [Go=3]  ← 링크드 리스트
+         [Java=10] → [Go=3]
+         (같은 버킷의 링크드 리스트)
 ```
 
 1. 키의 `hashCode()`로 해시코드를 생성한다
