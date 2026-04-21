@@ -32,12 +32,64 @@ toc: false
 
 ## Tech Stack
 
-| 분류 | 기술 |
-|:-----|:-----|
-| **Backend** | <img alt="Java" src="https://img.shields.io/badge/Java-007396?style=flat-square&logo=openjdk&logoColor=white" /> <img alt="Spring Boot" src="https://img.shields.io/badge/Spring_Boot-6DB33F?style=flat-square&logo=springboot&logoColor=white" /> <img alt="Spring Batch" src="https://img.shields.io/badge/Spring_Batch-6DB33F?style=flat-square&logo=spring&logoColor=white" /> <img alt="Spring Security" src="https://img.shields.io/badge/Spring_Security-6DB33F?style=flat-square&logo=springsecurity&logoColor=white" /> <img alt="Spring Quartz" src="https://img.shields.io/badge/Spring_Quartz-6DB33F?style=flat-square&logo=spring&logoColor=white" /> <img alt="Spring Data JPA" src="https://img.shields.io/badge/Spring_Data_JPA-59666C?style=flat-square&logo=hibernate&logoColor=white" /> <img alt="MyBatis" src="https://img.shields.io/badge/MyBatis-B33A3A?style=flat-square&logoColor=white" /> |
-| **Frontend** | <img alt="JavaScript" src="https://img.shields.io/badge/JavaScript-F7DF1E?style=flat-square&logo=javascript&logoColor=black" /> <img alt="jQuery" src="https://img.shields.io/badge/jQuery-0769AD?style=flat-square&logo=jquery&logoColor=white" /> <img alt="JSP" src="https://img.shields.io/badge/JSP-E76F00?style=flat-square&logo=java&logoColor=white" /> <img alt="Thymeleaf" src="https://img.shields.io/badge/Thymeleaf-005F0F?style=flat-square&logo=thymeleaf&logoColor=white" /> |
-| **Database** | <img alt="MySQL" src="https://img.shields.io/badge/MySQL-4479A1?style=flat-square&logo=mysql&logoColor=white" /> <img alt="Oracle" src="https://img.shields.io/badge/Oracle-F80000?style=flat-square&logo=oracle&logoColor=white" /> <img alt="Redis" src="https://img.shields.io/badge/Redis-DC382D?style=flat-square&logo=redis&logoColor=white" /> |
-| **Infra & Monitoring** | <img alt="Docker" src="https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white" /> <img alt="Kubernetes" src="https://img.shields.io/badge/Kubernetes-326CE5?style=flat-square&logo=kubernetes&logoColor=white" /> <img alt="Prometheus" src="https://img.shields.io/badge/Prometheus-E6522C?style=flat-square&logo=prometheus&logoColor=white" /> <img alt="Grafana" src="https://img.shields.io/badge/Grafana-F46800?style=flat-square&logo=grafana&logoColor=white" /> <img alt="Loki" src="https://img.shields.io/badge/Loki-F5A800?style=flat-square&logo=grafana&logoColor=white" /> <img alt="ELK Stack" src="https://img.shields.io/badge/ELK_Stack-005571?style=flat-square&logo=elastic&logoColor=white" /> |
+<table>
+  <thead>
+    <tr>
+      <th align="left">분류</th>
+      <th align="left">기술</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="white-space:nowrap;"><strong>Backend</strong></td>
+      <td>
+        <div style="display:flex; flex-wrap:wrap; gap:4px;">
+          <img alt="Java" src="https://img.shields.io/badge/Java-007396?style=flat-square&logo=openjdk&logoColor=white" />
+          <img alt="Spring Boot" src="https://img.shields.io/badge/Spring_Boot-6DB33F?style=flat-square&logo=springboot&logoColor=white" />
+          <img alt="Spring Batch" src="https://img.shields.io/badge/Spring_Batch-6DB33F?style=flat-square&logo=spring&logoColor=white" />
+          <img alt="Spring Security" src="https://img.shields.io/badge/Spring_Security-6DB33F?style=flat-square&logo=springsecurity&logoColor=white" />
+          <img alt="Spring Quartz" src="https://img.shields.io/badge/Spring_Quartz-6DB33F?style=flat-square&logo=spring&logoColor=white" />
+          <img alt="Spring Data JPA" src="https://img.shields.io/badge/Spring_Data_JPA-59666C?style=flat-square&logo=hibernate&logoColor=white" />
+          <img alt="MyBatis" src="https://img.shields.io/badge/MyBatis-B33A3A?style=flat-square&logoColor=white" />
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="white-space:nowrap;"><strong>Frontend</strong></td>
+      <td>
+        <div style="display:flex; flex-wrap:wrap; gap:4px;">
+          <img alt="JavaScript" src="https://img.shields.io/badge/JavaScript-F7DF1E?style=flat-square&logo=javascript&logoColor=black" />
+          <img alt="jQuery" src="https://img.shields.io/badge/jQuery-0769AD?style=flat-square&logo=jquery&logoColor=white" />
+          <img alt="JSP" src="https://img.shields.io/badge/JSP-E76F00?style=flat-square&logo=java&logoColor=white" />
+          <img alt="Thymeleaf" src="https://img.shields.io/badge/Thymeleaf-005F0F?style=flat-square&logo=thymeleaf&logoColor=white" />
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="white-space:nowrap;"><strong>Database</strong></td>
+      <td>
+        <div style="display:flex; flex-wrap:wrap; gap:4px;">
+          <img alt="MySQL" src="https://img.shields.io/badge/MySQL-4479A1?style=flat-square&logo=mysql&logoColor=white" />
+          <img alt="Oracle" src="https://img.shields.io/badge/Oracle-F80000?style=flat-square&logo=oracle&logoColor=white" />
+          <img alt="Redis" src="https://img.shields.io/badge/Redis-DC382D?style=flat-square&logo=redis&logoColor=white" />
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="white-space:nowrap;"><strong>Infra & Monitoring</strong></td>
+      <td>
+        <div style="display:flex; flex-wrap:wrap; gap:4px;">
+          <img alt="Docker" src="https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white" />
+          <img alt="Kubernetes" src="https://img.shields.io/badge/Kubernetes-326CE5?style=flat-square&logo=kubernetes&logoColor=white" />
+          <img alt="Prometheus" src="https://img.shields.io/badge/Prometheus-E6522C?style=flat-square&logo=prometheus&logoColor=white" />
+          <img alt="Grafana" src="https://img.shields.io/badge/Grafana-F46800?style=flat-square&logo=grafana&logoColor=white" />
+          <img alt="Loki" src="https://img.shields.io/badge/Loki-F5A800?style=flat-square&logo=grafana&logoColor=white" />
+          <img alt="ELK Stack" src="https://img.shields.io/badge/ELK_Stack-005571?style=flat-square&logo=elastic&logoColor=white" />
+        </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
 
 ---
 
