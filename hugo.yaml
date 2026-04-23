@@ -25,18 +25,21 @@ markup:
 
 menu:
   main:
-    - name: Docs
-      pageRef: /docs
+    - name: Education
+      pageRef: /education
       weight: 1
+    - name: Blog
+      pageRef: /blog
+      weight: 2
     - name: About
       pageRef: /about
-      weight: 2
-    - name: Search
       weight: 3
+    - name: Search
+      weight: 4
       params:
         type: search
     - name: GitHub
-      weight: 4
+      weight: 5
       url: "https://github.com/kjw1995/95jw_archive"
       params:
         icon: github

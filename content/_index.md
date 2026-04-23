@@ -127,26 +127,27 @@ toc: false
 
 ---
 
-## Archive
-
-### 학습 노트
+## Education
 
 {{< cards >}}
-  {{< card link="docs/education/java/" title="Java" subtitle="언어, JVM, JPA, 동시성" >}}
-  {{< card link="docs/education/spring/" title="Spring" subtitle="핵심 원리, Batch" >}}
-  {{< card link="docs/education/database/" title="Database" subtitle="DB 개론, SQL" >}}
-  {{< card link="docs/education/network/" title="Network" subtitle="OSI 7계층, HTTP" >}}
-  {{< card link="docs/education/devops/" title="DevOps" subtitle="Kubernetes, CI/CD" >}}
-  {{< card link="docs/education/linux/" title="Linux" subtitle="셸, 파일 시스템" >}}
-  {{< card link="docs/education/architecture/" title="Architecture" subtitle="REST API 설계" >}}
+  {{< card link="education/java/" title="Java" subtitle="언어, JVM, JPA, 동시성" >}}
+  {{< card link="education/spring/" title="Spring" subtitle="핵심 원리, Batch" >}}
+  {{< card link="education/database/" title="Database" subtitle="DB 개론, SQL" >}}
+  {{< card link="education/redis/" title="Redis" subtitle="인메모리 키-값 저장소" >}}
+  {{< card link="education/network/" title="Network" subtitle="OSI 7계층, HTTP" >}}
+  {{< card link="education/devops/" title="DevOps" subtitle="Kubernetes, CI/CD" >}}
+  {{< card link="education/linux/" title="Linux" subtitle="셸, 파일 시스템" >}}
+  {{< card link="education/architecture/" title="Architecture" subtitle="REST API 설계" >}}
 {{< /cards >}}
 
-### 블로그
+---
+
+## Blog
 
 {{< cards >}}
-  {{< card link="docs/blog/retrospective/" title="회고" subtitle="프로젝트 회고" >}}
-  {{< card link="docs/blog/troubleshooting/" title="트러블슈팅" subtitle="문제 해결 기록" >}}
-  {{< card link="docs/blog/tech-review/" title="기술 리뷰" subtitle="기술 분석" >}}
+  {{< card link="blog/retrospective/" title="회고" subtitle="프로젝트 회고" >}}
+  {{< card link="blog/troubleshooting/" title="트러블슈팅" subtitle="문제 해결 기록" >}}
+  {{< card link="blog/tech-review/" title="기술 리뷰" subtitle="기술 분석" >}}
 {{< /cards >}}
 
 ---

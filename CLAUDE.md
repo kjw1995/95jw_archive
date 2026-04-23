@@ -11,20 +11,19 @@
 content/
 ├── _index.md          # 메인 페이지
 ├── about.md           # 소개 페이지
-└── docs/
-    ├── _index.md      # Archive 메인
-    ├── education/     # 학습 노트
-    │   ├── java/      # Java, JVM, JPA, 동시성
-    │   ├── spring/    # Spring Core, Batch
-    │   ├── database/  # DB 개론, SQL
-    │   ├── network/   # OSI, TCP/IP, HTTP
-    │   ├── devops/    # Kubernetes, CI/CD
-    │   ├── linux/     # 셸, 파일 시스템
-    │   └── architecture/  # REST API 설계
-    └── blog/          # 경험 기록
-        ├── retrospective/    # 회고
-        ├── troubleshooting/  # 트러블슈팅
-        └── tech-review/      # 기술 리뷰
+├── education/         # 학습 노트 (상단 메뉴 Education)
+│   ├── java/          # Java, JVM, JPA, 동시성
+│   ├── spring/        # Spring Core, Batch
+│   ├── database/      # DB 개론, SQL
+│   ├── redis/         # 인메모리 키-값 저장소
+│   ├── network/       # OSI, TCP/IP, HTTP
+│   ├── devops/        # Kubernetes, CI/CD
+│   ├── linux/         # 셸, 파일 시스템
+│   └── architecture/  # REST API 설계
+└── blog/              # 경험 기록 (상단 메뉴 Blog)
+    ├── retrospective/    # 회고
+    ├── troubleshooting/  # 트러블슈팅
+    └── tech-review/      # 기술 리뷰
 ```
 
 ## 문서 작성 규칙
