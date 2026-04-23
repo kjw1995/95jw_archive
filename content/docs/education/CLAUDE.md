@@ -67,7 +67,7 @@
 | 시큐리티 | spring/security | Spring Security in Action | `{nn}-kebab.md` |
 | 쿠버네티스 | devops | - | `kubernetes-kebab.md` |
 | CKA | devops/k8s-basics | CKA 학습 노트 | `kebab.md` |
-| 아키텍처 | architecture | REST API 설계 | `restful-kebab.md` |
+| 아키텍처 | architecture | REST API 설계 | `restful/{nn}-kebab.md` |
 | 동시성 | concurrency | - | `{nn}-kebab.md` |
 | 도커쿠버 | devops/docker-k8s | 시작하세요! 도커/쿠버네티스 | `{nn}-kebab.md` |
 

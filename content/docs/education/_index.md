@@ -114,12 +114,12 @@ sidebar:
 
 | 주제 | 설명 |
 |:-----|:-----|
-| [REST 기초](architecture/restful-api-basics) | REST의 기원과 원칙 |
-| [리소스 설계](architecture/restful-resource-design) | 콘텐츠 협상, 버저닝 |
-| [보안](architecture/restful-security) | 인증과 로깅 |
-| [성능](architecture/restful-performance) | 캐싱과 비동기 처리 |
-| [고급 설계](architecture/restful-advanced) | Rate Limiting, HATEOAS |
-| [실시간 API](architecture/restful-realtime) | SSE, WebSocket |
+| [REST 기초](architecture/restful/01-basics) | REST의 기원과 원칙 |
+| [리소스 설계](architecture/restful/02-resource-design) | 콘텐츠 협상, 버저닝 |
+| [보안과 추적성](architecture/restful/03-security) | 로깅, 인증, OAuth |
+| [성능을 고려한 설계](architecture/restful/04-performance) | 캐싱, 비동기, PATCH |
+| [고급 설계 원칙](architecture/restful/05-advanced) | Rate Limiting, HATEOAS |
+| [실시간 API](architecture/restful/06-realtime) | SSE, WebSocket, GraphQL |
 
 ### 동시성 프로그래밍
 
