@@ -95,15 +95,21 @@ sidebar:
 
 | 주제 | 설명 |
 |:-----|:-----|
-| [K8s 입문](devops/kubernetes-intro) | 컨테이너와 쿠버네티스 |
-| [K8s 개념](devops/kubernetes-concepts) | 컴포넌트와 네트워크 |
-| [K8s 설치](devops/kubernetes-setup) | 환경 구성 |
-| [K8s 사용](devops/kubernetes-usage) | YAML과 배포 전략 |
-| [볼륨](devops/kubernetes-volumes) | PV/PVC |
-| [서비스와 보안](devops/kubernetes-service-security) | Ingress, RBAC |
-| [CI/CD](devops/kubernetes-cicd) | Jenkins, ArgoCD |
-| [리소스 관리](devops/kubernetes-resources) | 모니터링과 스케일링 |
-| [CKA 학습 노트](devops/k8s-basics/) | CKA 시험 대비 |
+| [K8s 입문](devops/kubernetes/01-introduction) | 컨테이너와 쿠버네티스 |
+| [핵심 개념](devops/kubernetes/02-core-concepts) | 컴포넌트, 파드, 워크로드 |
+| [클러스터 구성](devops/kubernetes/03-cluster-setup) | kubeadm, HA, etcd |
+| [워크로드 관리](devops/kubernetes/04-workloads) | Deployment, ConfigMap, Secret |
+| [스케줄링](devops/kubernetes/05-scheduling) | Affinity, Taints, DaemonSet |
+| [스토리지](devops/kubernetes/06-storage) | PV/PVC, StorageClass, CSI |
+| [네트워킹](devops/kubernetes/07-networking) | Service, Ingress, CNI, Gateway API |
+| [보안](devops/kubernetes/08-security) | RBAC, ServiceAccount, Network Policy |
+| [관측성](devops/kubernetes/09-observability) | Metrics, HPA/VPA, 로깅 |
+| [클러스터 유지보수](devops/kubernetes/10-cluster-maintenance) | 업그레이드, etcd 백업 |
+| [Helm](devops/kubernetes/11-helm) | 패키지 매니저, Chart |
+| [Kustomize](devops/kubernetes/12-kustomize) | Base/Overlay, Patches |
+| [CI/CD](devops/kubernetes/13-cicd) | Jenkins, ArgoCD, GitOps |
+| [트러블슈팅](devops/kubernetes/14-troubleshooting) | 장애 진단 |
+| [JSONPath](devops/kubernetes/15-jsonpath) | kubectl 쿼리 |
 | [시작하세요! 도커/쿠버네티스](devops/docker-k8s/) | 도커와 쿠버네티스 실전 |
 
 ### Linux
