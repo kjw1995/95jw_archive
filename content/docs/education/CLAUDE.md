@@ -59,6 +59,7 @@
 | 웹프로그래밍 | java/web-programming | 자바 웹을 다루는 기술 | `{nn}-kebab.md` |
 | 코틀린 | kotlin/basics | - | `{nn}-kebab.md` |
 | DB | database | 데이터베이스 개론 | `kebab.md` |
+| 레디스 | redis | REDIS FOR DEVELOPERS | `{nn}-kebab.md` |
 | 네트워크 | network | 모두의 네트워크 | `{nn}-kebab.md` |
 | HTTP | network/http | HTTP 웹 기본 지식 | `{nn}-kebab.md` |
 | 리눅스 | linux | - | `{nn}-kebab.md` |

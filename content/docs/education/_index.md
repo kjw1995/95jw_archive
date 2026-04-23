@@ -15,6 +15,7 @@ sidebar:
   {{< card link="kotlin" title="Kotlin" icon="code" subtitle="코틀린 기초 문법과 핵심 원리" >}}
   {{< card link="spring" title="Spring" icon="cube" subtitle="스프링 핵심 원리와 배치 처리" >}}
   {{< card link="database" title="Database" icon="database" subtitle="데이터베이스 이론과 SQL" >}}
+  {{< card link="redis" title="Redis" icon="lightning-bolt" subtitle="인메모리 키-값 저장소" >}}
   {{< card link="network" title="Network" icon="globe-alt" subtitle="네트워크 기초와 HTTP" >}}
   {{< card link="devops" title="DevOps" icon="server" subtitle="Kubernetes와 CI/CD" >}}
   {{< card link="linux" title="Linux" icon="terminal" subtitle="리눅스 기초와 셸 활용" >}}
@@ -71,6 +72,12 @@ sidebar:
 | [정규화](database/normalization) | 이상 현상과 정규형 |
 | [트랜잭션](database/recovery-concurrency) | ACID와 동시성 제어 |
 | [보안](database/security-authorization) | 권한 관리와 암호화 |
+
+### Redis
+
+| 주제 | 설명 |
+|:-----|:-----|
+| [마이크로서비스와 레디스](redis/01-microservice-and-redis) | NoSQL, MSA, 레디스의 특징 |
 
 ### Network
 
