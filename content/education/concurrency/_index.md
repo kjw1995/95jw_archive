@@ -15,3 +15,4 @@ sidebar:
 | [순차 실행과 병렬 실행](02-sequential-and-parallel-execution) | 순차/병렬 실행, 동시성 vs 병렬성, 암달의 법칙, 구스타프슨의 법칙 |
 | [컴퓨터의 동작 원리](03-how-computers-work) | 플린 분류, SIMD/MIMD, CPU vs GPU, 런타임 시스템 |
 | [동시성을 구현하는 재료](04-concurrency-ingredients) | 프로세스, 스레드, 컨텍스트 스위칭, 스레드 위험성 |
+| [프로세스 간 통신](05-inter-process-communication) | 공유 메모리, 파이프, 메시지 큐, 소켓, 스레드 풀 |
