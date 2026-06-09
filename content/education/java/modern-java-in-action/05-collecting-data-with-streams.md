@@ -1,6 +1,6 @@
 ---
 title: "Chapter 06. 스트림으로 데이터 수집"
-weight: 6
+weight: 5
 ---
 
 ## 1. 컬렉터란 무엇인가?

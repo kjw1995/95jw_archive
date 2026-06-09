@@ -1,6 +1,6 @@
 ---
 title: "Chapter 05. 스트림 활용"
-weight: 5
+weight: 4
 ---
 
 ## 1. 필터링
