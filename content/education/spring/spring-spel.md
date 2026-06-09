@@ -3,7 +3,7 @@ title: "Spring Expression Language (SpEL)"
 description: "런타임에 객체 그래프를 조회하고 조작하는 Spring 표현 언어의 구조와 사용법을 정리한다"
 summary: "#{}와 ${}의 차이, 리터럴과 연산자, EvaluationContext, @Value, Spring Security 연동, 보안 고려사항"
 date: 2025-01-20
-weight: 10
+weight: 8
 draft: false
 toc: true
 ---
