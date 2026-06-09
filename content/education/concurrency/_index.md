@@ -17,3 +17,4 @@ sidebar:
 | [동시성을 구현하는 재료](04-concurrency-ingredients) | 프로세스, 스레드, 컨텍스트 스위칭, 스레드 위험성 |
 | [프로세스 간 통신](05-inter-process-communication) | 공유 메모리, 파이프, 메시지 큐, 소켓, 스레드 풀 |
 | [멀티태스킹](06-multitasking) | CPU/IO 바운드, 컨텍스트 스위칭, 협력형·선점형, 스케줄러 |
+| [작업 분해하기](07-task-decomposition) | 의존 관계 그래프, 작업/데이터 분해, 파이프라인, 맵·포크조인·맵리듀스, 입도 |
