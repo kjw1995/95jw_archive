@@ -19,3 +19,4 @@ sidebar:
 | [멀티태스킹](06-multitasking) | CPU/IO 바운드, 컨텍스트 스위칭, 협력형·선점형, 스케줄러 |
 | [작업 분해하기](07-task-decomposition) | 의존 관계 그래프, 작업/데이터 분해, 파이프라인, 맵·포크조인·맵리듀스, 입도 |
 | [경쟁 조건과 동기화](08-race-conditions-and-synchronization) | 경쟁 조건, 임계 구역, 원자적 연산, 락, 뮤텍스, 세마포어, 동기화 비용 |
+| [교착 상태와 기아 상태](09-deadlock-and-starvation) | 교착 상태·4조건, 라이브락, 기아 상태, 프로듀서-컨슈머, 리더-라이터 |
