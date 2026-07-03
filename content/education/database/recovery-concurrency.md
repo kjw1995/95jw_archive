@@ -126,9 +126,9 @@ COMMIT;
 │ 프로그램 │◄─────────│ 버퍼 블록 │
 │  변수    │─────────►│ (메모리)  │
 └──────────┘ write(X) └────┬─────┘
-                           │
-                 input(X)  │  ▲ output(X)
-                           ▼  │
+                           │ ▲
+                 output(X) │ │ input(X)
+                           ▼ │
                       ┌──────────┐
                       │  디스크   │
                       └──────────┘
@@ -261,15 +261,16 @@ commit                   │
 전체 로그를 매번 분석하는 비용을 줄이기 위해 주기적으로 검사점을 설정한다.
 
 ```text
-시간 ─────────────────────────────►
+시간 흐름 ▶
 
-T1 ├───┤                  checkpoint 전 완료 (스킵)
-T2 ├────────┤              checkpoint 직후 commit (redo)
-T3    ├─────┼────┤         수행 중 장애 (undo)
-T4           │ ├────┤      checkpoint 후 commit (redo)
-T5           │     ├── 장애 (undo)
-             │     │
-        checkpoint 장애 발생
+       검사점       장애
+         │        │
+T1 ├───┤ │        │   → 무시
+T2  ├────┼──┤     │   → redo
+T3   ├───┼────────┤   → undo
+T4       │ ├───┤  │   → redo
+T5       │  ├─────┤   → undo
+         │        │
 ```
 
 | 트랜잭션 상태 | 회복 처리 |
@@ -341,7 +342,7 @@ T1                T2
 read(X)
 X = X - 10
 write(X)
-                  read(X)  ← T1 변경값 사용
+                  read(X)  (T1 값 사용)
                   X = X + 5
                   write(X)
 장애
@@ -429,17 +430,25 @@ Lock 수
 **준수 vs 위반 예**
 
 ```text
-[2PL 준수]             [2PL 위반]
-lock(A)   ┐            lock(A)
-read(A)   │ 확장       read(A)
-lock(B)   │            unlock(A) ← Unlock
-read(B)   ┘            lock(B)   ← 다시 Lock
-write(A)               read(B)
-unlock(A) ┐ 축소       unlock(B)
-write(B)  │
-unlock(B) ┘            ✗ 직렬 가능성 X
+[2PL 준수] 확장 뒤 축소, 겹치지 않음
+lock(A)   ┐
+read(A)   │ 확장 단계
+lock(B)   │ (lock만 수행)
+read(B)   ┘
+write(A)
+unlock(A) ┐
+write(B)  │ 축소 단계
+unlock(B) ┘ (unlock만 수행)
+✓ 직렬 가능성 보장됨
 
-✓ 직렬 가능성 O
+[2PL 위반] unlock 후 다시 lock
+lock(A)
+read(A)
+unlock(A)    ← 여기서 unlock
+lock(B)      ← 다시 lock (위반!)
+read(B)
+unlock(B)
+✗ 직렬 가능성 보장 안 됨
 ```
 
 ### 교착 상태 (Deadlock)
