@@ -546,13 +546,136 @@ public class Address {
 
 ---
 
+## 9. 값 타입 컬렉션
+
+값 타입을 하나가 아니라 **여러 개** 저장할 때 사용한다. 값 타입은 식별자가 없어 한 컬럼에 담을 수 없으므로, `@ElementCollection` 과 `@CollectionTable` 로 **별도 테이블**에 매핑한다.
+
+```
+ MEMBER            FAVORITE_FOOD
+ ┌────────────┐    ┌──────────────┐
+ │ MEMBER_ID  │◄───│ MEMBER_ID FK │
+ │ HOME_CITY  │    │ FOOD_NAME    │
+ │ ...        │    └──────────────┘
+ └────────────┘    PK = 전체 컬럼
+
+                   ADDRESS
+                   ┌──────────────┐
+                   │ MEMBER_ID FK │
+                   │ CITY         │
+                   │ STREET       │
+                   │ ZIPCODE      │
+                   └──────────────┘
+```
+
+### 9.1 값 타입 컬렉션 매핑
+
+```java
+@Entity
+public class Member {
+    @Id @GeneratedValue
+    private Long id;
+
+    @Embedded
+    private Address homeAddress;
+
+    // 기본값 타입 컬렉션
+    @ElementCollection
+    @CollectionTable(
+        name = "FAVORITE_FOOD",
+        joinColumns = @JoinColumn(name = "MEMBER_ID")
+    )
+    @Column(name = "FOOD_NAME")   // 값이 하나면 컬럼명 지정 가능
+    private Set<String> favoriteFoods = new HashSet<>();
+
+    // 임베디드 값 타입 컬렉션
+    @ElementCollection
+    @CollectionTable(
+        name = "ADDRESS",
+        joinColumns = @JoinColumn(name = "MEMBER_ID")
+    )
+    private List<Address> addressHistory = new ArrayList<>();
+}
+```
+
+- `@ElementCollection` — 값 타입 컬렉션임을 선언
+- `@CollectionTable` — 저장할 테이블·조인 컬럼 지정 (생략 시 `엔티티_필드명`)
+- 값이 하나(기본값 타입)면 `@Column` 으로 컬럼명 지정 가능
+
+### 9.2 저장과 조회
+
+```java
+Member member = new Member();
+member.getFavoriteFoods().add("치킨");
+member.getFavoriteFoods().add("피자");
+member.getAddressHistory().add(
+    new Address("서울", "종로", "11111"));
+
+em.persist(member);   // member 저장 시 컬렉션도 함께 INSERT
+```
+
+값 타입 컬렉션은 소속 엔티티에 **생명주기를 의존**한다. 별도로 `persist` 하지 않아도 부모와 함께 저장·삭제되며, **지연 로딩**이 기본이다 (영속성 전이 + 고아 객체를 항상 켠 것과 유사).
+
+### 9.3 값 타입 컬렉션의 제약
+
+값 타입은 `@Id` 가 없어 **어떤 행이 바뀌었는지 추적할 수 없다**. 그래서 값을 하나만 수정해도 하이버네이트는 안전하게 처리하기 위해:
+
+```
+ member.getAddressHistory()
+        .remove(oldAddress);       // 하나만 제거해도
+
+ SQL:
+   DELETE FROM ADDRESS
+   WHERE  MEMBER_ID = ?           // 연관 데이터 전부 삭제
+   INSERT INTO ADDRESS ...        // 남은 것 다시 INSERT
+   INSERT INTO ADDRESS ...
+```
+
+연관된 **모든 데이터를 DELETE 후 다시 INSERT** 한다. 또한 추적 불가능하므로 컬렉션 테이블은 **모든 컬럼을 묶어 기본 키**를 구성해야 한다 (`null`·중복 저장 불가).
+
+{{< callout type="warning" >}}
+값 타입 컬렉션은 **정말 단순하고 변경이 거의 없을 때**(예: 셀렉트 박스 다중 선택값)만 쓴다. 데이터가 많거나 변경·추적이 필요하면 대안이 정석이다.
+{{< /callout >}}
+
+### 9.4 대안: 일대다 엔티티
+
+값 타입 컬렉션 대신 **값 타입을 감싼 엔티티**를 만들어 일대다로 매핑하면 위 제약이 모두 사라진다.
+
+```java
+@Entity
+public class AddressEntity {
+    @Id @GeneratedValue
+    private Long id;
+
+    @Embedded
+    private Address address;
+}
+
+@Entity
+public class Member {
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "MEMBER_ID")
+    private List<AddressEntity> addressHistory = new ArrayList<>();
+}
+```
+
+식별자(`@Id`)가 생겨 **개별 행 추적·수정**이 가능하고, `cascade` + `orphanRemoval` 로 값 타입 컬렉션과 같은 편의성을 그대로 얻는다. **실무에서는 대부분 이 방식을 쓴다.**
+
+| 구분 | 값 타입 컬렉션 | 일대다 엔티티 (권장) |
+|:-----|:--------------|:--------------------|
+| 식별자 | 없음 | `@Id` 있음 |
+| 수정 | 전체 삭제 후 재삽입 | 해당 행만 UPDATE |
+| 추적 | 불가 | 가능 |
+| 용도 | 단순·불변 값 목록 | 대부분의 실무 상황 |
+
+---
+
 ## 정리
 
 ### 값 타입 분류
 
 - **기본값 타입**: `int`, `String` 등
 - **임베디드 타입**: `@Embeddable`, `@Embedded`
-- **컬렉션 값 타입**: `@ElementCollection` (책에선 별도로 다룸)
+- **컬렉션 값 타입**: `@ElementCollection` / `@CollectionTable` — 제약이 크므로 실무에선 **일대다 엔티티**로 대체 권장
 
 ### 임베디드 타입
 

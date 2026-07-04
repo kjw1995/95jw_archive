@@ -314,6 +314,30 @@ JPQL 의 `DISTINCT` 는 두 가지 역할을 한다:
   권장: 글로벌 LAZY + 필요 시 페치 조인
 ```
 
+#### 컬렉션 페이징 대안: 배치 사이즈
+
+컬렉션 페치 조인은 **페이징과 함께 쓸 수 없다**(메모리 페이징 → OOM). 이때는 **지연 로딩 + 배치 사이즈**로 N+1 을 완화한다. 프록시를 초기화할 때 연관 데이터를 **IN 쿼리로 묶어** 미리 조회하는 방식이다.
+
+```java
+// 엔티티·컬렉션에 직접 지정
+@BatchSize(size = 100)
+@OneToMany(mappedBy = "team")
+private List<Member> members = new ArrayList<>();
+```
+
+```properties
+# 글로벌 설정 (권장)
+hibernate.default_batch_fetch_size=100
+```
+
+```sql
+-- 개별 SELECT N 번 대신 IN 쿼리 한 번
+SELECT * FROM MEMBER
+WHERE  TEAM_ID IN (?, ?, ?, ...)
+```
+
+페치 조인이 "한 방 쿼리" 로 조인해 가져온다면, 배치 사이즈는 "지연 로딩을 IN 으로 묶어" 쿼리 수를 `N+1 → 1+1` 수준으로 줄인다. **컬렉션 + 페이징** 조합에서는 페치 조인 대신 이 방식을 쓴다.
+
 {{< callout type="warning" >}}
 **실무 권장**: 모든 연관관계를 LAZY 로 설정하고, 필요한 곳에서만 페치 조인을 쓰자. 페치 조인만으로 부족하면 **DTO 프로젝션**으로 필요한 필드만 조회하는 것이 더 효과적이다.
 {{< /callout >}}
@@ -615,6 +639,21 @@ query.from(m)
      .list(m);
 ```
 
+{{< callout type="info" >}}
+위 예제는 **구버전 QueryDSL API**(`new JPAQuery(em)`, `.list()`)다. 최신 버전은 **`JPAQueryFactory`** 로 쿼리를 만들고 `.fetch()` 로 결과를 얻는다.
+
+```java
+JPAQueryFactory query = new JPAQueryFactory(em);
+QMember m = QMember.member;
+
+List<Member> members = query
+    .selectFrom(m)
+    .where(m.username.eq("kim"))
+    .orderBy(m.age.desc())
+    .fetch();
+```
+{{< /callout >}}
+
 ---
 
 ## 14. 네이티브 SQL
@@ -786,6 +825,7 @@ session.doWork(connection -> {
 |:-----|:-----|
 | JPQL | 엔티티 대상 객체지향 쿼리, SQL 로 변환됨 |
 | 페치 조인 | N+1 해결, 성능 최적화의 핵심 |
+| 배치 사이즈 | 컬렉션 페이징 시 N+1 완화 (IN 쿼리) |
 | 경로 표현식 | 묵시적 조인 주의, 명시적 조인 권장 |
 | QueryDSL | Criteria 대안, 직관적·동적 쿼리에 강함 |
 | 네이티브 SQL | 최후 수단, 영속성 컨텍스트 관리됨 |
