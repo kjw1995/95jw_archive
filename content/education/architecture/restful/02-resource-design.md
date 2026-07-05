@@ -103,7 +103,7 @@ URL 패턴 방식은 서버에서 **확장자별로 별도 메서드**를 준비
 │ Coffee   │             │ {        │
 │  name    │─serialize──▶│ "name":..│
 │  price   │             │ "price": │
-│  origin  │◀deserialize│ "origin":│
+│  origin  │◀─deserialize│ "origin":│
 └──────────┘             │ }        │
                          └──────────┘
     ObjectMapper가 양방향 변환
@@ -152,13 +152,14 @@ public class CoffeeController {
  v1.0        v2.0        v3.0
 ┌────┐      ┌────┐      ┌────┐
 │API │─────▶│API │─────▶│API │
-└────┘ 기능  └────┘ 구조  └────┘
-       추가         변경
+└────┘      └────┘      └────┘
   │            │            │
   ▼            ▼            ▼
  기존         신규         최신
  클라         클라         클라
 ```
+
+**v1 → v2**는 기능 추가, **v2 → v3**은 구조 변경을 나타낸다.
 
 ### 버전 지정 방법 비교
 

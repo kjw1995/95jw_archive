@@ -340,3 +340,17 @@ GET /v1/users?status=active&sort=name&page=1&limit=10&fields=id,name
 | 멱등성 | 여러 번 실행해도 결과가 동일 |
 | HATEOAS | 응답에 다음 액션 링크 포함 |
 | RMM | Richardson Maturity Model |
+
+{{< callout type="info" >}}
+**용어 정리**
+- **REST**: Representational State Transfer, HTTP 표준에 기대는 아키텍처 스타일
+- **리소스 (Resource)**: URI로 식별되는 모든 대상 (사용자·주문 등)
+- **표현형 (Representation)**: 리소스의 특정 시점 상태를 담은 형식 (JSON, XML 등)
+- **무상태성 (Statelessness)**: 서버가 클라이언트 상태를 저장하지 않는 성질
+- **안전성 (Safe)**: 호출해도 리소스를 변경하지 않는 성질 (GET, HEAD)
+- **멱등성 (Idempotent)**: 여러 번 호출해도 최종 결과가 같은 성질 (PUT, DELETE)
+- **HATEOAS**: 응답에 다음 동작 링크를 담아 API 탐색을 유도하는 제약
+- **RMM**: Richardson Maturity Model, REST 성숙도 4단계 모델
+
+관련 장: [02. 리소스 설계](../02-resource-design) · [HTTP 메서드](../../../network/http/03-http-methods)
+{{< /callout >}}
