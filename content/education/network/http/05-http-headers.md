@@ -395,7 +395,7 @@ Vary: Accept-Encoding, Accept-Language
                │ 캐시 미스 시
                ▼
         ┌──────────────┐
-        │ Origin Server │
+        │Origin Server │
         └──────────────┘
 ```
 

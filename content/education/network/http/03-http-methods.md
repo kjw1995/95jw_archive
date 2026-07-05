@@ -268,8 +268,10 @@ Access-Control-Max-Age: 3600
 | PATCH | △ | 연산에 따라 다름 |
 
 ```text
-POST /members            → 매 호출마다 새 회원 생성 (멱등 X)
-PUT  /members/100 {...}  → 어느 시점에 봐도 동일 상태 (멱등 O)
+POST /members
+  → 매 호출마다 새 회원 생성 (멱등 X)
+PUT /members/100 {...}
+  → 언제 봐도 동일 상태 (멱등 O)
 ```
 
 {{< callout type="info" >}}
