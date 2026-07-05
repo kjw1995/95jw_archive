@@ -53,7 +53,7 @@ weight: 16
 | 1000BASE-SX | 1 Gbps | MMF 광 | 550 m | 1998 |
 | 1000BASE-LX | 1 Gbps | SMF 광 | 5 km | 1998 |
 | 10GBASE-T | 10 Gbps | UTP Cat6a+ | 100 m | 2006 |
-| 10GBASE-SR | 10 Gbps | MMF 광 | 300 m | 2002 |
+| 10GBASE-SR | 10 Gbps | MMF 광 | 300~400 m | 2002 |
 | 10GBASE-LR | 10 Gbps | SMF 광 | 10 km | 2002 |
 
 ---

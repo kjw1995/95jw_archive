@@ -200,6 +200,11 @@ openssl s_client -connect pop.example.com:995
 {{< callout type="info" >}}
 **용어 정리**
 - **응용 계층**: 사용자 애플리케이션에 네트워크 서비스를 제공하는 최상위 계층
-- **Well-Known Port**: 0~1023의 표준 포트 (HTTP 80, HTTPS 443 등)
+- **클라이언트-서버 모델**: 서비스를 요청하는 클라이언트와 제공하는 서버로 역할을 나눈 구조
 - **요청-응답 패턴**: 클라이언트가 요청을 보내고 서버가 응답하는 통신 구조
+- **Well-Known Port**: 0~1023의 표준 포트 (HTTP 80, HTTPS 443 등, [26. 포트 번호](26-port-number-structure) 참고)
+- **무상태 (Stateless)**: 각 요청을 독립적으로 처리하고 이전 상태를 보관하지 않는 방식 (HTTP의 기본 특성)
+- **HTTP**: 웹 문서를 주고받는 응용 프로토콜 ([29. 웹 서버](29-web-server-structure) 참고)
+- **DNS**: 도메인 이름을 IP로 변환하는 이름 해석 프로토콜 ([30. DNS 서버](30-dns-server-structure) 참고)
+- **SMTP / POP3 / IMAP**: 메일 송신·수신 프로토콜 ([31. 메일 서버](31-mail-server-structure) 참고)
 {{< /callout >}}

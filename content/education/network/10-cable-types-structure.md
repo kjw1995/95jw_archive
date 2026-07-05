@@ -70,7 +70,7 @@ weight: 10
 |:---|:---|:---|:---|
 | Cat 5 | 100BASE-TX | 100 Mbps | 100 MHz |
 | Cat 5e | 1000BASE-T | 1 Gbps | 100 MHz |
-| Cat 6 | 1000BASE-TX | 1 Gbps | 250 MHz |
+| Cat 6 | 1000BASE-T | 1 Gbps | 250 MHz |
 | Cat 6a | 10GBASE-T | 10 Gbps | 500 MHz |
 | Cat 7 | 10GBASE-T | 10 Gbps | 600 MHz |
 | Cat 8 | 40GBASE-T | 40 Gbps | 2000 MHz |
@@ -131,7 +131,7 @@ weight: 10
   ┌─────────────────────┐
   │   외피(Jacket)      │
   │  ┌───────────────┐  │
-  │  │ 클래딩         │  │
+  │  │ 클래딩        │  │
   │  │  ┌─────────┐  │  │
   │  │  │  코어   │  │  │
   │  │  │  → 빛 → │  │  │

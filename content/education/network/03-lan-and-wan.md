@@ -148,7 +148,7 @@ weight: 3
 
 | 시기 | 사건 |
 |:---|:---|
-| 1969 | ARPANET 4개 노드 연결 (UCLA, 스탠포드, UCSB, 유타대) |
+| 1969 | ARPANET 4개 노드 연결 (UCLA, SRI, UCSB, 유타대) |
 | 1970s | TCP/IP 프로토콜 개발 |
 | 1983 | ARPANET이 TCP/IP로 전환 |
 | 1991 | 팀 버너스 리의 WWW 발명 |
