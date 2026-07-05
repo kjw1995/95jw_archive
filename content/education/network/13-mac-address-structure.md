@@ -226,5 +226,5 @@ arp -a
 - **MAC 랜덤화**: 추적 방지를 위해 네트워크별 무작위 MAC을 쓰는 기능
 - **MAC 스푸핑**: 드라이버 수준에서 MAC을 임의로 바꾸는 것
 
-관련 장: [12. 데이터 링크 계층과 이더넷](12-datalink-layer-ethernet) · [14. 스위치의 구조](14-switch-structure)
+관련 장: [12. 데이터 링크 계층과 이더넷](../12-datalink-layer-ethernet) · [14. 스위치의 구조](../14-switch-structure)
 {{< /callout >}}

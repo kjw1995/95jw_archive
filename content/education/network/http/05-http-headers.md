@@ -436,7 +436,7 @@ Expires: 0
 | Access-Control-Allow-Credentials | 응답 | 쿠키 포함 허용 |
 | Access-Control-Max-Age | 응답 | preflight 캐시 초 |
 
-CORS preflight의 OPTIONS 요청 흐름은 [03. HTTP 메서드](03-http-methods)에서 다뤘다.
+CORS preflight의 OPTIONS 요청 흐름은 [03. HTTP 메서드](../03-http-methods)에서 다뤘다.
 
 ## 15. Spring Boot 캐시 설정 모음
 

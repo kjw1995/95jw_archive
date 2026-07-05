@@ -269,5 +269,5 @@ ip.dst >= 224.0.0.0 && ip.dst <= 239.255.255.255  # 멀티캐스트
 - **체크섬 (Checksum)**: 오류 검출 값
 - **의사 헤더 (Pseudo Header)**: IP 헤더 정보를 포함해 체크섬을 계산하는 가상 헤더
 
-관련 장: [24. TCP의 구조](24-tcp-structure) · [26. 포트 번호](26-port-number-structure)
+관련 장: [24. TCP의 구조](../24-tcp-structure) · [26. 포트 번호](../26-port-number-structure)
 {{< /callout >}}

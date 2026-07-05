@@ -644,7 +644,7 @@ kubectl autoscale deployment my-app \
   --cpu-percent=50 --min=2 --max=10
 ```
 
-HPA/VPA의 상세 설정, 메트릭 종류, 동작 튜닝은 [09장. 관측성과 스케일링](09-observability)에서 다룬다.
+HPA/VPA의 상세 설정, 메트릭 종류, 동작 튜닝은 [09장. 관측성과 스케일링](../09-observability)에서 다룬다.
 
 ## 13. 명령어 요약
 

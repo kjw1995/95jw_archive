@@ -176,7 +176,7 @@ public ResponseEntity<Void> create(@RequestBody OrderRequest req) {
 
 ### 304 Not Modified
 
-조건부 요청에서 변경이 없을 때 본문 없이 응답한다. 상세 동작은 [05. 헤더와 캐시](05-http-headers)에서 다룬다.
+조건부 요청에서 변경이 없을 때 본문 없이 응답한다. 상세 동작은 [05. 헤더와 캐시](../05-http-headers)에서 다룬다.
 
 ```http
 GET /image.png HTTP/1.1

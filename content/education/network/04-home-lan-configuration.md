@@ -208,7 +208,7 @@ ifconfig        # macOS·구형 Linux
 - **모뎀 (Modem)**: ISP 회선 신호와 LAN 신호를 변환하는 장비
 - **NAT**: 사설 IP를 공인 IP로 변환하는 주소 변환 기술
 - **DHCP**: 내부 단말에 IP·게이트웨이·DNS를 자동 할당하는 프로토콜
-- **사설 IP**: 내부망에서만 유효한 주소 (192.168.x.x 등, [19. IP 클래스](19-ip-address-class) 참고)
+- **사설 IP**: 내부망에서만 유효한 주소 (192.168.x.x 등, [19. IP 클래스](../19-ip-address-class) 참고)
 - **공인 IP**: 인터넷 전역에서 유일하게 식별되는 주소
-- **WPA2/WPA3**: 무선 구간을 암호화하는 보안 프로토콜 ([36. SSID](36-ssid-structure) 참고)
+- **WPA2/WPA3**: 무선 구간을 암호화하는 보안 프로토콜 ([36. SSID](../36-ssid-structure) 참고)
 {{< /callout >}}

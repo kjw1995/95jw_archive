@@ -221,5 +221,5 @@ host -t NS example.com
 - **Recursive Resolver**: 클라이언트 질의를 받아 대신 해석해 주는 DNS 서버
 - **TTL**: 레코드가 캐시에 유지되는 시간(초)
 
-관련 장: [27. UDP의 구조](27-udp-structure) · [31. 메일 서버](31-mail-server-structure)
+관련 장: [27. UDP의 구조](../27-udp-structure) · [31. 메일 서버](../31-mail-server-structure)
 {{< /callout >}}

@@ -238,5 +238,5 @@ curl -L http://short.ly/abc             # 리다이렉션 추적
 - **Keep-Alive**: TCP 연결을 유지해 여러 요청에 재사용하는 HTTP/1.1 기능
 - **멀티플렉싱**: 하나의 연결에서 여러 요청/응답을 병렬 처리하는 HTTP/2 기능
 
-관련 장: [30. DNS 서버](30-dns-server-structure) · [HTTP 상세](http/)
+관련 장: [30. DNS 서버](../30-dns-server-structure) · [HTTP 상세](../http/)
 {{< /callout >}}
