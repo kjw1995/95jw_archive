@@ -14,4 +14,3 @@ sidebar:
 | [스레드 안전성](02-thread-safety) | 안전한 코드 작성 원리 |
 | [객체 공유](03-object-sharing) | 가시성, 스레드 한정, 불변성 |
 | [객체 구성](04-composing-objects) | 인스턴스 한정, 위임, 동기화 정책 |
-| [논블로킹 I/O](10-nonblocking-io) | 블로킹/논블로킹, 바쁜 대기, 이벤트 루프 |
