@@ -21,3 +21,4 @@ sidebar:
 | [경쟁 조건과 동기화](08-race-conditions-and-synchronization) | 경쟁 조건, 임계 구역, 원자적 연산, 락, 뮤텍스, 세마포어, 동기화 비용 |
 | [교착 상태와 기아 상태](09-deadlock-and-starvation) | 교착 상태·4조건, 라이브락, 기아 상태, 프로듀서-컨슈머, 리더-라이터 |
 | [논블로킹 I/O](10-nonblocking-io) | I/O 바운드, 블로킹/논블로킹, 바쁜 대기, I/O 멀티플렉싱, 이벤트 루프 |
+| [이벤트 기반 동시성](11-event-driven-concurrency) | 동기·비동기 통신, 이벤트 루프 구성 요소, 리액터·프로액터 패턴, 콜백 지옥 |

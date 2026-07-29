@@ -90,7 +90,7 @@ if (client != null) {
 }
 ```
 
-### 2.3 (보강) 블로킹/논블로킹 vs 동기/비동기
+### 2.3 블로킹/논블로킹 vs 동기/비동기
 
 자주 혼동되는 두 축을 정리한다. **블로킹/논블로킹**은 *제어를 언제 돌려주는가*, **동기/비동기**는 *작업 완료를 어떻게 확인하는가*의 문제다.
 
@@ -188,7 +188,7 @@ while (true) {                            // 무한 폴링 루프
 
 ---
 
-## 5. (보강) I/O 멀티플렉싱과 이벤트 루프
+## 5. I/O 멀티플렉싱과 이벤트 루프
 
 바쁜 대기의 문제는 "준비되지 않은 소켓까지 계속 물어본다"는 데 있다. 해결책은 확인 책임을 **커널에 넘기는** 것이다. 즉, "여러 소켓 중 **준비된 것이 생기면 깨워달라**"고 운영체제에 맡긴다. 이를 **I/O 멀티플렉싱(I/O multiplexing)** 이라 한다.
 
@@ -220,7 +220,7 @@ OS별로 고성능 구현이 다르다. **Linux**는 `epoll`, **BSD·macOS**는 
 
 ---
 
-## 6. (보강) Java NIO Selector 실전 예제
+## 6. Java NIO Selector 실전 예제
 
 `Selector`는 하나의 스레드가 여러 채널을 감시하도록 해준다. 아래는 논블로킹 채널과 `Selector`로 만든 **에코 서버**다. 4절의 바쁜 대기와 달리, `select()`가 준비된 채널이 생길 때까지 **CPU를 태우지 않고 대기**한다.
 
@@ -299,3 +299,14 @@ while (true) {
 | **바쁜 대기** | 단일 스레드가 논블로킹으로 여러 연결을 순회 |
 | **I/O 멀티플렉싱** | 준비된 fd만 커널이 통지 (select/poll/epoll) |
 | **이벤트 루프** | 준비된 이벤트만 처리하는 단일 스레드 루프 |
+
+여기서 다룬 이벤트 루프를 하나의 아키텍처 스타일로 확장한 것이 [11장 이벤트 기반 동시성](../11-event-driven-concurrency)의 **리액터 패턴**이다.
+
+---
+
+## 참고 자료
+
+- "Grokking Concurrency" by Kirill Bobrov, Chapter 10 — Nonblocking I/O
+- Dan Kegel — "The C10K Problem" (연결 1만 개 시대의 서버 설계 문제)
+- Java Platform: `java.nio.channels.Selector`, `SocketChannel`, `ServerSocketChannel`
+- Linux man pages: `select(2)`, `poll(2)`, `epoll(7)`
