@@ -1,5 +1,6 @@
 ---
 title: "24. 스프링 REST API 사용하기"
+date: 2026-03-24
 weight: 24
 ---
 

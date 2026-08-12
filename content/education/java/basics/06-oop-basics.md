@@ -1,5 +1,6 @@
 ---
 title: "Chapter 06. 객체지향 프로그래밍 I"
+date: 2026-01-26
 weight: 6
 ---
 

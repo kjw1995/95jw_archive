@@ -1,5 +1,6 @@
 ---
 title: "GitLab Flow에서 Git Flow로 브랜치 전략 전환기"
+date: 2026-01-20
 weight: 1
 ---
 

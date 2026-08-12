@@ -1,6 +1,7 @@
 ---
 title: "구성 단위 (Building Blocks)"
-weight: 5
+date: 2026-08-12
+weight: 4
 ---
 
 # 구성 단위 (Building Blocks)

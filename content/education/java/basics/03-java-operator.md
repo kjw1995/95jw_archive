@@ -1,5 +1,6 @@
 ---
 title: "Chapter 03. 연산자 (Operator)"
+date: 2025-12-30
 weight: 3
 ---
 

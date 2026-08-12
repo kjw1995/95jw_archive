@@ -1,5 +1,6 @@
 ---
 title: "Chapter 14. 람다와 스트림"
+date: 2026-01-20
 weight: 14
 ---
 

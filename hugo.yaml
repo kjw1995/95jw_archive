@@ -5,6 +5,15 @@ baseURL: https://kjw1995.github.io/95jw_archive/
 # SEO & Search Console
 enableRobotsTXT: true
 
+# git 커밋 이력에서 최종 수정일(.Lastmod)을 가져온다
+enableGitInfo: true
+
+# 작성일(.Date)은 frontmatter의 date만 사용하고
+# 최종 수정일(.Lastmod)은 git 커밋 날짜를 우선 사용한다
+frontmatter:
+  date: ["date", "publishDate"]
+  lastmod: [":git", "lastmod", "date", "publishDate"]
+
 ignoreFiles:
   - "CLAUDE\\.md$"
 
@@ -45,6 +54,10 @@ menu:
         icon: github
 
 params:
+  # 페이지 하단에 작성일 / 최종 수정일 표시
+  displayUpdatedDate: true
+  dateFormat: "2006년 1월 2일"
+
   navbar:
     displayTitle: true
     displayLogo: false

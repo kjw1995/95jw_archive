@@ -1,5 +1,6 @@
 ---
 title: "03. HTTP 메서드"
+date: 2025-12-27
 weight: 3
 ---
 

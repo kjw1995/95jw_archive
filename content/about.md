@@ -1,5 +1,6 @@
 ---
 title: About Me
+date: 2025-11-23
 type: about
 ---
 

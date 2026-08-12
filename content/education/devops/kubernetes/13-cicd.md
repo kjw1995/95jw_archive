@@ -1,5 +1,6 @@
 ---
 title: "13. CI/CD"
+date: 2026-04-23
 weight: 13
 ---
 

@@ -1,5 +1,6 @@
 ---
 title: "Chapter 07. 엔티티 매핑"
+date: 2025-12-19
 weight: 7
 ---
 

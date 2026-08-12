@@ -1,5 +1,6 @@
 ---
 title: "Chapter 10. 프록시와 연관관계 관리"
+date: 2025-12-25
 weight: 10
 ---
 

@@ -1,5 +1,6 @@
 ---
 title: "03. LAN과 WAN"
+date: 2025-12-22
 weight: 3
 ---
 

@@ -1,5 +1,6 @@
 ---
 title: "05. HTTP 헤더와 캐시"
+date: 2025-12-27
 weight: 5
 ---
 

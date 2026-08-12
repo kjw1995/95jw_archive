@@ -1,8 +1,9 @@
 ---
 title: "HTTP"
+date: 2025-12-27
 weight: 4
 sidebar:
-  open: true
+  open: false
 ---
 
 HTTP 프로토콜의 기초부터 캐시 전략까지 다룹니다.

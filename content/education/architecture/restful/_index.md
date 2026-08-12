@@ -1,8 +1,9 @@
 ---
 title: "RESTful API"
+date: 2026-04-23
 weight: 1
 sidebar:
-  open: true
+  open: false
 ---
 
 REST의 원칙부터 실시간 API 설계까지 다룹니다.

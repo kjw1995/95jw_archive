@@ -1,5 +1,6 @@
 ---
 title: "Chapter 13. 쓰레드 (Thread)"
+date: 2026-01-08
 weight: 13
 ---
 

@@ -1,5 +1,6 @@
 ---
 title: "Chapter 11. 컬렉션 프레임웍 (Collections Framework)"
+date: 2026-01-06
 weight: 11
 ---
 

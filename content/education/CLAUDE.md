@@ -74,7 +74,7 @@
 ## 새 디렉토리 추가 시
 
 1. `content/education/{새_디렉토리}/` 생성
-2. `_index.md` 생성 (title, sidebar: open: true)
+2. `_index.md` 생성 (title, date, sidebar: open: false)
 3. `CLAUDE.md` 생성 (아래 템플릿 사용)
 4. 상위 `_index.md`에 카드/링크 추가
 5. 이 파일의 **디렉토리 등록부**에 행 추가

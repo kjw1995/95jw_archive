@@ -1,5 +1,6 @@
 ---
 title: "31. 메일 서버의 구조 (SMTP와 POP3)"
+date: 2026-01-08
 weight: 31
 ---
 

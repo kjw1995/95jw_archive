@@ -1,7 +1,8 @@
 ---
 title: Architecture
+date: 2025-12-14
 sidebar:
-  open: true
+  open: false
 ---
 
 API 설계와 아키텍처 패턴을 다룹니다.

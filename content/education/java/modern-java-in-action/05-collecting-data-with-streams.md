@@ -1,5 +1,6 @@
 ---
 title: "Chapter 06. 스트림으로 데이터 수집"
+date: 2026-05-12
 weight: 5
 ---
 

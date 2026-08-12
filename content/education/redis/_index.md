@@ -1,7 +1,8 @@
 ---
 title: Redis
+date: 2026-04-23
 sidebar:
-  open: true
+  open: false
 ---
 
 인메모리 키-값 데이터 저장소 레디스의 개념과 활용을 다룹니다.

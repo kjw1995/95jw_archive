@@ -30,11 +30,23 @@ content/
 
 ### _index.md 작성 기준
 
-1. frontmatter에 `title`과 `sidebar: open: true` 포함
+1. frontmatter에 `title`, `date`, `sidebar: open: false` 포함
 2. 소개 문구는 한 문장으로 간결하게 ("~를 다룹니다.")
 3. 하위 항목은 테이블 형식으로 정리
 4. 본문에 `# 제목` 중복 금지 (frontmatter title만 사용)
 5. "직접 접근: URL", "~ 정리입니다" 같은 딱딱한 문구 사용 금지
+
+### 날짜 표기
+
+- 모든 문서 frontmatter에 `date: YYYY-MM-DD`(작성일)를 넣는다
+- 최종 수정일은 git 커밋 이력에서 자동으로 가져오므로 따로 적지 않는다
+- 페이지 하단에 `작성일 · 최종 수정일`로 표시된다 (두 날짜가 같으면 작성일만)
+
+### 사이드바 펼침 규칙
+
+- 모든 `_index.md`는 `sidebar: open: false`로 두어 **기본 접힘** 상태를 유지한다
+- 현재 보고 있는 페이지의 상위 항목만 자동으로 펼쳐진다
+- 특정 섹션을 항상 펼쳐두고 싶을 때만 그 `_index.md`에서 `sidebar: open: true`로 바꾼다
 
 ### 테이블 형식
 

@@ -1,7 +1,8 @@
 ---
 title: Spring Security
+date: 2026-01-23
 sidebar:
-  open: true
+  open: false
 ---
 
 Spring Security의 핵심 개념과 보안 구현 방법을 다룹니다.

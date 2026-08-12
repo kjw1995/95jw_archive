@@ -1,5 +1,6 @@
 ---
 title: "Chapter 03. 영속성 컨텍스트"
+date: 2025-12-18
 weight: 3
 ---
 

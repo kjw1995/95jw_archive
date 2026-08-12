@@ -1,5 +1,6 @@
 ---
 title: "Chapter 10. 날짜와 시간 & 형식화"
+date: 2026-01-06
 weight: 10
 ---
 

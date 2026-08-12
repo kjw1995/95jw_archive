@@ -1,6 +1,7 @@
 ---
 title: "객체 구성 (Composing Objects)"
-weight: 4
+date: 2026-02-16
+weight: 3
 ---
 
 # 객체 구성 (Composing Objects)

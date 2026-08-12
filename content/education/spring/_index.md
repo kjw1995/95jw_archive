@@ -1,7 +1,8 @@
 ---
 title: Spring
+date: 2025-12-14
 sidebar:
-  open: true
+  open: false
 ---
 
 스프링 프레임워크의 핵심 원리와 배치·시큐리티를 다룹니다.

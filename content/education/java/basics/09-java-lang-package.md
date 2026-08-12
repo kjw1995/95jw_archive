@@ -1,5 +1,6 @@
 ---
 title: "Chapter 09. java.lang 패키지와 유용한 클래스"
+date: 2026-02-07
 weight: 9
 ---
 

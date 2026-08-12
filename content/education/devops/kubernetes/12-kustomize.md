@@ -1,5 +1,6 @@
 ---
 title: "12. Kustomize"
+date: 2026-04-23
 weight: 12
 ---
 

@@ -1,8 +1,9 @@
 ---
 title: "Kotlin"
+date: 2026-02-07
 weight: 2
 sidebar:
-  open: true
+  open: false
 ---
 
 Kotlin 프로그래밍의 핵심 개념과 원리를 다룹니다.

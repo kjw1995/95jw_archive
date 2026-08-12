@@ -1,5 +1,6 @@
 ---
 title: "JPA + MyBatis 혼용 시 OSIV 커넥션 풀 고갈 문제"
+date: 2026-01-20
 weight: 1
 ---
 

@@ -1,7 +1,8 @@
 ---
 title: JVM
+date: 2025-12-25
 sidebar:
-  open: true
+  open: false
 ---
 
 JVM의 내부 구조와 동작 원리를 다룹니다.

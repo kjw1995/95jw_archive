@@ -1,5 +1,6 @@
 ---
 title: "07. OSI 모델과 TCP/IP 모델"
+date: 2025-12-30
 weight: 7
 ---
 

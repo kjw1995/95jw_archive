@@ -1,5 +1,6 @@
 ---
 title: "Chapter 09. 고급 매핑"
+date: 2025-12-25
 weight: 9
 ---
 

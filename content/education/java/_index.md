@@ -1,7 +1,8 @@
 ---
 title: Java
+date: 2025-12-14
 sidebar:
-  open: true
+  open: false
 ---
 
 자바 언어와 관련 기술들을 다룹니다.

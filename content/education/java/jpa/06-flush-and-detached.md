@@ -1,5 +1,6 @@
 ---
 title: "Chapter 06. 플러시와 준영속"
+date: 2025-12-18
 weight: 6
 ---
 

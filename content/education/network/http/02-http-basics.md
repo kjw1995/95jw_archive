@@ -1,5 +1,6 @@
 ---
 title: "02. HTTP 기본"
+date: 2025-12-27
 weight: 2
 ---
 

@@ -1,0 +1,33 @@
+{{/*
+  hextra 테마의 components/last-updated.html 오버라이드.
+  페이지 하단에 작성일(frontmatter date)과 최종 수정일(git 커밋 날짜)을 함께 보여준다.
+  두 날짜가 같은 날이면 작성일만 표시한다.
+*/}}
+
+{{- $created := .Date -}}
+{{- $updated := .Lastmod -}}
+{{- $displayUpdated := site.Params.displayUpdatedDate -}}
+
+{{- $hasCreated := not $created.IsZero -}}
+{{- $hasUpdated := and $displayUpdated (not $updated.IsZero) -}}
+
+{{/* 같은 날짜면 최종 수정일은 생략 */}}
+{{- if and $hasCreated $hasUpdated -}}
+  {{- if eq (time.Format "2006-01-02" $created) (time.Format "2006-01-02" $updated) -}}
+    {{- $hasUpdated = false -}}
+  {{- end -}}
+{{- end -}}
+
+{{- if or $hasCreated $hasUpdated -}}
+  <div class="hx:mt-12 hx:mb-8 hx:block hx:text-xs hx:text-gray-500 hx:ltr:text-right hx:rtl:text-left hx:dark:text-gray-400">
+    {{- if $hasCreated -}}
+      작성일 <time datetime="{{ time.Format "2006-01-02T15:04:05.000Z" $created }}">{{ partial "utils/format-date" $created }}</time>
+    {{- end -}}
+    {{- if and $hasCreated $hasUpdated }} <span class="hx:px-1">·</span> {{ end -}}
+    {{- if $hasUpdated -}}
+      최종 수정일 <time datetime="{{ time.Format "2006-01-02T15:04:05.000Z" $updated }}">{{ partial "utils/format-date" $updated }}</time>
+    {{- end -}}
+  </div>
+{{- else -}}
+  <div class="hx:mt-16"></div>
+{{- end -}}

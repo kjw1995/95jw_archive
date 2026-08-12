@@ -1,8 +1,9 @@
 ---
 title: "Kotlin 기초"
+date: 2026-02-07
 weight: 1
 sidebar:
-  open: true
+  open: false
 ---
 
 Kotlin 프로그래밍의 기초 개념을 다룹니다.

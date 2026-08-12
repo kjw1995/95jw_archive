@@ -1,5 +1,6 @@
 ---
 title: "Chapter 02. 변수 (Variable)"
+date: 2025-12-17
 weight: 2
 ---
 

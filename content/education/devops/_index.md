@@ -1,7 +1,8 @@
 ---
 title: DevOps
+date: 2025-12-14
 sidebar:
-  open: true
+  open: false
 ---
 
 쿠버네티스와 컨테이너 기반 배포 자동화를 다룹니다.

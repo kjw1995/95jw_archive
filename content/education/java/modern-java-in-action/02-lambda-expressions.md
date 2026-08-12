@@ -1,5 +1,6 @@
 ---
 title: "Chapter 03. 람다 표현식"
+date: 2025-12-17
 weight: 2
 ---
 

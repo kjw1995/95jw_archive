@@ -1,5 +1,6 @@
 ---
 title: "Chapter 05. 영속성 컨텍스트 특징"
+date: 2025-12-18
 weight: 5
 ---
 

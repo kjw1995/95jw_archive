@@ -1,5 +1,6 @@
 ---
 title: "Chapter 12. 객체지향 쿼리 언어"
+date: 2026-03-03
 weight: 12
 ---
 

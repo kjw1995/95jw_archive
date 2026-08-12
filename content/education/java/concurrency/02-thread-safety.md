@@ -1,5 +1,6 @@
 ---
 title: "스레드 안전성 (Thread Safety)"
+date: 2025-12-25
 weight: 1
 ---
 

@@ -1,5 +1,6 @@
 ---
 title: "Chapter 16. 네트워킹 (Networking)"
+date: 2026-02-15
 weight: 16
 ---
 

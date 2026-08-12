@@ -1,5 +1,6 @@
 ---
 title: "15. JSONPath"
+date: 2026-04-23
 weight: 15
 ---
 

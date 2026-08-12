@@ -1,8 +1,9 @@
 ---
 title: "Kubernetes"
+date: 2026-04-23
 weight: 1
 sidebar:
-  open: true
+  open: false
 ---
 
 쿠버네티스 핵심 개념부터 운영·보안·배포 자동화까지 다룹니다.

@@ -1,8 +1,9 @@
 ---
 title: "Linux"
+date: 2025-12-29
 weight: 6
 sidebar:
-  open: true
+  open: false
 ---
 
 리눅스 운영체제의 기초를 다룹니다.

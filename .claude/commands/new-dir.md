@@ -17,8 +17,9 @@ $ARGUMENTS
 ```markdown
 ---
 title: {제목}
+date: {YYYY-MM-DD}
 sidebar:
-  open: true
+  open: false
 ---
 
 {한 문장 소개}를 다룹니다.

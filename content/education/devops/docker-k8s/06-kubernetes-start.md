@@ -1,5 +1,6 @@
 ---
 title: "Chapter 06. 쿠버네티스 시작하기"
+date: 2026-03-07
 weight: 6
 ---
 

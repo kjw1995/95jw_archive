@@ -1,5 +1,6 @@
 ---
 title: 김 정 우
+date: 2025-11-23
 toc: false
 ---
 

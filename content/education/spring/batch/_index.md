@@ -1,7 +1,8 @@
 ---
 title: Spring Batch
+date: 2026-04-21
 sidebar:
-  open: true
+  open: false
 weight: 20
 ---
 

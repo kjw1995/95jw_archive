@@ -1,5 +1,6 @@
 ---
 title: "Chapter 05. 스트림 활용"
+date: 2026-02-23
 weight: 4
 ---
 

@@ -1,5 +1,6 @@
 ---
 title: "Chapter 07. 객체지향 프로그래밍 II"
+date: 2026-01-26
 weight: 7
 ---
 

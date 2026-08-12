@@ -1,5 +1,6 @@
 ---
 title: "JWT와 OAuth 2.0 기초 개념"
+date: 2026-01-20
 weight: 2
 ---
 

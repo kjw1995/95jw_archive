@@ -1,8 +1,9 @@
 ---
 title: "JPA"
+date: 2025-12-17
 weight: 5
 sidebar:
-  open: true
+  open: false
 ---
 
 ORM과 영속성 컨텍스트를 다룹니다.

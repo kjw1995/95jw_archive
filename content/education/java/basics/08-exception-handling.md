@@ -1,5 +1,6 @@
 ---
 title: "Chapter 08. 예외처리 (Exception Handling)"
+date: 2026-02-01
 weight: 8
 ---
 

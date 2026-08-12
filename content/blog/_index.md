@@ -1,7 +1,8 @@
 ---
 title: Blog
+date: 2025-12-14
 sidebar:
-  open: true
+  open: false
 ---
 
 실무에서 경험한 것들을 기록합니다.

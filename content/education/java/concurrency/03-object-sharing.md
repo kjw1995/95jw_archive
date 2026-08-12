@@ -1,5 +1,6 @@
 ---
 title: "객체 공유 (Sharing Objects)"
+date: 2025-12-25
 weight: 2
 ---
 

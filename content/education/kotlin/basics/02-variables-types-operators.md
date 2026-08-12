@@ -1,5 +1,6 @@
 ---
 title: "Chapter 02. 변수와 자료형, 연산자"
+date: 2026-02-07
 weight: 2
 ---
 

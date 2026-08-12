@@ -1,8 +1,9 @@
 ---
 title: "동시성 프로그래밍"
+date: 2026-01-27
 weight: 3
 sidebar:
-  open: true
+  open: false
 ---
 
 동시성과 병렬 프로그래밍의 개념과 실전 활용을 다룹니다.

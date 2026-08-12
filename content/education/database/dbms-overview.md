@@ -1,5 +1,6 @@
 ---
 title: DBMS 개요
+date: 2025-12-19
 weight: 2
 ---
 

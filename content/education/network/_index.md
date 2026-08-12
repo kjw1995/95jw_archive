@@ -1,8 +1,9 @@
 ---
 title: "Network"
+date: 2025-12-17
 weight: 6
 sidebar:
-  open: true
+  open: false
 ---
 
 네트워크의 기초 개념부터 OSI 7계층, HTTP까지 다룹니다.

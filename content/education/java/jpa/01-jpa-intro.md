@@ -1,5 +1,6 @@
 ---
 title: "Chapter 01. JPA 소개"
+date: 2025-12-17
 weight: 1
 ---
 

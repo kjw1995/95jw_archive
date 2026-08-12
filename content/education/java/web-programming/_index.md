@@ -1,7 +1,8 @@
 ---
 title: 웹 프로그래밍
+date: 2025-12-27
 sidebar:
-  open: true
+  open: false
 ---
 
 JSP와 Servlet 기반 웹 프로그래밍을 다룹니다.

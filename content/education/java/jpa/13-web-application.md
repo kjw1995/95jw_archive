@@ -1,5 +1,6 @@
 ---
 title: "Chapter 13. 웹 애플리케이션 제작"
+date: 2026-04-02
 weight: 13
 ---
 

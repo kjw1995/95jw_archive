@@ -1,7 +1,8 @@
 ---
 title: Education
+date: 2025-12-14
 sidebar:
-  open: true
+  open: false
 ---
 
 개발하면서 배운 것들을 기록하는 공간입니다. 언어, 프레임워크, 인프라까지 다양한 주제를 다룹니다.

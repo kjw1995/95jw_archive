@@ -1,5 +1,6 @@
 ---
 title: "@Async 비동기 작업의 Graceful Shutdown 문제"
+date: 2026-01-20
 weight: 2
 ---
 

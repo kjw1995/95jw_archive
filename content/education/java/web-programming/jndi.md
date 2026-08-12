@@ -1,5 +1,6 @@
 ---
 title: JNDI (Java Naming and Directory Interface)
+date: 2025-12-28
 weight: 5
 ---
 

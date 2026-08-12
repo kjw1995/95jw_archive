@@ -1,7 +1,8 @@
 ---
 title: 회고
+date: 2025-12-14
 sidebar:
-  open: true
+  open: false
 ---
 
 프로젝트를 진행하며 느낀 점들을 기록합니다.

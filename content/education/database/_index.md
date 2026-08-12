@@ -1,7 +1,8 @@
 ---
 title: Database
+date: 2025-12-14
 sidebar:
-  open: true
+  open: false
 ---
 
 데이터베이스의 기초 이론부터 설계, SQL까지 다룹니다.

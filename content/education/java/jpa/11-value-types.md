@@ -1,5 +1,6 @@
 ---
 title: "Chapter 11. 값 타입"
+date: 2025-12-25
 weight: 11
 ---
 

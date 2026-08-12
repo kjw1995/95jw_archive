@@ -1,5 +1,6 @@
 ---
 title: "Chapter 08. 다양한 연관관계 매핑"
+date: 2025-12-22
 weight: 8
 ---
 

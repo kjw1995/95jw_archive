@@ -1,8 +1,9 @@
 ---
 title: "동시성"
+date: 2025-12-25
 weight: 3
 sidebar:
-  open: true
+  open: false
 ---
 
 멀티스레드 프로그래밍과 동시성 제어를 다룹니다.

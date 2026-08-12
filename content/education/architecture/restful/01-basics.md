@@ -1,5 +1,6 @@
 ---
 title: "01. REST 기초"
+date: 2026-04-23
 weight: 1
 ---
 

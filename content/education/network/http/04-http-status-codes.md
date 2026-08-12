@@ -1,5 +1,6 @@
 ---
 title: "04. HTTP 상태 코드"
+date: 2025-12-27
 weight: 4
 ---
 

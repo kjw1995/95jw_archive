@@ -1,8 +1,9 @@
 ---
 title: "Modern Java"
+date: 2025-12-17
 weight: 10
 sidebar:
-  open: true
+  open: false
 ---
 
 Java 8 이후의 핵심 기능들을 다룹니다.

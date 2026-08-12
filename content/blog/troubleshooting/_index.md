@@ -1,7 +1,8 @@
 ---
 title: 트러블슈팅
+date: 2025-12-14
 sidebar:
-  open: true
+  open: false
 ---
 
 실무에서 겪은 문제 해결 과정을 기록합니다.

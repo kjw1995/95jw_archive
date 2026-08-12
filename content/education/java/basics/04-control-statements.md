@@ -1,5 +1,6 @@
 ---
 title: "Chapter 04. 조건문과 반복문"
+date: 2025-12-30
 weight: 4
 ---
 

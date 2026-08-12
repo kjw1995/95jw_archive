@@ -1,5 +1,6 @@
 ---
 title: "06. 실시간 API와 REST의 미래"
+date: 2026-04-23
 weight: 6
 ---
 

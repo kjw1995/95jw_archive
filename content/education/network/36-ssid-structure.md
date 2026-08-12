@@ -1,5 +1,6 @@
 ---
 title: "36. SSID의 구조"
+date: 2026-01-08
 weight: 36
 ---
 

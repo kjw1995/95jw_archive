@@ -1,5 +1,6 @@
 ---
 title: "Chapter 04. 엔티티 생명주기"
+date: 2025-12-18
 weight: 4
 ---
 

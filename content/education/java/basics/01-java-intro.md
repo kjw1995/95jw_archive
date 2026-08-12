@@ -1,5 +1,6 @@
 ---
 title: "Chapter 01. 자바 시작하기"
+date: 2025-12-14
 weight: 1
 ---
 
