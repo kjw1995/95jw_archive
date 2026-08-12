@@ -54,8 +54,8 @@ menu:
         icon: github
 
 params:
-  # 페이지 하단에 작성일 / 최종 수정일 표시
-  displayUpdatedDate: true
+  # 페이지 하단에 작성일만 표시 (true로 바꾸면 최종 수정일도 함께 표시)
+  displayUpdatedDate: false
   dateFormat: "2006년 1월 2일"
 
   navbar:

@@ -12,20 +12,25 @@ toc: false
 
 ## Career
 
-### (주)티엔씨테크날로지 · 2025.11 ~ 현재
+### (주)티엔씨테크놀로지 · 2025.11 ~ 현재
 
 | 기간 | 프로젝트 | 핵심 역할 |
 |:-----|:---------|:---------|
-| 2025.11 ~ 2026.02 | **크림페이 선불 솔루션** | 원천사 API 연동, Spring Batch 기반 정산·세금계산서·현금영수증 발행 배치, 선불 충전·결제 구현 |
-| 2026.03 ~ 2026.04 | **Kovan 선불 시스템** | 온/오프라인 결제·충전 API 설계, 외부 원천사 연동 |
-| 2026.04 ~ 2026.05 | **현대캐피탈 전표 회계 연동 배치** | Spring Batch·Quartz 기반 거래 데이터 → 회계 전표 변환 Job, 연동 파일 생성·전송 |
+| 2025.11 ~ 2026.06 | **크림페이 선불·PG 결제 플랫폼** | 원천사 API 연동, Spring Batch 기반 정산·세금계산서·현금영수증 발행 배치, 선불 충전·결제 구현 |
+| 2026.03 ~ 진행중 | **Kovan 선불전자지급 시스템** | 선불 API 연동규격서(OpenAPI) 작성·배포, 회원·계좌·OTC·크레딧 API, 헥토파이낸셜 연동 |
+| 2026.06 ~ 진행중 | **채비 거래 중계 모듈** | 이기종 결제 모듈 간 거래 중계 계층 설계, 결제수단 발급·취소·부분취소 단일 규격화 |
+| 2026.06 ~ 2026.07 | **금융결제원 영중소가맹점 정산** | 영중소가맹점 관리·조회 API, 연동 실패 건 재처리(Retry) Job 설계 |
+| 2026.05 ~ 진행중 | **사내 공통 모듈 버전업** | 결제 승인·가맹점·정산·암호화 모듈 Java·Spring 버전업, 버전업 표준 절차 문서화 |
+| 2026.04 ~ 2026.05 | **현대캐피탈 전표 회계연동 배치** | Spring Batch·Quartz 기반 거래 데이터 → 회계 전표 변환 Job, 연동 파일 생성·전송 |
+| 2026.04 ~ 2026.05 | **더존페이먼츠 운영 지원** | 결제·정산·취소·매입 전 구간 통합 테스트, 관리전산 개인정보 마스킹 |
 
-### 헬로핀테크 · 2023.02 ~ 2025.08
+### (주)헬로핀테크 · 2023.02 ~ 2025.08
 
 | 기간 | 프로젝트 | 핵심 역할 |
 |:-----|:---------|:---------|
-| 2024.12 ~ 2025.05 | **정산 프로세스 전환** | MySQL Stored Procedure → Spring Boot 전환, 처리 속도 60% 단축·유지보수 비용 50% 절감 |
-| 2024.07 ~ 2024.11 | **비대면 대출 서비스** | 외부 API 연동 모듈, DB 기반 재처리 로직, 심사·서류 제출 자동화 |
+| 2024.12 ~ 2025.02 | **정산 프로세스 전환** | MySQL Stored Procedure → Java 전환, 처리 속도 60% 단축·유지보수 비용 50% 절감 |
+| 2024.11 ~ 2024.12 | **PG 수수료 자동결제 구축** | 수수료 결제 페이지 및 자동 결제 시스템, 결제 이후 업무 프로세스 전산화 |
+| 2024.07 ~ 2024.11 | **비대면 대출 서비스** | 정부24 중개 시스템 연동, DB 기반 재처리 로직, 심사·서류 제출 자동화 |
 | 2023.12 ~ 2024.02 | **백오피스 가맹점 정산** | Spring Batch 기반 일·주·월 통합 정산, 관리 페이지 개발 |
 | 2023.02 ~ 2025.08 | **레거시 리팩토링·유지보수** | MyBatis → Spring Data JPA 마이그레이션, Spring Security 도입, AOP 기반 공통 로깅·인증 |
 
@@ -81,10 +86,12 @@ toc: false
         <div class="badges">
           <img alt="Java" src="https://img.shields.io/badge/Java-007396?style=flat-square&logo=openjdk&logoColor=white" />
           <img alt="Spring Boot" src="https://img.shields.io/badge/Spring_Boot-6DB33F?style=flat-square&logo=springboot&logoColor=white" />
+          <img alt="Spring MVC" src="https://img.shields.io/badge/Spring_MVC-6DB33F?style=flat-square&logo=spring&logoColor=white" />
           <img alt="Spring Batch" src="https://img.shields.io/badge/Spring_Batch-6DB33F?style=flat-square&logo=spring&logoColor=white" />
           <img alt="Spring Security" src="https://img.shields.io/badge/Spring_Security-6DB33F?style=flat-square&logo=springsecurity&logoColor=white" />
           <img alt="Spring Quartz" src="https://img.shields.io/badge/Spring_Quartz-6DB33F?style=flat-square&logo=spring&logoColor=white" />
           <img alt="Spring Data JPA" src="https://img.shields.io/badge/Spring_Data_JPA-59666C?style=flat-square&logo=hibernate&logoColor=white" />
+          <img alt="Spring AOP" src="https://img.shields.io/badge/Spring_AOP-6DB33F?style=flat-square&logo=spring&logoColor=white" />
           <img alt="MyBatis" src="https://img.shields.io/badge/MyBatis-B33A3A?style=flat-square&logoColor=white" />
         </div>
       </td>
@@ -111,15 +118,27 @@ toc: false
       </td>
     </tr>
     <tr>
-      <td class="category"><strong>Infra &amp; Monitoring</strong></td>
+      <td class="category"><strong>Infra &amp; CI/CD</strong></td>
       <td>
         <div class="badges">
           <img alt="Docker" src="https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white" />
           <img alt="Kubernetes" src="https://img.shields.io/badge/Kubernetes-326CE5?style=flat-square&logo=kubernetes&logoColor=white" />
+          <img alt="GitLab" src="https://img.shields.io/badge/GitLab-FC6D26?style=flat-square&logo=gitlab&logoColor=white" />
+          <img alt="Jenkins" src="https://img.shields.io/badge/Jenkins-D24939?style=flat-square&logo=jenkins&logoColor=white" />
+          <img alt="ArgoCD" src="https://img.shields.io/badge/ArgoCD-EF7B4D?style=flat-square&logo=argo&logoColor=white" />
+          <img alt="Gradle" src="https://img.shields.io/badge/Gradle-02303A?style=flat-square&logo=gradle&logoColor=white" />
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td class="category"><strong>Observability &amp; Tools</strong></td>
+      <td>
+        <div class="badges">
           <img alt="Prometheus" src="https://img.shields.io/badge/Prometheus-E6522C?style=flat-square&logo=prometheus&logoColor=white" />
           <img alt="Grafana" src="https://img.shields.io/badge/Grafana-F46800?style=flat-square&logo=grafana&logoColor=white" />
           <img alt="Loki" src="https://img.shields.io/badge/Loki-F5A800?style=flat-square&logo=grafana&logoColor=white" />
           <img alt="ELK Stack" src="https://img.shields.io/badge/ELK_Stack-005571?style=flat-square&logo=elastic&logoColor=white" />
+          <img alt="Swagger" src="https://img.shields.io/badge/Swagger-85EA2D?style=flat-square&logo=swagger&logoColor=black" />
         </div>
       </td>
     </tr>
