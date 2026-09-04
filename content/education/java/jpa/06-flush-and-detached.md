@@ -4,304 +4,225 @@ date: 2025-12-18
 weight: 6
 ---
 
-## 1. 플러시 (Flush)
-
-> 영속성 컨텍스트의 **변경 내용을 DB 와 동기화**
-
-플러시는 영속성 컨텍스트를 비우는 것이 **아니다**. 쌓여 있는 변경을 DB 에 반영만 할 뿐이며, 엔티티는 그대로 영속 상태를 유지한다.
-
-### 플러시 실행 시 동작
-
-```
-       flush() 호출
-           │
- ┌─────────┼─────────┐
- ▼         ▼         ▼
-변경 감지   SQL 생성  SQL 전송
-(스냅샷)  (쓰기지연)  (DB)
-```
-
-1. **변경 감지** 동작 → 수정된 엔티티 탐색
-2. 수정된 엔티티의 **UPDATE SQL** 생성 → 쓰기 지연 저장소 등록
-3. 쓰기 지연 저장소의 SQL 을 **DB 로 전송** (INSERT, UPDATE, DELETE)
+앞의 두 장에서 "커밋 때 SQL이 나간다"는 말을 여러 번 했다. 정확히는 커밋이 아니라 **플러시** 때 나간다. 커밋은 플러시를 부르는 여러 계기 중 하나일 뿐이다. 이 장은 그 플러시가 정확히 무엇이고 언제 일어나는지, 그리고 플러시와 반대 방향의 동작, 즉 엔티티를 컨텍스트에서 떼어내는 **준영속**과 다시 붙이는 **병합**을 다룬다. 셋 다 "영속성 컨텍스트와 DB 사이의 경계를 언제 어떻게 넘는가"에 관한 이야기다.
 
 ---
 
-### 플러시 호출 방법
+## 1. 플러시: 컨텍스트의 변경을 DB로 밀어내기
 
-| 방법 | 설명 |
-|:-----|:-----|
-| `em.flush()` | 직접 호출 (거의 안 씀) |
-| `tx.commit()` | 트랜잭션 커밋 시 자동 |
-| JPQL 실행 | 쿼리 실행 전 자동 |
+### 1.1 플러시 때 일어나는 일
 
-### 1) 직접 호출
+```
+ flush()
+   │
+   ▼
+ 1. 변경 감지: 스냅샷과 비교
+   │  바뀐 엔티티 → UPDATE 생성
+   ▼
+ 2. 쓰기 지연 SQL 저장소
+   │  INSERT → UPDATE → DELETE
+   ▼
+ 3. DB로 전송 (트랜잭션은 아직 열림)
+   │
+   ▼
+ 엔티티는 그대로 영속. 스냅샷 갱신
+```
+
+플러시는 세 단계다. 먼저 1차 캐시의 영속 엔티티를 스냅샷과 비교해 바뀐 것을 찾고, 그 엔티티에 대한 UPDATE를 만들어 쓰기 지연 SQL 저장소에 넣는다. 그다음 저장소에 쌓인 SQL을 [Chapter 05](../05-persistence-features)에서 본 순서대로 DB에 전송한다. 이것이 전부다. 플러시는 "영속성 컨텍스트의 변경 내용을 DB에 동기화하는 것"이지 그 이상도 이하도 아니다.
+
+### 1.2 왜 플러시는 컨텍스트를 비우지 않는가
+
+플러시라는 말에서 "비운다"를 떠올리기 쉽지만, 플러시 뒤에도 엔티티는 전부 영속 상태로 남는다. 이유는 플러시가 **동기화**이지 **생명주기의 끝**이 아니기 때문이다. 트랜잭션은 아직 진행 중이고, 개발자는 같은 엔티티를 계속 쓸 것이다. 플러시했다고 캐시를 비워 버리면 다음 `find()`가 SELECT를 다시 실행해야 하고, 방금 보낸 UPDATE 이후의 변경도 추적할 수 없다.
+
+그래서 플러시는 스냅샷을 **갱신**한다. 플러시 시점의 값이 새 기준이 되고, 이후의 변경은 그 기준과 비교된다. 같은 트랜잭션에서 플러시를 두 번 하면 두 번째 플러시는 첫 번째 이후에 바뀐 것만 UPDATE한다. 컨텍스트를 실제로 비우는 것은 뒤에서 볼 `clear()`의 역할이고, 둘은 전혀 다른 동작이다.
+
+### 1.3 플러시와 커밋은 다르다
+
+플러시된 SQL은 DB에 도착했지만 아직 확정되지 않았다. DB 트랜잭션은 커밋 때 끝난다.
+
+| 시점 | SQL은 어디에 | 되돌리려면 |
+|:-----|:-------------|:-----------|
+| `persist()` 직후 | 쓰기 지연 SQL 저장소 | 저장소를 비우면 끝 |
+| `flush()` 직후 | DB에 도착, 트랜잭션 미확정 | DB 롤백이 필요하다 |
+| `commit()` 직후 | DB에 확정 | 되돌릴 수 없다 |
+
+이 구분이 실제로 중요한 순간은 롤백이다. 플러시 뒤에 예외가 나서 롤백하면 DB는 되돌아가지만, 컨텍스트는 이미 플러시 시점 값으로 스냅샷을 갱신한 상태라 DB와 어긋난다. 그래서 JPA 명세는 롤백이 일어나면 컨텍스트가 관리하던 엔티티를 전부 준영속으로 만들도록 정해 두었다. 어긋난 컨텍스트를 계속 쓰지 못하게 막는 것이다. 스프링이 롤백 뒤 컨텍스트를 닫아 버리는 것도 같은 이유다.
+
+### 1.4 플러시가 일어나는 세 시점
+
+| 계기 | 동작 | 왜 |
+|:-----|:-----|:---|
+| `em.flush()` | 즉시 플러시 | 개발자가 순서나 시점을 직접 정해야 할 때 |
+| `tx.commit()` | 커밋 직전 자동 플러시 | 모아 둔 SQL이 나갈 마지막 기회 |
+| JPQL 실행 | 쿼리 직전 자동 플러시 | 쿼리 결과가 컨텍스트의 변경을 반영해야 하므로 |
+
+**직접 호출.** 대부분의 코드에서는 부를 일이 없다. 필요한 경우는 정해져 있다. 5장에서 본 것처럼 DELETE와 INSERT의 실행 순서를 강제해야 할 때, [Chapter 04](../04-entity-lifecycle)의 대량 처리 패턴처럼 `clear()` 전에 SQL을 내보내야 할 때, 그리고 제약 조건 위반 같은 오류를 커밋 때까지 미루지 않고 그 자리에서 확인하고 싶을 때다.
+
+**커밋.** 커밋은 반드시 플러시를 동반한다. 그렇지 않으면 저장소에 쌓인 SQL이 영영 나가지 못한다. 2장에서 "트랜잭션이 없으면 SQL이 나갈 시점이 없다"고 한 말의 정확한 뜻이 이것이다.
+
+**JPQL.** JPQL은 SQL이 되어 DB에서 실행된다. 컨텍스트의 미반영 변경을 DB가 모르는 채로 쿼리하면 방금 `persist()`한 회원이 결과에서 빠지고, 방금 바꾼 이름으로 검색해도 나오지 않는다. 같은 트랜잭션 안에서 내가 쓴 것을 내가 못 읽는 모순을 막기 위해 JPA는 쿼리 직전에 플러시한다.
 
 ```java
 em.persist(memberA);
 em.persist(memberB);
+// 아직 DB에는 없다
 
-em.flush();   // 강제 플러시 → DB 에 INSERT 전송
-
-tx.commit();
-```
-
-### 2) 트랜잭션 커밋 시 자동 호출
-
-```java
-em.persist(memberA);
-em.persist(memberB);
-// 아직 DB 반영 X
-
-tx.commit();   // 커밋 전 자동 flush()
-```
-
-### 3) JPQL 실행 시 자동 호출
-
-```java
-em.persist(memberA);
-em.persist(memberB);
-em.persist(memberC);
-// 아직 DB 에 없음!
-
-// JPQL 실행 전 자동 flush
-List<Member> members = em.createQuery(
-        "SELECT m FROM Member m", Member.class)
-    .getResultList();
-// A, B, C 도 포함되어 조회됨
-```
-
-**왜?** JPQL 은 SQL 로 변환되어 DB 를 직접 조회한다. 플러시 없이 실행하면 `persist()` 한 엔티티가 아직 DB 에 없어 조회 결과에서 빠진다.
-
-```
-  persist(A) → 영속성 컨텍스트에만
-  persist(B) → 영속성 컨텍스트에만
-  persist(C) → 영속성 컨텍스트에만
-         │
-         │ JPQL 실행 전 자동 flush
-         ▼
-    DB 에 INSERT → JPQL 로 조회 시 포함
+List<Member> members = em.createQuery("select m from Member m", Member.class)
+                         .getResultList();
+// 쿼리 직전 플러시 → INSERT 전송 → A, B가 결과에 포함된다
 ```
 
 {{< callout type="info" >}}
-`em.find()` 는 1차 캐시를 먼저 확인하므로 **플러시를 호출하지 않는다**. 플러시가 자동 호출되는 건 JPQL/NativeQuery 등 DB 에 직접 쿼리를 날리는 경우뿐이다.
+Hibernate는 JPQL마다 무조건 플러시하지는 않는다. 쿼리가 건드리는 테이블에 아직 안 나간 변경이 있을 때만 플러시한다. 회원을 `persist()`한 뒤 팀만 조회하는 JPQL을 실행하면 플러시가 일어나지 않는다. 반면 네이티브 SQL은 Hibernate가 어떤 테이블을 건드리는지 알 수 없으므로 항상 플러시한다. `find()`는 플러시를 부르지 않는다. 1차 캐시가 먼저 답하고, 캐시에 없는 엔티티에는 미반영 변경이 있을 수 없기 때문이다.
 {{< /callout >}}
 
----
-
-### 플러시 모드 옵션
+### 1.5 플러시 모드
 
 ```java
-em.setFlushMode(FlushModeType.AUTO);     // 기본
-em.setFlushMode(FlushModeType.COMMIT);   // 커밋할 때만
+em.setFlushMode(FlushModeType.AUTO);     // 기본값. 커밋과 쿼리 직전에 플러시
+em.setFlushMode(FlushModeType.COMMIT);   // 커밋 때만 플러시
 ```
 
-| 모드 | 동작 |
-|:-----|:-----|
-| AUTO (기본) | 커밋 + JPQL 실행 시 플러시 |
-| COMMIT | 커밋할 때만 플러시 |
+`COMMIT` 모드가 존재하는 이유는 성능이다. 플러시는 변경 감지를 동반하므로, 쿼리를 많이 실행하는 트랜잭션에서 쿼리마다 영속 엔티티 전체를 비교하는 비용이 부담될 수 있다. 쿼리 결과가 컨텍스트의 변경과 무관하다는 확신이 있을 때만 쓰는 최적화 옵션이다.
 
-`COMMIT` 모드는 쿼리 전에 플러시를 하지 않으므로, 방금 `persist` 한 엔티티가 JPQL 결과에 안 보이는 함정이 있다. 성능 최적화 용도가 아니라면 `AUTO` 를 유지하는 게 안전하다.
+대가는 분명하다. `COMMIT` 모드에서는 방금 `persist()`한 엔티티가 JPQL 결과에 나오지 않는다. JPA 명세도 이 모드에서 쿼리가 미반영 변경을 어떻게 다룰지는 "정해져 있지 않다"고만 말한다. 이유를 설명할 수 있는 구체적인 성능 문제가 없다면 `AUTO`를 유지하는 것이 맞다.
 
 ---
 
-## 2. 준영속 상태
+## 2. 준영속: 컨텍스트에서 떼어내기
 
-> 영속성 컨텍스트가 관리하던 **영속 엔티티가 분리**된 상태
+[Chapter 04](../04-entity-lifecycle)에서 준영속이 어떤 상태인지는 봤다. 여기서는 준영속으로 만드는 세 메서드가 정확히 무엇을 지우는지, 그리고 준영속 엔티티로 무엇을 할 수 있고 없는지를 본다.
 
-### 준영속 상태로 만드는 방법
+### 2.1 세 가지 방법과 지우는 범위
 
 ```java
-em.detach(entity);   // 특정 엔티티
-em.clear();          // 영속성 컨텍스트 초기화
-em.close();          // 영속성 컨텍스트 종료
+em.detach(member);   // member 하나만 분리
+em.clear();          // 컨텍스트를 통째로 비운다
+em.close();          // 컨텍스트를 끝낸다
 ```
 
-### 2.1 `detach()` — 특정 엔티티 분리
+| 방법 | 1차 캐시 엔트리 | 스냅샷 | 예약된 SQL | 컨텍스트 |
+|:-----|:----------------|:-------|:-----------|:---------|
+| `detach(e)` | e만 제거 | e만 제거 | e에 관한 것만 버린다 | 유지 |
+| `clear()` | 전부 제거 | 전부 제거 | 전부 버린다 | 유지. 빈 상태가 된다 |
+| `close()` | 전부 제거 | 전부 제거 | 전부 버린다 | 종료. 이후 사용 불가 |
+
+공통점은 **아직 플러시되지 않은 변경은 버려진다**는 것이다. 떼어낸 엔티티에 대해 JPA는 더 이상 아무것도 하지 않으므로, 떼어내기 전에 바꾼 값도 DB에 가지 않는다.
 
 ```java
+Member member = em.find(Member.class, 1L);   // 영속. 스냅샷 생성
+member.setUsername("변경");                  // 아직 UPDATE는 예약되지 않았다
+em.detach(member);                           // 스냅샷과 함께 컨텍스트에서 제거
+tx.commit();                                 // 비교할 대상이 없다 → UPDATE 없음
+```
+
+변경 감지는 플러시 때 스냅샷과 비교해서 이루어지는데, `detach()`가 스냅샷을 지워 버렸으니 커밋 시점에는 비교할 근거 자체가 없다. 반영하고 싶은 변경이 있다면 떼어내기 전에 `flush()`를 먼저 불러야 한다.
+
+{{< callout type="warning" >}}
+`persist()` 직후에 `detach()`를 부르는 코드는 쓰지 말아야 한다. 명세상으로는 예약된 INSERT까지 버려져 아무 일도 일어나지 않아야 하지만, Hibernate에는 이 경우 예약된 INSERT가 큐에 남아 커밋 때 `AssertionFailure: possible non-threadsafe access to session`을 내는 버그가 있다. Hibernate 관리자의 답도 "저장하지도 않을 엔티티를 왜 persist하느냐, 분리가 필요하면 먼저 flush하라"였다. 컨텍스트에서 떼어낼 엔티티는 플러시가 끝난 뒤에 떼어낸다고 기억하면 된다.
+{{< /callout >}}
+
+### 2.2 왜 detach는 하나만, clear는 전부인가
+
+셋은 목적이 다르다. `detach()`는 컨텍스트를 계속 쓰면서 **특정 엔티티만 관리에서 빼고 싶을 때** 쓴다. 조회만 하고 절대 바꾸지 않을 큰 엔티티를 변경 감지 대상에서 제외하거나, 오래 사는 컨텍스트에서 다 쓴 엔티티를 메모리에서 내릴 때다. `clear()`는 **작업 단위를 이어 가되 캐시를 초기화하고 싶을 때** 쓴다. 대량 처리에서 일정 건수마다 부르는 것이 대표적이다. `close()`는 **작업 단위가 끝났을 때** 쓴다. 닫힌 엔티티 매니저는 어떤 메서드를 불러도 예외를 던진다.
+
+세 메서드의 공통 결과가 준영속이라는 점 때문에 한데 묶이지만, 실무에서 마주치는 준영속 엔티티의 대부분은 셋 중 어느 것도 부르지 않았는데 생긴다. 스프링에서 트랜잭션이 끝나면 컨테이너가 대신 `close()`를 부르기 때문이다. [Chapter 03](../03-persistence-context)에서 본 트랜잭션 범위의 영속성 컨텍스트 이야기다.
+
+### 2.3 준영속 엔티티로 할 수 있는 것과 없는 것
+
+| 하려는 일 | 되는가 | 이유 |
+|:----------|:-------|:-----|
+| 필드 값 읽기·바꾸기 | 된다 | 평범한 자바 객체다 |
+| 이미 로딩된 연관 객체 접근 | 된다 | 값이 객체 안에 들어 있다 |
+| 아직 로딩되지 않은 연관 객체 접근 | 예외 | 프록시가 SQL을 실행할 컨텍스트가 없다 |
+| 변경 감지 | 안 된다 | 스냅샷이 없다 |
+| `persist()` | 예외 | 식별자가 있어 준영속으로 판정된다 |
+| `remove()` | 예외 | 관리 중인 객체만 삭제를 예약할 수 있다 |
+| `merge()` | 된다 | 영속 상태의 복사본을 만든다 |
+| 같은 식별자로 `find()` | 된다 | 새 영속 인스턴스가 돌아온다. 준영속 객체와는 다른 인스턴스 |
+
+세 번째 줄이 그 유명한 `LazyInitializationException`이다. 지연 로딩 프록시는 실제 값이 필요해지는 순간 컨텍스트를 통해 SELECT를 실행하는데, 준영속 엔티티의 프록시에는 돌아갈 컨텍스트가 없다. 서비스에서 회원만 조회해 반환하고 컨트롤러에서 `member.getTeam().getName()`을 부르는 코드가 정확히 이 경우다. 해결책은 컨텍스트가 살아 있을 때 필요한 것을 미리 로딩하거나, 처음부터 조인해서 가져오는 것이다. 프록시의 동작은 [Chapter 10. 프록시](../10-proxy-loading)에서, 페치 조인은 [Chapter 12. 객체지향 쿼리](../12-object-oriented-query)에서 다룬다.
+
+---
+
+## 3. 병합: 떼어낸 엔티티를 다시 붙이기
+
+### 3.1 동작 순서
+
+```java
+// 트랜잭션 1: 회원을 저장하고 컨텍스트를 닫는다
+EntityManager em1 = emf.createEntityManager();
+em1.getTransaction().begin();
 Member member = new Member();
-member.setId("memberA");
-member.setUsername("회원A");
+member.setId(1L);
+member.setUsername("회원1");
+em1.persist(member);
+em1.getTransaction().commit();
+em1.close();                              // member는 준영속
 
-em.persist(member);   // 영속
-em.detach(member);    // 준영속
+member.setUsername("회원명 변경");        // 준영속 상태에서 수정. 아무 일도 없다
 
-tx.commit();          // INSERT 실행 안 됨!
+// 트랜잭션 2: 병합
+EntityManager em2 = emf.createEntityManager();
+em2.getTransaction().begin();
+Member merged = em2.merge(member);        // SELECT → 영속 복사본에 값 복사
+em2.contains(member);                     // false. 넘긴 객체는 여전히 준영속
+em2.contains(merged);                     // true. 반환값이 영속
+em2.getTransaction().commit();            // UPDATE
+em2.close();
 ```
 
 ```
-  영속성 컨텍스트
- ┌──────────────────┐
- │ ┌──────────────┐ │
- │ │  1차 캐시     │ │
- │ │  memberA ←─┐ │ │
- │ │            │ │ │   detach
- │ └────────────┼─┘ │ ────────
- │              │   │
- │ ┌────────────▼─┐ │
- │ │쓰기지연 SQL    │ │
- │ │ INSERT   ←──┐│ │
- │ └─────────────┘│ │
- └────────────────┘
-  → 해당 엔티티 관련
-    정보가 모두 제거
+em.merge(param)
+       │
+       ▼
+ 식별자로 영속 인스턴스 찾기
+   1차 캐시 → 없으면 DB SELECT
+   → DB에도 없으면 새로 만든다
+       │
+       ▼
+ param의 모든 필드 값을
+ 영속 인스턴스에 복사
+       │
+       ▼
+ 영속 인스턴스 반환
+ (param은 여전히 준영속)
 ```
 
-### 2.2 `clear()` — 영속성 컨텍스트 초기화
+`merge()`는 넘긴 객체의 식별자로 영속 인스턴스를 확보한 뒤, 넘긴 객체의 값을 그 인스턴스에 복사하고, 영속 인스턴스를 돌려준다. 넘긴 객체는 손대지 않는다. 그래서 반환값을 받아서 써야 한다. `em.merge(member)`라고만 쓰고 계속 `member`를 다루면, 그 뒤의 변경은 준영속 객체에 일어나 사라진다.
+
+### 3.2 왜 SELECT가 나가는가
+
+`merge()`를 부르면 저장하려는 것뿐인데 SELECT가 먼저 실행된다. 이유는 두 가지다. 첫째, 복사할 대상인 영속 인스턴스가 필요한데 1차 캐시에 없으면 DB에서 가져오는 수밖에 없다. 둘째, 그 행이 DB에 있는지 없는지에 따라 커밋 때 나갈 SQL이 달라진다. 있으면 복사 결과와 스냅샷을 비교해 UPDATE, 없으면 새 인스턴스를 만들어 INSERT다. 이 판단을 하려면 DB를 봐야 한다.
+
+새 인스턴스를 돌려주는 이유는 [Chapter 04](../04-entity-lifecycle)에서 봤다. 컨텍스트에 같은 식별자의 엔티티가 이미 있을 수 있는 이상, 넘긴 객체를 그대로 영속으로 만들면 식별자당 인스턴스 하나라는 규칙이 깨진다. 값을 복사하는 우회로가 유일한 방법이다.
+
+### 3.3 비영속 병합: save-or-update
 
 ```java
-Member member = em.find(Member.class, "memberA");
+Member fresh = new Member();
+fresh.setId(2L);
+fresh.setUsername("신규회원");
 
-em.clear();   // 영속성 컨텍스트 초기화
-
-member.setUsername("변경됨");   // 준영속 → 변경 감지 X
-tx.commit();                    // UPDATE 실행 안 됨
+Member merged = em.merge(fresh);   // 2번이 DB에 없으면 INSERT, 있으면 UPDATE
 ```
 
-### 2.3 `close()` — 영속성 컨텍스트 종료
+3.2절의 판단 로직 덕분에 `merge()`는 비영속 객체에도 쓸 수 있다. DB에 없으면 등록, 있으면 수정이라는 뜻에서 **save-or-update**라 부른다. 스프링 데이터 JPA의 `save()`가 식별자가 있는 엔티티에 `merge()`를 고르는 이유, 그리고 그때 INSERT 앞에 SELECT가 붙는 이유가 이 동작이다.
 
-```java
-tx.begin();
+### 3.4 병합의 함정: 전부 덮어쓴다
 
-Member a = em.find(Member.class, "memberA");
-Member b = em.find(Member.class, "memberB");
+편리해 보이는 `merge()`가 실무에서 조심스럽게 다뤄지는 이유가 있다. 값을 복사할 때 **모든 필드를 복사**한다는 점이다. 넘긴 객체에서 채우지 않은 필드는 `null`로 복사된다.
 
-tx.commit();
+| 필드 | DB의 현재 값 | 넘긴 객체 | 병합 후 커밋 |
+|:-----|:-------------|:----------|:-------------|
+| username | 회원1 | 회원2 | 회원2 |
+| age | 20 | null | null |
+| email | a@b.c | null | null |
 
-em.close();   // 모든 엔티티 준영속
-// a, b 모두 준영속 상태
-```
-
----
-
-### 준영속 상태의 특징
-
-| 특징 | 설명 |
-|:-----|:-----|
-| 비영속과 유사 | 영속성 컨텍스트 기능 사용 불가 |
-| 식별자 있음 | 한 번 영속이었으므로 @Id 값 보존 |
-| 지연 로딩 불가 | 프록시 초기화 시 예외 |
-
-```java
-// 준영속 상태에서는...
-member.setUsername("변경");   // 변경 감지 X
-// em.persist(member) 호출 시점에 Id 충돌 이슈 발생 가능
-// em.find(...) 는 동작 (새 영속 인스턴스 반환)
-```
+이름만 바꾸려고 이름만 채운 객체를 넘겼는데 나이와 이메일이 지워진다. `merge()`는 "이 필드는 안 바꿨다"와 "이 필드를 `null`로 바꿨다"를 구분할 방법이 없다. 객체에는 그 둘이 똑같이 `null`로 들어 있기 때문이다. 웹 계층에서 요청 본문을 엔티티로 받아 그대로 `merge()`하는 코드가 이 문제를 만드는 전형이다.
 
 {{< callout type="warning" >}}
-준영속 상태에서 **지연 로딩 프록시를 건드리면** `LazyInitializationException` 이 발생한다. 예: 서비스 트랜잭션이 끝난 뒤 컨트롤러/뷰에서 `member.getTeam().getName()` 을 호출하는 경우 (OSIV 가 꺼져 있으면 자주 발생).
-{{< /callout >}}
-
----
-
-## 3. 병합 (merge)
-
-> **준영속/비영속 엔티티**를 **영속 상태**로 만들어 반환
-
-```java
-Member mergeMember = em.merge(member);
-```
-
-### 준영속 병합 예제
-
-```java
-public class MergeExample {
-
-    static EntityManagerFactory emf =
-        Persistence.createEntityManagerFactory("jpabook");
-
-    public static void main(String[] args) {
-        // 1. 영속 → 준영속
-        Member member = createMember("memberA", "회원1");
-
-        // 2. 준영속 상태에서 변경
-        member.setUsername("회원명변경");
-
-        // 3. 병합으로 다시 영속
-        mergeMember(member);
-    }
-
-    static Member createMember(String id, String username) {
-        EntityManager em1 = emf.createEntityManager();
-        EntityTransaction tx1 = em1.getTransaction();
-
-        tx1.begin();
-        Member member = new Member();
-        member.setId(id);
-        member.setUsername(username);
-        em1.persist(member);
-        tx1.commit();
-
-        em1.close();    // 영속성 컨텍스트 종료 → 준영속
-        return member;
-    }
-
-    static void mergeMember(Member member) {
-        EntityManager em2 = emf.createEntityManager();
-        EntityTransaction tx2 = em2.getTransaction();
-
-        tx2.begin();
-
-        // 병합 → 새로운 영속 엔티티 반환
-        Member mergeMember = em2.merge(member);
-
-        tx2.commit();
-
-        System.out.println(em2.contains(member));
-        // false! 파라미터 member 는 여전히 준영속
-
-        System.out.println(em2.contains(mergeMember));
-        // true! 반환된 mergeMember 가 영속
-
-        em2.close();
-    }
-}
-```
-
-### `merge()` 동작 방식
-
-```
-  1. merge() 호출
-         │
-         ▼
-  2. 1차 캐시에서 식별자로 조회
-         │
-         │ 없으면
-         ▼
-  3. DB 에서 조회 → 1차 캐시 저장
-         │
-         ▼
-  4. 영속 엔티티에 파라미터 값 복사
-         │
-         ▼
-  5. 영속 엔티티 반환 (새 인스턴스!)
-```
-
-```java
-Member mergeMember = em.merge(member);
-// member       : 여전히 준영속
-// mergeMember  : 영속 상태 (다른 인스턴스)
-```
-
-### 비영속 병합
-
-```java
-Member newMember = new Member();
-newMember.setId("newMember");
-newMember.setUsername("신규회원");
-
-// 비영속도 merge 가능
-Member merged = em.merge(newMember);
-// DB 에 없으면 → INSERT
-// DB 에 있으면 → UPDATE
-```
-
-`merge()` 는 **save-or-update** 로 동작한다. 편해 보이지만, **전체 필드를 덮어쓰기** 하므로 일부 필드만 null 로 보내면 **의도치 않게 null 저장** 이 될 수 있다. 실무에서는 "변경 감지 + 트랜잭션 안에서 조회 후 수정" 이 더 안전하다.
-
-{{< callout type="warning" >}}
-웹 계층에서 DTO 를 엔티티로 넘기고 `merge()` 를 호출하는 패턴은 **모든 필드를 덮어쓴다**. 수정하지 않은 필드가 null 로 저장되는 대표적 버그의 원인이다. 반드시 "조회 후 세터로 부분 수정 → 변경 감지" 패턴을 사용하자.
+수정은 **트랜잭션 안에서 조회한 뒤 바꿀 필드만 바꾸고 변경 감지에 맡기는** 방식이 기본이다. 바꾼 필드만 UPDATE 대상이 되고, 바꾸지 않은 필드는 건드리지 않는다. `merge()`는 캐시나 세션에서 꺼낸 준영속 엔티티를 통째로 되살려야 하는 드문 경우를 위한 도구이지, 수정의 기본 수단이 아니다.
 {{< /callout >}}
 
 ---
@@ -310,36 +231,45 @@ Member merged = em.merge(newMember);
 
 ### 플러시
 
-| 항목 | 내용 |
+| 항목 | 핵심 |
 |:-----|:-----|
-| 정의 | 영속성 컨텍스트 변경을 DB 로 동기화 |
-| 시점 | 직접 호출, 커밋, JPQL 실행 |
-| 주의 | 컨텍스트를 비우지 않음 |
-| 전제 | 트랜잭션 작업 단위 존재 |
+| 뜻 | 컨텍스트의 변경을 DB에 동기화. 컨텍스트를 비우지 않는다 |
+| 단계 | 변경 감지 → SQL 생성 → 전송. 스냅샷은 갱신된다 |
+| 커밋과의 차이 | 플러시는 DB 도착, 커밋은 확정. 롤백 후 컨텍스트는 준영속 |
+| 시점 | 직접 호출, 커밋, JPQL 직전 (Hibernate는 관련 테이블에 변경이 있을 때만) |
+| 모드 | AUTO가 기본. COMMIT은 쿼리가 미반영 변경을 못 본다 |
 
 ### 준영속
 
-| 항목 | 내용 |
+| 항목 | 핵심 |
 |:-----|:-----|
-| 만드는 법 | detach, clear, close |
-| 특징 | 1차 캐시/변경 감지/쓰기 지연 X |
-| 식별자 | 있음 |
-| 복구 | merge() 로 다시 영속 |
+| 방법 | `detach` 하나, `clear` 전부, `close` 종료. 스프링은 트랜잭션 종료 |
+| 지워지는 것 | 캐시 엔트리, 스냅샷, 예약된 SQL. 미반영 변경은 버려진다 |
+| 주의 | `persist` 직후 `detach` 금지. 플러시 뒤에 떼어낸다 |
+| 할 수 없는 것 | 변경 감지, 지연 로딩, `persist`, `remove` |
+
+### 병합
+
+| 항목 | 핵심 |
+|:-----|:-----|
+| 동작 | 식별자로 영속 인스턴스 확보(SELECT) → 값 복사 → 복사본 반환 |
+| 반환값 | 새 영속 인스턴스. 넘긴 객체는 준영속 그대로 |
+| save-or-update | DB에 없으면 INSERT, 있으면 UPDATE |
+| 함정 | 모든 필드를 덮어쓴다. 수정은 조회 후 변경 감지가 기본 |
 
 ### 핵심 코드
 
 ```java
 // 플러시
-em.flush();                    // 직접
-tx.commit();                   // 자동
-em.createQuery("...");         // 자동
+em.flush();                              // 직접
+tx.commit();                             // 커밋 직전 자동
+em.createQuery("...").getResultList();   // 쿼리 직전 자동
 
 // 준영속
-em.detach(entity);             // 특정
-em.clear();                    // 전체 초기화
-em.close();                    // 종료
+em.detach(entity);                       // 하나
+em.clear();                              // 전부
+em.close();                              // 종료
 
-// 병합 (준영속 → 영속)
-Member merged = em.merge(detachedMember);
-// 반환된 merged 가 영속!
+// 병합
+Member merged = em.merge(detached);      // 반환값이 영속. detached는 그대로
 ```
