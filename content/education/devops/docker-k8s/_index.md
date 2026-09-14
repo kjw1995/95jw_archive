@@ -1,6 +1,7 @@
 ---
 title: "시작하세요! 도커/쿠버네티스"
 date: 2026-03-07
+weight: 2
 sidebar:
   open: false
 ---

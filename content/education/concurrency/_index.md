@@ -1,7 +1,7 @@
 ---
 title: "동시성 프로그래밍"
 date: 2026-01-27
-weight: 3
+weight: 10
 sidebar:
   open: false
 ---

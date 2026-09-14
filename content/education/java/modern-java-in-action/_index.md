@@ -1,7 +1,7 @@
 ---
 title: "Modern Java"
 date: 2025-12-17
-weight: 10
+weight: 2
 sidebar:
   open: false
 ---

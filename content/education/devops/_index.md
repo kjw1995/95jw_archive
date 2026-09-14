@@ -1,6 +1,7 @@
 ---
 title: DevOps
 date: 2025-12-14
+weight: 7
 sidebar:
   open: false
 ---

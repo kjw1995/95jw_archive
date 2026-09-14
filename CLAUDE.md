@@ -30,7 +30,7 @@ content/
 
 ### _index.md 작성 기준
 
-1. frontmatter에 `title`, `date`, `sidebar: open: false` 포함
+1. frontmatter에 `title`, `date`, `weight`, `sidebar: open: false` 포함
 2. 소개 문구는 한 문장으로 간결하게 ("~를 다룹니다.")
 3. 하위 항목은 테이블 형식으로 정리
 4. 본문에 `# 제목` 중복 금지 (frontmatter title만 사용)
@@ -47,6 +47,14 @@ content/
 - 모든 `_index.md`는 `sidebar: open: false`로 두어 **기본 접힘** 상태를 유지한다
 - 현재 보고 있는 페이지의 상위 항목만 자동으로 펼쳐진다
 - 특정 섹션을 항상 펼쳐두고 싶을 때만 그 `_index.md`에서 `sidebar: open: true`로 바꾼다
+
+### education 레이아웃과 정렬
+
+- `content/education/_index.md`의 `cascade: type: docs` 때문에 education 아래 모든 문서는 hextra의 **docs 레이아웃**으로 렌더링된다 (왼쪽 사이드바 트리, breadcrumb, 오른쪽 TOC, 하단 이전/다음 링크)
+- 사이드바와 이전/다음 순서는 `weight` 오름차순이다. 섹션 `_index.md`에도 `weight`가 있어야 한다 (없으면 맨 뒤로 밀린다)
+- 새 섹션이나 문서를 추가할 때는 같은 디렉터리 안에서 겹치지 않는 `weight`를 준다
+- 이전/다음 링크는 같은 디렉터리의 문서끼리만 이어진다. 하위 섹션(예: `network/http`)은 별도 사슬이다
+- blog는 blog 레이아웃(사이드바 없음), `about.md`처럼 전용 레이아웃이 없는 단일 문서만 `layouts/single.html`을 쓴다
 
 ### 테이블 형식
 

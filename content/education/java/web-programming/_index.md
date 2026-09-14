@@ -1,6 +1,7 @@
 ---
 title: 웹 프로그래밍
 date: 2025-12-27
+weight: 6
 sidebar:
   open: false
 ---

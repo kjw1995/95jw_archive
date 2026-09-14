@@ -1,6 +1,7 @@
 ---
 title: Architecture
 date: 2025-12-14
+weight: 9
 sidebar:
   open: false
 ---

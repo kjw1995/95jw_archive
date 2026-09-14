@@ -1,7 +1,7 @@
 {{/*
   hextra v0.11.1의 layouts/single.html 복사본.
   원본에는 작성일/수정일 표시가 없어서 components/last-updated.html 호출만 추가했다.
-  (education 하위 문서는 이 레이아웃으로 렌더링된다)
+  (education 문서는 education/_index.md의 cascade type: docs 때문에 테마의 docs/single.html로 렌더링되고, 이 레이아웃은 about처럼 타입 전용 레이아웃이 없는 단일 문서에만 쓰인다)
   테마를 업그레이드할 때는 원본과 다시 비교해야 한다.
 */}}
 {{ define "main" }}

@@ -1,6 +1,7 @@
 ---
 title: Java
 date: 2025-12-14
+weight: 1
 sidebar:
   open: false
 ---

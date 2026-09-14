@@ -1,6 +1,7 @@
 ---
 title: JVM
 date: 2025-12-25
+weight: 4
 sidebar:
   open: false
 ---

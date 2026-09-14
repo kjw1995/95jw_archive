@@ -1,6 +1,7 @@
 ---
 title: Redis
 date: 2026-04-23
+weight: 5
 sidebar:
   open: false
 ---

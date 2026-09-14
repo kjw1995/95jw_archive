@@ -1,6 +1,7 @@
 ---
 title: Spring Security
 date: 2026-01-23
+weight: 21
 sidebar:
   open: false
 ---

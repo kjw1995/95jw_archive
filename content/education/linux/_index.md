@@ -1,7 +1,7 @@
 ---
 title: "Linux"
 date: 2025-12-29
-weight: 6
+weight: 8
 sidebar:
   open: false
 ---
