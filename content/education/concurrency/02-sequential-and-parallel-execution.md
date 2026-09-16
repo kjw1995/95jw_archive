@@ -4,855 +4,434 @@ date: 2026-01-27
 weight: 2
 ---
 
-순차 컴퓨팅과 병렬 컴퓨팅의 차이를 이해하고, 병렬 처리를 통한 성능 향상의 이론적 한계를 알아본다.
+프로그램을 빠르게 하는 가장 쉬운 길은 코어를 더 쓰는 것처럼 보인다. 코어가 열 개면 열 배, 백 개면 백 배. 이 장은 그 기대가 어디서 맞고 어디서 틀리는지를 다룬다. 원리는 셋이다. 첫째, **순차와 병렬을 가르는 것은 코드의 모양이 아니라 작업 사이의 의존성이다.** 앞 작업의 결과가 있어야 다음 작업을 시작할 수 있으면 스레드를 몇 개 주든 그 일은 순차다. 나눌 수 있는 것은 서로 독립인 일뿐이다. 둘째, **병렬화의 상한은 코어 수가 아니라 순차 부분이 정한다.** 전체의 10%만 순차여도 코어를 무한히 줘서 얻는 배속은 10배를 못 넘는다. 이것이 암달의 법칙이고, 코어를 늘리기 전에 순차 부분을 줄이는 것이 먼저인 이유다. 셋째, **문제를 키우면 한계가 물러난다.** 코어를 늘리며 문제도 같이 키우면 순차 부분의 비중이 줄어, 걸리는 시간은 그대로인 채 처리하는 양이 코어 수에 가깝게 는다. 이것이 구스타프슨의 법칙이다. 이 PC(Apple M4 10코어, JDK 23)에서 같은 계산을 순차·병렬·의존 사슬로 돌리고, 순차 비율을 0·10·50%로 바꿔 가며 스레드 1~16개의 배속을 재고, 문제 크기를 스레드 수에 비례해 키우며 처리량을 봤다. [01](../01-what-is-concurrency)장이 기다림을 겹치는 이야기였다면 이 장은 계산을 나누는 이야기다.
 
 ---
 
 ## 1. 작업과 순차 실행
 
-### 1.1 작업(Task)이란?
+### 1.1 작업
 
-> **작업(Task):** 논리적으로 독립적인 어떤 일의 일부
-
-모든 문제는 애플리케이션 형태로 형식화하면 **일련의 작업**으로 나뉜다.
-
-```
+```text
 전체 문제
-    ↓
-[작업1] → [작업2] → [작업3] → [작업4]
+    │ 나눈다
+    ▼
+[작업1] → [작업2] → [작업3]
 ```
 
-**작업의 예시:**
+| 프로그램 | 작업으로 나누면 | 왜 이 단위인가 |
+|:--------|:------------|:------------|
+| 웹 서버 | 요청 파싱 → 비즈니스 로직 → DB 조회 → 응답 생성 | 각 단계의 입력과 출력이 분명하다 |
+| 이미지 처리 | 읽기 → 필터 → 크기 조정 → 저장 | 단계마다 다른 도구가 맡는다 |
+| 데이터 분석 | 로드 → 전처리 → 분석 → 시각화 | 앞 단계의 결과가 다음 단계의 입력이다 |
 
-| 프로그램 | 작업 분해 |
-|:--------|:---------|
-| 웹 서버 | HTTP 요청 파싱 → 비즈니스 로직 → DB 조회 → 응답 생성 |
-| 이미지 처리 | 파일 읽기 → 필터 적용 → 크기 조정 → 저장 |
-| 데이터 분석 | 데이터 로드 → 전처리 → 분석 → 시각화 |
+작업(task)은 논리적으로 독립적인 일의 한 조각이다. 어떤 문제든 프로그램으로 옮기면 일련의 작업으로 나뉜다. 여기서 "독립적"이라는 말은 조심해서 읽어야 한다. 위 표의 작업들은 이름은 따로 붙었지만, 오른쪽 열이 말하듯 **앞 작업의 출력이 뒤 작업의 입력**인 경우가 많다. 그런 작업은 나눠 놓아도 순서를 바꿀 수 없다. 이 장 전체가 결국 "어떤 작업이 진짜로 독립인가"를 묻는 이야기다.
 
----
+### 1.2 순차 컴퓨팅과 순차 실행
 
-### 1.2 순차 컴퓨팅 (Sequential Computing)
+```text
+시간 →
+[작업1]──▶[작업2]──▶[작업3]──▶
+앞이 끝나야 뒤가 시작된다
+```
 
-> **순차 컴퓨팅:** 프로그램을 구성하는 각 작업이 코드에 배치된 순서에서 자신보다 이전인 작업 실행에 의존하는 것
+| 용어 | 뜻 | 층 | 왜 구분하나 |
+|:-----|:---|:---|:----------|
+| 순차 컴퓨팅 | 각 작업이 코드에 적힌 순서대로 앞 작업에 의존하는 **문제의 구조** | 설계 | 문제 자체가 순서를 요구하는가 |
+| 순차 실행 | 명령을 한 처리 단위에서 한 번에 하나씩 순서대로 실행하는 **실행 방식** | 실행 | 순서를 요구하지 않는 문제도 순차로 실행할 수는 있다 |
+
+순차 컴퓨팅은 문제의 성질이고 순차 실행은 실행 방식이다. 둘을 갈라 보는 이유는 다음 절에서 드러난다. 서로 독립인 작업을 순차로 실행하는 것은 선택이라 나중에 바꿀 수 있지만, 의존하는 작업은 어떻게 실행하든 순차다. 이 PC에서 제곱근을 4억 번 더하는 계산(혼자 돌면 208ms) 다섯 개를 순서대로 돌렸다.
 
 ```java
-public class SequentialComputing {
+static double work(long n) {
+    double s = 0;
+    for (long i = 1; i <= n; i++)
+        s += Math.sqrt(i);
+    return s;
+}
 
-    public static void main(String[] args) {
-        // 작업1: 데이터 준비
-        int[] data = prepareData();
+// 순차: 다섯을 차례로
+for (int i = 0; i < 5; i++)
+    sum += work(N);     // 1,040 ms
+```
 
-        // 작업2: 데이터 처리 (작업1의 결과 필요)
-        int sum = processData(data);
+다섯 개의 합인 1,040ms가 걸렸다. 한 번에 하나만 실행되고 앞이 끝나야 뒤가 시작되므로 걸린 시간은 각 작업 시간의 합이다. 예측 가능하고 이해하기 쉽다는 것이 순차 실행의 장점이고, 코어 열 개 중 아홉을 놀린다는 것이 단점이다.
 
-        // 작업3: 결과 출력 (작업2의 결과 필요)
-        printResult(sum);
+### 1.3 순차 실행이 필수인 경우
+
+```java
+try (var pool = Executors
+        .newFixedThreadPool(5)) {
+    Future<Double> prev =
+        pool.submit(() -> work(N));
+    for (int i = 1; i < 5; i++) {
+        var p = prev;  // 앞 결과에 의존
+        prev = pool.submit(
+            () -> workFrom(p.get(), N));
     }
-
-    static int[] prepareData() {
-        System.out.println("작업1: 데이터 준비 중...");
-        return new int[]{1, 2, 3, 4, 5};
-    }
-
-    static int processData(int[] data) {
-        System.out.println("작업2: 데이터 처리 중...");
-        int sum = 0;
-        for (int num : data) {
-            sum += num;
-        }
-        return sum;
-    }
-
-    static void printResult(int sum) {
-        System.out.println("작업3: 결과 = " + sum);
-    }
+    sum = prev.get();   // 1,050 ms
 }
 ```
 
-**실행 흐름:**
+| 실행 방식 | 다섯 작업 | 걸린 시간 | 왜 |
+|:--------|:--------|--------:|:---|
+| 순차 (스레드 1) | 독립 | 1,040 ms | 합 |
+| 스레드 풀 5 | 독립 | 247 ms | 가장 늦은 하나 (2절) |
+| 스레드 풀 5 | 앞 결과에 의존 | 1,050 ms | 스레드가 다섯이어도 한 번에 하나만 일한다 |
 
-```
-시간 →  [작업1]────→[작업2]────→[작업3]────→
-
-각 작업은 이전 작업이 완료될 때까지 대기
-```
-
----
-
-### 1.3 순차 실행 (Sequential Execution)
-
-> **순차 실행:** 순서를 가진 일련의 명령이 하나의 처리 단위에서 한 번에 하나씩 순서대로 실행되는 것
-
-**특징:**
-- 한 번에 하나의 명령만 실행
-- 이전 명령이 완료되어야 다음 명령 실행
-- 예측 가능하고 이해하기 쉬움
-
-```java
-import java.util.List;
-
-public class SequentialExecution {
-
-    static void processTask(int taskId) {
-        System.out.println("작업 " + taskId + " 시작");
-        try {
-            Thread.sleep(1000);  // 1초 소요
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        System.out.println("작업 " + taskId + " 완료");
-    }
-
-    public static void main(String[] args) {
-        long start = System.currentTimeMillis();
-
-        List<Integer> tasks = List.of(1, 2, 3, 4, 5);
-
-        // 순차 실행
-        for (int taskId : tasks) {
-            processTask(taskId);
-        }
-
-        long duration = System.currentTimeMillis() - start;
-        System.out.println("\n총 소요시간: " + duration + "ms");
-        // 출력: 약 5000ms (5초)
-    }
-}
-```
-
-**실행 결과:**
-
-```
-작업 1 시작
-작업 1 완료
-작업 2 시작
-작업 2 완료
-작업 3 시작
-작업 3 완료
-작업 4 시작
-작업 4 완료
-작업 5 시작
-작업 5 완료
-
-총 소요시간: 5000ms
-```
-
----
-
-### 1.4 순차 실행이 필수적인 경우
-
-**각 작업을 실행하는 데 이전 작업의 출력이 필요한 경우, 순차 실행이 필수적이다.**
-
-```java
-public class DependentTasks {
-
-    static int step1() {
-        System.out.println("Step 1: 원본 데이터 생성");
-        return 10;
-    }
-
-    static int step2(int input) {
-        System.out.println("Step 2: 데이터 변환 (입력: " + input + ")");
-        return input * 2;
-    }
-
-    static int step3(int input) {
-        System.out.println("Step 3: 최종 처리 (입력: " + input + ")");
-        return input + 5;
-    }
-
-    public static void main(String[] args) {
-        // 각 단계가 이전 단계의 결과에 의존
-        int result1 = step1();          // 10
-        int result2 = step2(result1);   // 20
-        int result3 = step3(result2);   // 25
-
-        System.out.println("최종 결과: " + result3);
-    }
-}
-```
-
-**의존성 그래프:**
-
-```
-step1() → result1 → step2(result1) → result2 → step3(result2) → result3
-   ↑                  ↑                           ↑
-   필수 순서        의존 관계                   의존 관계
-```
+첫째 원리다. 같은 스레드 풀 다섯 개인데, 각 작업이 앞 작업의 결과를 `p.get()`으로 기다리게 하니 1,050ms로 순차와 같아졌다. 스레드 다섯이 있어도 넷은 앞 작업이 끝나기를 기다릴 뿐이다. 각 작업의 실행에 이전 작업의 출력이 필요하면 순차 실행은 선택이 아니라 필수다. 이 의존 사슬을 그림으로 그린 것이 작업 의존 관계 그래프이고, 그래프에서 가장 긴 사슬(임계 경로)이 코어를 아무리 늘려도 넘지 못하는 하한이 된다([07](../07-task-decomposition)장 2절).
 
 {{< callout type="warning" >}}
-**데이터 의존성이 있는 작업은 병렬화할 수 없다.**
-이전 작업의 결과가 필요한 경우 반드시 순차 실행해야 한다.
+**데이터 의존성이 있는 작업은 병렬화할 수 없다.** 스레드를 더 줘도 빨라지지 않고, 스레드를 만들고 결과를 넘기는 비용만 얹힌다. 위 표에서 의존 사슬이 순차보다 10ms 더 걸린 것이 그 비용이다. 병렬화의 첫 질문은 "코어가 몇 개인가"가 아니라 "이 작업들이 서로 독립인가"다.
 {{< /callout >}}
 
 ---
 
 ## 2. 병렬 실행
 
-### 2.1 병렬 실행 (Parallel Execution)
+### 2.1 독립인 작업을 같은 순간에
 
-> **병렬 실행:** 계산 여러 개가 동시에 실행되는 것
+```text
+[순차]  1,040 ms
+T1 [작업1][작업2][작업3][작업4][작업5]
 
-**조건:**
-- 동시 실행되는 작업이 **서로 독립적**이어야 함
-- 멀티 코어 또는 다중 프로세서 필요
+[병렬]  247 ms
+T1 [작업1]
+T2 [작업2]
+T3 [작업3]
+T4 [작업4]
+T5 [작업5]
+```
 
 ```java
-import java.util.concurrent.*;
-import java.util.List;
-import java.util.ArrayList;
-
-public class ParallelExecution {
-
-    static void processTask(int taskId) {
-        System.out.println("작업 " + taskId + " 시작 (스레드: "
-            + Thread.currentThread().getName() + ")");
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        System.out.println("작업 " + taskId + " 완료");
-    }
-
-    public static void main(String[] args) throws Exception {
-        long start = System.currentTimeMillis();
-
-        ExecutorService executor = Executors.newFixedThreadPool(5);
-        List<Future<?>> futures = new ArrayList<>();
-
-        // 병렬 실행
-        for (int i = 1; i <= 5; i++) {
-            final int taskId = i;
-            futures.add(executor.submit(() -> processTask(taskId)));
-        }
-
-        // 모든 작업 완료 대기
-        for (Future<?> future : futures) {
-            future.get();
-        }
-
-        executor.shutdown();
-
-        long duration = System.currentTimeMillis() - start;
-        System.out.println("\n총 소요시간: " + duration + "ms");
-        // 출력: 약 1000ms (1초)
-    }
+// 병렬: 다섯을 한꺼번에
+try (var pool = Executors
+        .newFixedThreadPool(5)) {
+    var fs = new ArrayList<
+        Future<Double>>();
+    for (int i = 0; i < 5; i++)
+        fs.add(pool.submit(
+            () -> work(N)));
+    for (var f : fs)
+        sum += f.get();     // 247 ms
 }
 ```
 
-**실행 결과:**
+병렬 실행은 계산 여러 개가 **같은 순간에** 실행되는 것이다. 조건은 둘이다. 작업이 서로 독립이어야 하고, 처리 단위(코어)가 여럿이어야 한다. 1.2절의 다섯 작업은 서로 독립이므로 스레드 다섯에 나눠 주니 247ms, 넉 배 남짓 빨라졌다. [01](../01-what-is-concurrency)장의 HTTP 실험과 모양은 같지만 속은 다르다. 거기서는 스레드들이 응답을 **기다리는** 시간을 겹쳤고 CPU는 놀았다. 여기서는 스레드 다섯이 **각자 코어를 하나씩 차지하고** 계산했다. 기다림을 겹치는 것이 동시성이고, 계산을 나누는 것이 병렬성이다.
 
-```
-작업 1 시작 (스레드: pool-1-thread-1)
-작업 2 시작 (스레드: pool-1-thread-2)
-작업 3 시작 (스레드: pool-1-thread-3)
-작업 4 시작 (스레드: pool-1-thread-4)
-작업 5 시작 (스레드: pool-1-thread-5)
-작업 1 완료
-작업 2 완료
-작업 3 완료
-작업 4 완료
-작업 5 완료
+| 작업 하나 | 혼자 돌 때 | 다섯이 같이 돌 때 | 왜 |
+|:--------|--------:|-------------:|:---|
+| 4억 번 제곱근 | 208 ms | 각 236~265 ms | 코어 하나만 일할 때의 속도를 다섯이 나눠 갖는다 |
 
-총 소요시간: 1000ms
-```
+208ms짜리 다섯을 병렬로 돌렸는데 208이 아니라 247ms인 것이 병렬 실행의 첫 교훈이다. 병렬 실행의 시간은 **가장 늦게 끝나는 작업**이 정하고, 같이 도는 작업은 혼자 돌 때보다 느리다. 다섯 작업 각각의 시간을 재 보니 전부 240ms 안팎이었다. 이 PC의 코어 열 개는 성능 코어 넷과 효율 코어 여섯이고, 스케줄러가 스레드를 그 사이로 옮겨 가며 섞어 쓴다. 코어 하나가 혼자 일할 때의 속도는 여럿이 일할 때 유지되지 않는다. 코어가 어떻게 다르고 어떤 일에 어떤 처리 장치가 맞는지는 [03](../03-how-computers-work)장이다.
 
-**시각적 비교:**
+### 2.2 병렬 컴퓨팅의 세 단계
 
-```
-[순차 실행]
-스레드:  [작업1][작업2][작업3][작업4][작업5]
-시간:    0─────1─────2─────3─────4─────5초
-
-[병렬 실행]
-스레드1: [작업1]
-스레드2: [작업2]
-스레드3: [작업3]
-스레드4: [작업4]
-스레드5: [작업5]
-시간:    0─────1초
-```
-
----
-
-### 2.2 병렬 컴퓨팅 (Parallel Computing)
-
-> **병렬 컴퓨팅:** 여러 처리 요소가 동시에 하나의 문제를 해결하는 것
-
-**병렬 컴퓨팅 적용 단계:**
-
-1. **문제의 분해 (Decomposition)**
-   - 전체 문제를 독립적인 하위 작업으로 분할
-
-2. **알고리즘 개발과 적용**
-   - 병렬로 실행 가능한 알고리즘 설계
-
-3. **동기화 지점 추가**
-   - 작업 간 조율이 필요한 지점 식별 및 구현
+| 단계 | 하는 일 | 아래 코드에서 | 왜 필요한가 | 어디서 |
+|:-----|:------|:----------|:----------|:------|
+| 분해 | 문제를 독립인 조각으로 나눈다 | 배열을 코어 수만큼 구간으로 | 독립이 아니면 나눈 의미가 없다 | [07](../07-task-decomposition)장 |
+| 알고리즘 | 각 조각을 푸는 방법을 정한다 | 구간마다 같은 루프 | 조각이 같은 일이면 같은 코드로 | [07](../07-task-decomposition)장 6절 |
+| 동기화 | 조각의 결과를 모은다 | `f.get()`으로 부분합을 더한다 | 나눈 것은 언젠가 합쳐야 한다 | [08](../08-race-conditions-and-synchronization)장 |
 
 ```java
-import java.util.concurrent.*;
-import java.util.stream.IntStream;
-
-public class ParallelComputing {
-
-    // 1억 개 숫자의 합계 계산
-    static long sequentialSum(int[] numbers) {
-        long sum = 0;
-        for (int num : numbers) {
-            sum += num;
-        }
-        return sum;
-    }
-
-    // 병렬 합계 계산 (분할 정복)
-    static long parallelSum(int[] numbers) throws Exception {
-        int cores = Runtime.getRuntime().availableProcessors();
-        ExecutorService executor = Executors.newFixedThreadPool(cores);
-
-        int chunkSize = numbers.length / cores;
-        List<Future<Long>> futures = new ArrayList<>();
-
-        // 1. 문제 분해: 데이터를 코어 수만큼 분할
-        for (int i = 0; i < cores; i++) {
-            final int start = i * chunkSize;
-            final int end = (i == cores - 1) ? numbers.length : (i + 1) * chunkSize;
-
-            // 2. 알고리즘 적용: 각 청크를 병렬로 처리
-            futures.add(executor.submit(() -> {
-                long partialSum = 0;
-                for (int j = start; j < end; j++) {
-                    partialSum += numbers[j];
-                }
-                return partialSum;
-            }));
-        }
-
-        // 3. 동기화: 모든 부분 결과를 합산
-        long totalSum = 0;
-        for (Future<Long> future : futures) {
-            totalSum += future.get();
-        }
-
-        executor.shutdown();
-        return totalSum;
-    }
-
-    public static void main(String[] args) throws Exception {
-        int size = 100_000_000;
-        int[] numbers = IntStream.range(1, size + 1).toArray();
-
-        System.out.println("데이터 크기: " + size + "개");
-        System.out.println("사용 가능한 프로세서: "
-            + Runtime.getRuntime().availableProcessors() + "개\n");
-
-        // 순차 처리
-        long start = System.currentTimeMillis();
-        long seqSum = sequentialSum(numbers);
-        long seqTime = System.currentTimeMillis() - start;
-        System.out.println("순차 처리:");
-        System.out.println("  합계: " + seqSum);
-        System.out.println("  시간: " + seqTime + "ms\n");
-
-        // 병렬 처리
-        start = System.currentTimeMillis();
-        long parSum = parallelSum(numbers);
-        long parTime = System.currentTimeMillis() - start;
-        System.out.println("병렬 처리:");
-        System.out.println("  합계: " + parSum);
-        System.out.println("  시간: " + parTime + "ms");
-        System.out.println("  속도 향상: " + String.format("%.2f", (double)seqTime/parTime) + "배");
-    }
+int cores = Runtime.getRuntime()
+    .availableProcessors();
+int chunk = arr.length / cores;
+for (int i = 0; i < cores; i++) {
+    // 1. 분해: i번째 구간
+    int lo = i * chunk;
+    int hi = i == cores - 1
+        ? arr.length : lo + chunk;
+    // 2. 알고리즘: 구간의 합
+    fs.add(pool.submit(() -> {
+        long s = 0;
+        for (int j = lo; j < hi; j++)
+            s += arr[j];
+        return s;
+    }));
 }
+// 3. 동기화: 부분합을 모은다
+for (var f : fs)
+    total += f.get();
 ```
 
-**병렬 컴퓨팅의 과제:**
+병렬 컴퓨팅은 여러 처리 요소가 하나의 문제를 함께 푸는 것이고, 병렬 실행과 다른 점은 문제를 **나누는 일이 내 몫**이라는 것이다. 1절의 다섯 작업은 처음부터 다섯이었지만, 1억 개의 합은 하나의 문제라 내가 구간으로 잘라야 한다. 세 단계 중 마지막이 병렬 컴퓨팅의 비용이 숨은 곳이다. 나눈 결과를 모으려면 스레드 사이에서 무언가를 주고받아야 하고, 그것이 [08](../08-race-conditions-and-synchronization)장의 동기화다.
 
+### 2.3 나누는 비용
+
+```java
+long s1 = 0;                // 순차
+for (long v : arr) s1 += v;
+
+long s2 = Arrays.stream(arr)
+    .parallel().sum();      // 병렬
 ```
-┌────────────────────────────────────────────────┐
-│          병렬 컴퓨팅 설계 시 고려사항           │
-├────────────────────────────────────────────────┤
-│ 1. 작업 분할 오버헤드                          │
-│    - 작업을 나누고 할당하는 비용               │
-│                                                │
-│ 2. 동기화 비용                                 │
-│    - 작업 간 조율 및 결과 수집 비용            │
-│                                                │
-│ 3. 부하 불균형                                 │
-│    - 일부 작업이 다른 작업보다 오래 걸림       │
-│                                                │
-│ 4. 통신 오버헤드                               │
-│    - 스레드/프로세스 간 데이터 교환 비용       │
-└────────────────────────────────────────────────┘
-```
+
+| 배열 크기 | 순차 루프 | 병렬 스트림 | 배속 | 왜 |
+|--------:|--------:|---------:|----:|:---|
+| 1,000 | 0.2 µs | 2.0 µs | 0.1 | 나누고 모으는 비용이 일보다 크다 |
+| 10만 | 25 µs | 12 µs | 2.1 | 이제야 나눈 값을 한다 |
+| 1,000만 | 2,322 µs | 687 µs | 3.4 | 메모리 대역폭에서 멈춘다 |
+| 1억 | 24,059 µs | 7,163 µs | 3.4 | 코어를 더 써도 읽는 속도는 그대로 |
+
+이 PC에서 배열 합을 순차 루프와 병렬 스트림으로 돌리며 크기를 바꿔 봤다. 1,000개는 병렬이 열 배 **느리다**. 더하기 1,000번은 0.2µs면 끝나는데, 조각을 나누고 스레드에 넘기고 결과를 모으는 데 2µs가 든다. 10만 개부터 병렬이 이기고, 1,000만 개 위로는 3.4배에서 멈춘다. 코어는 열 개인데 3.4배인 이유는 이 일이 계산이 아니라 메모리 읽기에 묶여 있어서다. 병렬 컴퓨팅의 네 가지 과제가 이 장의 실험 곳곳에 있다.
+
+| 과제 | 뜻 | 이 장의 실물 | 왜 생기나 |
+|:-----|:---|:----------|:--------|
+| 분할 오버헤드 | 나누고 나눠 주는 비용 | 1,000개 합이 열 배 느림 | 조각 하나가 나누는 비용보다 작다 |
+| 동기화 비용 | 결과를 모으고 조율하는 비용 | 의존 사슬의 +10ms | 나눈 것은 합쳐야 한다 |
+| 부하 불균형 | 어떤 조각이 더 오래 걸린다 | 열 조각이 122~161ms로 흩어진다 (4절) | 가장 늦은 조각이 전체 시간 |
+| 통신 오버헤드 | 조각 사이에 데이터를 주고받는 비용 | 1억 개 합의 3.4배 천장 | 대역폭은 코어 수에 비례하지 않는다 |
+
+조각을 얼마나 잘게 나눌지(입도)가 첫째와 셋째 과제의 균형점이고 [07](../07-task-decomposition)장 7절에서 다룬다. 병렬 스트림이 왜 공짜가 아닌지는 [자바 기초 14](../../java/basics/14-lambda-stream)장 5절에서 자바의 언어로 본다.
 
 ---
 
 ## 3. 동시성 vs 병렬성
 
-### 3.1 핵심 차이점
+| 구분 | 동시성 (Concurrency) | 병렬성 (Parallelism) | 왜 |
+|:-----|:-------------------|:-------------------|:---|
+| 결정하는 것 | 프로그램의 설계 | 실행 환경(하드웨어) | 설계는 내가, 코어 수는 기계가 정한다 |
+| 조건 | 작업의 독립성 | 독립성 + 처리 단위 여럿 | 병렬성은 동시성을 전제한다 |
+| 코어 하나로 | 된다 | 안 된다 | 번갈아 도는 것과 같은 순간에 도는 것 |
+| 얻는 것 | 응답성, 자원 활용 | 처리 속도 | 기다림을 겹치는가, 계산을 나누는가 |
 
-> **동시성(Concurrency):** 작업 여러 개를 동시에 진행하는 것 (프로그램 설계)
->
-> **병렬성(Parallelism):** 작업 여러 개를 실제로 동시에 실행하는 것 (실행 환경)
-
-| 구분 | 동시성 (Concurrency) | 병렬성 (Parallelism) |
-|:-----|:-------------------|:--------------------|
-| **결정 요소** | 프로그래밍 언어, 프로그램 설계 | 실행 환경 (하드웨어) |
-| **필요 조건** | 작업의 독립성 | 여러 처리 자원 + 작업의 독립성 |
-| **하드웨어** | 단일 코어에서도 가능 | 멀티 코어/프로세서 필수 |
-| **목적** | 응답성, 자원 효율성 | 처리 속도, 처리량 |
-| **구현** | 비동기, 이벤트 루프, 스레드 | 멀티스레딩, 분산 시스템 |
-
----
-
-### 3.2 시각적 비교
-
-```
-┌───────────────────────────────────────────────────────────────┐
-│                    동시성 (Concurrency)                        │
-│                     단일 코어에서 가능                          │
-├───────────────────────────────────────────────────────────────┤
-│                                                               │
-│   시간축 →  |작업A|작업B|작업A|작업C|작업B|작업A|작업C|        │
-│             컨텍스트 스위칭으로 빠르게 전환                    │
-│                                                               │
-│   효과: 사용자에게는 동시에 실행되는 것처럼 보임               │
-└───────────────────────────────────────────────────────────────┘
-
-┌───────────────────────────────────────────────────────────────┐
-│                    병렬성 (Parallelism)                        │
-│                   멀티 코어에서만 가능                          │
-├───────────────────────────────────────────────────────────────┤
-│                                                               │
-│   코어1:  |============= 작업A =============|                 │
-│   코어2:  |============= 작업B =============|                 │
-│   코어3:  |============= 작업C =============|                 │
-│           실제로 동시에 실행됨                                │
-│                                                               │
-│   효과: 실제 실행 시간 단축                                   │
-└───────────────────────────────────────────────────────────────┘
-```
-
----
-
-### 3.3 동시성과 병렬성의 관계
+동시성은 여러 작업을 **동시에 다루도록 설계**하는 것이고 병렬성은 여러 작업이 **실제로 같은 순간에 실행**되는 것이다. [01](../01-what-is-concurrency)장 1절에서 본 구분인데, 이 장의 실험이 그 구분을 숫자로 보여 준다. 200ms짜리 작업 스무 개를 스레드 풀 크기만 바꿔 가며 돌렸다. 계산만 하는 작업과 잠만 자는(I/O를 흉내 낸) 작업, 두 가지로.
 
 ```java
-import java.util.concurrent.*;
-
-public class ConcurrencyVsParallelism {
-
-    static void simulateWork(String taskName, int duration) {
-        System.out.println(taskName + " 시작 ["
-            + Thread.currentThread().getName() + "]");
-        try {
-            Thread.sleep(duration);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        System.out.println(taskName + " 완료 ["
-            + Thread.currentThread().getName() + "]");
+static long run(int n,
+        Callable<Double> task)
+        throws Exception {
+    var t0 = System.nanoTime();
+    try (var pool = Executors
+            .newFixedThreadPool(n)) {
+        var fs = new ArrayList<
+            Future<Double>>();
+        for (int i = 0; i < 20; i++)
+            fs.add(pool.submit(task));
+        for (var f : fs) f.get();
     }
-
-    public static void main(String[] args) throws Exception {
-        System.out.println("사용 가능한 프로세서: "
-            + Runtime.getRuntime().availableProcessors() + "개\n");
-
-        // 동시성 프로그래밍 (설계)
-        System.out.println("=== 동시성 프로그래밍 ===");
-        System.out.println("스레드 풀 크기: 2개 (프로세서보다 적음)");
-
-        ExecutorService executor = Executors.newFixedThreadPool(2);
-        long start = System.currentTimeMillis();
-
-        Future<?> f1 = executor.submit(() -> simulateWork("작업A", 1000));
-        Future<?> f2 = executor.submit(() -> simulateWork("작업B", 1000));
-        Future<?> f3 = executor.submit(() -> simulateWork("작업C", 1000));
-        Future<?> f4 = executor.submit(() -> simulateWork("작업D", 1000));
-
-        f1.get(); f2.get(); f3.get(); f4.get();
-
-        long concurrentTime = System.currentTimeMillis() - start;
-        System.out.println("소요 시간: " + concurrentTime + "ms");
-        System.out.println("→ 동시성은 있지만 병렬성은 제한적 (2개만 동시 실행)\n");
-
-        // 병렬성 실현 (실행)
-        System.out.println("=== 병렬 실행 ===");
-        System.out.println("스레드 풀 크기: 4개 (충분한 병렬 처리)");
-
-        executor = Executors.newFixedThreadPool(4);
-        start = System.currentTimeMillis();
-
-        f1 = executor.submit(() -> simulateWork("작업A", 1000));
-        f2 = executor.submit(() -> simulateWork("작업B", 1000));
-        f3 = executor.submit(() -> simulateWork("작업C", 1000));
-        f4 = executor.submit(() -> simulateWork("작업D", 1000));
-
-        f1.get(); f2.get(); f3.get(); f4.get();
-
-        long parallelTime = System.currentTimeMillis() - start;
-        System.out.println("소요 시간: " + parallelTime + "ms");
-        System.out.println("→ 동시성 + 병렬성 모두 달성 (4개 동시 실행)");
-
-        executor.shutdown();
-    }
+    return (System.nanoTime() - t0)
+        / 1_000_000;
 }
 ```
 
+| 스레드 | 계산 200ms × 20 | 대기 200ms × 20 | 왜 |
+|------:|-------------:|-------------:|:---|
+| 1 | 4,244 ms | 4,111 ms | 둘 다 스무 개의 합 |
+| 4 | 1,177 ms | 1,040 ms | 둘 다 4분의 1 |
+| 10 | 676 ms | 418 ms | 계산은 코어 열 개가 꽉 찼다 |
+| 20 | 615 ms | 211 ms | 계산은 코어 수에서 멈추고, 대기는 하나의 시간까지 |
+
+스레드 넷까지는 두 열이 같이 줄다가 코어 수인 열 개에서 갈라진다. 대기 작업은 스레드 스무 개에 211ms, 곧 작업 하나의 시간이다. 스레드 스무 개가 전부 동시에 잠들 수 있고 잠드는 데는 코어가 필요 없기 때문이다. 계산 작업은 615ms에서 멈췄다. 스레드가 스무 개여도 같은 순간에 계산할 수 있는 것은 코어 열 개뿐이고, 그중 여섯은 느린 효율 코어라 열 배가 아니라 6.9배다. **설계는 같았다.** 같은 코드, 같은 스레드 스무 개다. 다른 것은 그 작업이 코어를 필요로 하는가였고, 그 답은 실행 환경이 줬다. 동시성은 스레드 스무 개를 만든 순간 이미 있었고, 병렬성은 코어가 허락하는 만큼만 있었다.
+
 {{< callout type="info" >}}
-**핵심 정리:**
-- **동시성**은 프로그램을 어떻게 **설계**하느냐의 문제
-- **병렬성**은 프로그램이 어떻게 **실행**되느냐의 문제
-- 동시성 프로그래밍을 해도 실행 환경에 따라 병렬성이 달성되지 않을 수 있음
+**동시성은 설계의 문제, 병렬성은 실행의 문제다.** 동시적으로 짠 프로그램은 코어 하나에서도 돌고 열 개에서도 돈다. 기다리는 일이라면 코어 하나로도 스무 배 빨라지고, 계산하는 일이라면 코어 수까지만 빨라진다. 그래서 병렬화를 결정하기 전에 작업이 I/O 바운드인지 CPU 바운드인지부터 갈라야 하고([06](../06-multitasking)장 2절), CPU 바운드가 아니라면 이 장의 나머지는 필요 없다.
 {{< /callout >}}
 
 ---
 
 ## 4. 암달의 법칙 (Amdahl's Law)
 
-### 4.1 암달의 법칙이란?
+### 4.1 순차 부분이 상한을 정한다
 
-> **암달의 법칙:** 프로그램의 병렬화 여부를 판단하는 의사 결정에서 병렬화를 통해 얻을 수 있는 이익이 어느 정도인지 가늠해볼 수 있는 도구
+```text
+배속 = 1 / ((1 - P) + P / N)
 
-**공식:**
-
-```
-속도 향상 = 1 / [(1 - P) + (P / N)]
-
-P: 병렬화 가능한 부분의 비율 (0 ~ 1)
+P: 병렬화할 수 있는 부분의 비율
 N: 프로세서 수
+N → ∞ 이면 배속 → 1 / (1 - P)
 ```
 
----
+| 병렬 비율 P | 2코어 | 4코어 | 16코어 | 무한 코어 | 왜 |
+|----------:|-----:|-----:|------:|-------:|:---|
+| 50% | 1.33 | 1.60 | 1.88 | 2 | 절반은 어차피 한 코어가 한다 |
+| 75% | 1.60 | 2.29 | 3.37 | 4 | |
+| 90% | 1.82 | 3.08 | 6.40 | 10 | 10%가 남는 한 10배가 천장 |
+| 95% | 1.90 | 3.48 | 9.14 | 20 | |
+| 99% | 1.98 | 3.88 | 13.9 | 100 | 1%가 코어 16개에서 벌써 두 개분을 먹는다 |
 
-### 4.2 암달의 법칙 시뮬레이션
+둘째 원리다. 프로그램에는 어떻게 해도 나눌 수 없는 순차 부분이 있다. 입력을 읽고, 조각을 나누고, 결과를 모으고, 출력하는 부분이다. 코어 N개는 병렬 부분 P만 N분의 1로 줄이고 순차 부분 1 - P는 그대로 둔다. 그래서 코어를 무한히 줘도 배속은 순차 부분의 역수에서 멈춘다. 90%를 병렬화한 프로그램은 코어가 몇 개든 10배를 못 넘는다. 이 공식을 1967년에 적은 사람이 진 암달이고, 병렬화에 돈을 쓰기 전에 그 돈이 얼마를 돌려줄지 가늠하는 도구다.
+
+### 4.2 이 PC에서 재 보기
 
 ```java
-public class AmdahlsLaw {
-
-    static double calculateSpeedup(double parallelPortion, int processors) {
-        double serialPortion = 1 - parallelPortion;
-        return 1.0 / (serialPortion + (parallelPortion / processors));
-    }
-
-    public static void main(String[] args) {
-        System.out.println("=== 암달의 법칙: 병렬화 비율별 속도 향상 ===\n");
-
-        int[] processorCounts = {2, 4, 8, 16, 32, 64};
-        double[] parallelPortions = {0.5, 0.75, 0.9, 0.95, 0.99};
-
-        System.out.printf("%-15s", "병렬화 비율");
-        for (int p : processorCounts) {
-            System.out.printf("%8s", p + "코어");
-        }
-        System.out.println("\n" + "-".repeat(70));
-
-        for (double portion : parallelPortions) {
-            System.out.printf("%-15s", (int)(portion * 100) + "%");
-            for (int processors : processorCounts) {
-                double speedup = calculateSpeedup(portion, processors);
-                System.out.printf("%8.2fx", speedup);
-            }
-            System.out.println();
-        }
-
-        System.out.println("\n=== 병렬화 비율별 최대 속도 향상 (무한 코어) ===");
-        for (double portion : parallelPortions) {
-            double maxSpeedup = 1.0 / (1 - portion);
-            System.out.printf("%d%% 병렬화 → 최대 %.2f배 향상\n",
-                (int)(portion * 100), maxSpeedup);
-        }
-    }
+long serial = (long) (TOTAL * s);
+long parallel = TOTAL - serial;
+// 순차 부분: 스레드 하나가
+sum = work(serial);
+// 병렬 부분: n개로 나눈다
+try (var pool = Executors
+        .newFixedThreadPool(n)) {
+    long chunk = parallel / n;
+    for (int i = 0; i < n; i++)
+        fs.add(pool.submit(
+            () -> work(chunk)));
+    for (var f : fs) sum += f.get();
 }
 ```
 
-**출력 결과:**
+약 1,060ms짜리 계산을 순차 부분 0%, 10%, 50%로 나누고, 병렬 부분을 스레드 1~16개에 나눠 걸린 시간을 쟀다. 표의 값은 스레드 하나일 때에 대한 배속이다.
 
+| 스레드 | 순차 0% | 순차 10% | 순차 50% | 왜 |
+|------:|-------:|-------:|-------:|:---|
+| 1 | 1.00 | 1.00 | 1.00 | 기준 (1,059·1,081·1,087 ms) |
+| 2 | 1.95 | 1.80 | 1.34 | 성능 코어 둘 |
+| 4 | 3.77 | 2.98 | 1.59 | 성능 코어 넷 |
+| 8 | 5.85 | 4.08 | 1.73 | 효율 코어가 섞인다 |
+| 10 | 6.79 | 4.39 | 1.75 | 코어 열 개 전부 |
+| 16 | 7.01 | 4.14 | 1.72 | 코어보다 많은 스레드는 순서만 기다린다 |
+
+순차 부분이 0%일 때도 열 배가 아니라 6.8배다. 이것은 암달의 법칙이 아니라 이 PC의 사정이다. 스레드 열 개에 2억 번씩 나눠 준 조각의 시간을 재 보니 122ms에서 161ms까지 흩어졌고, 혼자 돌면 104ms일 조각이 전부 그보다 느렸다. 코어 열 개 중 여섯이 효율 코어이고 스케줄러가 스레드를 옮겨 가며 섞어 쓰니, 코어 열 개가 실제로 내는 힘은 6.8개분이다. [01](../01-what-is-concurrency)장 3.2절의 7.2배와 같은 이유다. 그 6.8을 공식의 N에 넣으면 나머지 두 열이 설명된다.
+
+| 순차 비율 | 암달 N=10 | 암달 N=6.8 | 실측 (스레드 10) | 무한 코어 상한 | 왜 |
+|--------:|--------:|---------:|-------------:|-----------:|:---|
+| 0% | 10.0 | 6.8 | 6.79 | ∞ | 실효 코어 수가 6.8 |
+| 10% | 5.26 | 4.30 | 4.39 | 10 | 10%가 배속의 3분의 1을 먹었다 |
+| 50% | 1.82 | 1.74 | 1.75 | 2 | 코어 열 개가 1.75배 |
+
+암달의 공식에 실효 코어 수를 넣으니 실측과 소수점 첫째 자리까지 맞는다. 순차 부분이 10%뿐인데 배속은 6.8에서 4.4로 떨어졌고, 50%면 코어 열 개를 줘도 1.75배다. 공식이 말하는 것이 이것이다. 코어를 늘리는 일은 병렬 부분에만 효과가 있고, 순차 부분이 남아 있는 한 그 효과는 빠르게 줄어든다.
+
+### 4.3 암달의 법칙이 말하는 것
+
+```text
+배속
+10 ┤          ·         ○ 90% 상한
+ 8 ┤        ·     ○  ○
+ 6 ┤       ·   ○
+ 4 ┤     ·  ○
+ 2 ┤  ·○ × × × × × × 50% 상한
+ 1 ┼──┬──┬──┬──┬──┬──┬──┬──▶
+   1  2  4  8  16 32 64 ∞  코어
+   · 100%  ○ 90%  × 50%
 ```
-=== 암달의 법칙: 병렬화 비율별 속도 향상 ===
 
-병렬화 비율       2코어    4코어    8코어   16코어   32코어   64코어
-----------------------------------------------------------------------
-50%             1.33x   1.60x   1.78x   1.88x   1.94x   1.97x
-75%             1.60x   2.29x   2.91x   3.37x   3.64x   3.80x
-90%             1.82x   3.08x   4.71x   6.40x   7.80x   8.71x
-95%             1.90x   3.48x   5.93x   9.14x  12.31x  15.03x
-99%             1.98x   3.88x   7.48x  13.91x  24.84x  44.93x
-
-=== 병렬화 비율별 최대 속도 향상 (무한 코어) ===
-50% 병렬화 → 최대 2.00배 향상
-75% 병렬화 → 최대 4.00배 향상
-90% 병렬화 → 최대 10.00배 향상
-95% 병렬화 → 최대 20.00배 향상
-99% 병렬화 → 최대 100.00배 향상
-```
-
----
-
-### 4.3 암달의 법칙의 시사점
-
-**그래프로 보는 속도 향상:**
-
-```
-속도향상
-   ↑
-20x│                                        . (99%)
-   │                                    .
-15x│                                 .
-   │                              .
-10x│                           .      ──── (95%)
-   │                        .
- 5x│                     .        ────────── (90%)
-   │                  .      ──────────────── (75%)
- 2x│               . ───────────────────────── (50%)
-   │            .
- 1x└──────────────────────────────────────────→ 프로세서 수
-    1   2   4   8  16  32  64  128  256  512
-```
+| 시사점 | 뜻 | 이 PC에서 | 왜 |
+|:------|:---|:--------|:---|
+| 순차 부분이 병목이다 | 10%만 순차여도 상한은 10배 | 10%에서 6.8배가 4.4배로 | 코어는 순차 부분을 못 건드린다 |
+| 코어에는 체감이 있다 | 코어를 늘릴수록 한 개가 주는 배속이 준다 | 스레드 8→10에 4.08→4.39 | 병렬 부분이 이미 작다 |
+| 코어보다 많은 스레드는 손해다 | 순서만 기다리고 스위칭 비용이 든다 | 스레드 16이 10보다 느렸다 (261 vs 246 ms) | [06](../06-multitasking)장 3절 |
+| 병렬 비율을 올리는 것이 먼저다 | 순차 부분을 줄이면 상한이 오른다 | 50%→10%로 상한 2→10배 | 코어 수는 상한을 못 올린다 |
 
 {{< callout type="warning" >}}
-**암달의 법칙이 말하는 것:**
-1. **순차 부분이 병목이 된다** - 10%만 순차적이어도 최대 10배까지만 빨라짐
-2. **무한정 코어를 추가해도 속도 향상에는 한계가 있다**
-3. **병렬화 비율을 높이는 것이 코어를 늘리는 것보다 중요하다**
+**코어를 사기 전에 순차 부분부터 재라.** 프로파일러로 어느 부분이 순차인지 찾고 그 비율을 공식에 넣으면 코어를 더 사서 얻을 배속의 상한이 나온다. 그 상한이 2배라면 코어 64개짜리 서버는 낭비다. 순차 부분을 줄이는 것, 곧 나눌 수 없어 보이는 일을 나누는 것이 [07](../07-task-decomposition)장의 주제다.
 {{< /callout >}}
-
----
-
-### 4.4 실전 예제: 병렬화의 한계 체험
-
-```java
-import java.util.concurrent.*;
-import java.util.stream.IntStream;
-
-public class AmdahlsLawDemo {
-
-    // 순차 부분 (병렬화 불가)
-    static void serialWork(int duration) {
-        try {
-            Thread.sleep(duration);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
-
-    // 병렬 가능 부분
-    static int parallelWork(int start, int end) {
-        return IntStream.range(start, end)
-            .map(i -> i * i)
-            .sum();
-    }
-
-    public static void main(String[] args) throws Exception {
-        int serialDuration = 500;      // 순차 부분: 500ms
-        int parallelWorkSize = 10000;  // 병렬 부분의 작업량
-
-        System.out.println("=== 병렬화 비율: 50% ===");
-        System.out.println("(순차 500ms + 병렬 500ms = 총 1000ms)\n");
-
-        for (int threads : new int[]{1, 2, 4, 8}) {
-            long start = System.currentTimeMillis();
-
-            // 순차 부분 (병렬화 불가)
-            serialWork(serialDuration);
-
-            // 병렬 부분
-            ExecutorService executor = Executors.newFixedThreadPool(threads);
-            int chunkSize = parallelWorkSize / threads;
-
-            Future<Integer>[] futures = new Future[threads];
-            for (int i = 0; i < threads; i++) {
-                final int chunkStart = i * chunkSize;
-                final int chunkEnd = (i == threads - 1)
-                    ? parallelWorkSize
-                    : (i + 1) * chunkSize;
-
-                futures[i] = executor.submit(() -> {
-                    Thread.sleep(500 / threads);  // 병렬 처리 시뮬레이션
-                    return parallelWork(chunkStart, chunkEnd);
-                });
-            }
-
-            // 결과 수집
-            int total = 0;
-            for (Future<Integer> future : futures) {
-                total += future.get();
-            }
-
-            executor.shutdown();
-
-            long duration = System.currentTimeMillis() - start;
-            double speedup = 1000.0 / duration;
-            double theoretical = 1.0 / (0.5 + (0.5 / threads));
-
-            System.out.printf("%d 스레드: %dms (%.2fx 향상, 이론값: %.2fx)\n",
-                threads, duration, speedup, theoretical);
-        }
-    }
-}
-```
 
 ---
 
 ## 5. 구스타프슨의 법칙 (Gustafson's Law)
 
-### 5.1 구스타프슨의 법칙이란?
+### 5.1 문제를 키우면 한계가 물러난다
 
-> **구스타프슨의 법칙:** 문제의 크기를 증가시키면 암달의 법칙의 한계를 극복할 수 있다는 의미
-
-**핵심 아이디어:**
-- 프로세서가 많아지면 **더 큰 문제**를 풀 수 있다
-- 문제 크기를 키우면 병렬 부분도 비례해서 증가
-- 순차 부분의 비율이 상대적으로 감소
-
-**공식:**
-
-```
-속도 향상 = N + (1 - N) × S
+```text
+배속 = N - (N - 1) × S
 
 N: 프로세서 수
 S: 순차 부분의 비율
 ```
 
----
+```text
+[암달]  문제 크기 고정
+1코어 [순차][====== 병렬 ======]
+2코어 [순차][=== 병렬 ===]
+4코어 [순차][= 병렬 =]
+순차 부분이 그대로 남는다
 
-### 5.2 암달 vs 구스타프슨
-
-| 구분 | 암달의 법칙 | 구스타프슨의 법칙 |
-|:-----|:----------|:----------------|
-| **전제** | 문제 크기 고정 | 문제 크기 증가 |
-| **관점** | 실행 시간 단축 | 처리량 증가 |
-| **순차 부분** | 병목으로 작용 | 상대적으로 감소 |
-| **적용 분야** | 고정된 작업의 최적화 | 빅데이터, 과학 계산 |
-
-```
-[암달의 법칙 - 고정된 문제 크기]
-프로세서 1개:  [순차 10%][======= 병렬 90% =======]
-프로세서 2개:  [순차 10%][== 병렬 45% ==]
-프로세서 4개:  [순차 10%][병렬 22.5%]
-→ 순차 부분이 병목
-
-[구스타프슨의 법칙 - 증가하는 문제 크기]
-프로세서 1개:  [순차 10%][======= 병렬 90% =======]
-프로세서 2개:  [순차 10%][============ 병렬 180% ============]
-프로세서 4개:  [순차 10%][==================== 병렬 360% ====================]
-→ 병렬 부분이 증가하여 순차 부분의 영향 감소
+[구스타프슨]  문제를 키운다
+1코어 [순차][== 병렬 ==]
+2코어 [순차][==== 병렬 ====]
+4코어 [순차][======== 병렬 ========]
+같은 시간에 더 많은 일
 ```
 
----
+| 구분 | 암달의 법칙 | 구스타프슨의 법칙 | 왜 |
+|:-----|:----------|:--------------|:---|
+| 전제 | 문제 크기 고정 | 문제 크기가 코어 수에 비례 | 같은 일을 빨리 vs 같은 시간에 더 많이 |
+| 묻는 것 | 이 일이 얼마나 빨라지나 | 같은 시간에 얼마나 더 하나 | 지연 시간 vs 처리량 |
+| 순차 부분 | 비율이 고정이라 병목 | 비중이 상대적으로 줄어든다 | 병렬 부분만 커진다 |
+| 상한 | 1 / S | N에 가깝게 계속 는다 | S가 작을수록 기울기가 1에 가깝다 |
+| 맞는 곳 | 고정된 작업의 최적화 | 빅데이터, 시뮬레이션, 렌더링 | 코어가 늘면 더 큰 문제를 푸는 분야 |
 
-### 5.3 실전 예제: 문제 크기 확장
+셋째 원리다. 1988년 존 구스타프슨은 암달의 전제를 뒤집었다. 코어가 많아지면 사람들은 같은 문제를 더 빨리 푸는 대신 **더 큰 문제**를 푼다. 날씨 시뮬레이션은 격자를 더 촘촘히 하고, 렌더링은 해상도를 올리고, 분석은 더 많은 데이터를 넣는다. 그때 커지는 것은 병렬 부분뿐이다. 입력을 읽고 결과를 모으는 순차 부분은 문제가 커져도 비슷하다. 순차 부분의 **비중**이 줄어드니 배속은 N에 가깝게 계속 는다. 같은 현상을 암달은 "고정된 문제가 얼마나 빨라지나"로, 구스타프슨은 "같은 시간에 얼마나 더 하나"로 본 것이다.
+
+### 5.2 이 PC에서 재 보기
 
 ```java
-import java.util.concurrent.*;
-import java.util.stream.LongStream;
-
-public class GustafsonsLaw {
-
-    static long calculateSum(long start, long end) {
-        return LongStream.range(start, end).sum();
-    }
-
-    static void runExperiment(int processors, long problemSize) throws Exception {
-        long serialWork = problemSize / 10;  // 10%는 순차
-        long parallelWork = problemSize - serialWork;
-
-        long startTime = System.currentTimeMillis();
-
-        // 순차 부분
-        long serialResult = calculateSum(0, serialWork);
-
-        // 병렬 부분
-        ExecutorService executor = Executors.newFixedThreadPool(processors);
-        long chunkSize = parallelWork / processors;
-
-        Future<Long>[] futures = new Future[processors];
-        for (int i = 0; i < processors; i++) {
-            final long chunkStart = serialWork + (i * chunkSize);
-            final long chunkEnd = (i == processors - 1)
-                ? problemSize
-                : chunkStart + chunkSize;
-
-            futures[i] = executor.submit(() -> calculateSum(chunkStart, chunkEnd));
-        }
-
-        long parallelResult = 0;
-        for (Future<Long> future : futures) {
-            parallelResult += future.get();
-        }
-
-        executor.shutdown();
-
-        long duration = System.currentTimeMillis() - startTime;
-        System.out.printf("프로세서 %d개, 문제크기 %,d: %dms\n",
-            processors, problemSize, duration);
-    }
-
-    public static void main(String[] args) throws Exception {
-        System.out.println("=== 구스타프슨의 법칙: 문제 크기 확장 ===\n");
-
-        long baseProblemSize = 10_000_000L;
-
-        for (int processors : new int[]{1, 2, 4, 8}) {
-            // 프로세서 수에 비례하여 문제 크기 증가
-            long scaledProblemSize = baseProblemSize * processors;
-            runExperiment(processors, scaledProblemSize);
-        }
-
-        System.out.println("\n→ 프로세서를 늘리면서 문제 크기도 비례하여 증가");
-        System.out.println("→ 실행 시간이 크게 증가하지 않음 (처리량 선형 증가)");
-    }
+// 순차 부분: 1단위 고정
+sum = work(UNIT);
+// 병렬 부분: 스레드마다 9단위
+// (문제 크기가 n에 비례해 는다)
+try (var pool = Executors
+        .newFixedThreadPool(n)) {
+    for (int i = 0; i < n; i++)
+        fs.add(pool.submit(
+            () -> work(UNIT * 9)));
+    for (var f : fs) sum += f.get();
 }
 ```
 
----
+약 110ms짜리 계산을 단위로, 순차 1단위는 고정하고 병렬 부분은 스레드마다 9단위씩 주어 스레드 수에 비례해 문제를 키웠다.
 
-## 6. 정리
+| 스레드 | 일의 양 | 걸린 시간 | 처리량 배 | 구스타프슨 예측 | 왜 |
+|------:|------:|-------:|-------:|-----------:|:---|
+| 1 | 10단위 | 1,096 ms | 1.00 | 1.0 | 기준 |
+| 2 | 19단위 | 1,113 ms | 1.87 | 1.9 | 일은 두 배, 시간은 그대로 |
+| 4 | 37단위 | 1,154 ms | 3.51 | 3.7 | 성능 코어 넷 |
+| 8 | 73단위 | 1,375 ms | 5.82 | 7.3 | 효율 코어가 섞인다 |
+| 10 | 91단위 | 1,492 ms | 6.68 | 9.1 | 실효 코어 6.8의 한계 |
 
-### 핵심 개념 요약
-
-| 개념 | 설명 | 핵심 포인트 |
-|:-----|:-----|:----------|
-| **순차 실행** | 한 번에 하나씩 순서대로 실행 | 예측 가능, 이해 쉬움 |
-| **병렬 실행** | 여러 작업을 동시에 실행 | 독립성 필수, 성능 향상 |
-| **동시성** | 프로그램 설계 관점 | 언어, 설계가 결정 |
-| **병렬성** | 실행 환경 관점 | 하드웨어가 결정 |
-| **암달의 법칙** | 고정 문제 크기에서의 한계 | 순차 부분이 병목 |
-| **구스타프슨의 법칙** | 문제 크기 확장으로 한계 극복 | 처리량 증가 |
-
----
-
-### 병렬 처리 적용 시 고려사항
-
-```
-┌────────────────────────────────────────────────────────────┐
-│              병렬 처리를 적용해야 하는 경우                 │
-├────────────────────────────────────────────────────────────┤
-│ ✓ 작업들이 독립적이고 의존성이 없음                        │
-│ ✓ 계산 집약적인 작업 (CPU-bound)                           │
-│ ✓ 문제 크기가 충분히 큼 (오버헤드 상쇄 가능)               │
-│ ✓ 멀티 코어 환경에서 실행                                  │
-└────────────────────────────────────────────────────────────┘
-
-┌────────────────────────────────────────────────────────────┐
-│              순차 처리가 더 적합한 경우                     │
-├────────────────────────────────────────────────────────────┤
-│ ✓ 작업 간 의존성이 높음                                    │
-│ ✓ 문제 크기가 작음 (병렬화 오버헤드가 더 큼)               │
-│ ✓ I/O 집약적인 작업 (디스크, 네트워크)                     │
-│ ✓ 동기화 비용이 높음                                       │
-└────────────────────────────────────────────────────────────┘
-```
+일의 양이 9.1배가 되는 동안 걸린 시간은 1,096ms에서 1,492ms로 36% 늘었을 뿐이고, 같은 시간에 하는 일은 6.7배다. 암달의 실험에서 순차 10%가 코어 열 개의 배속을 4.4배로 눌렀는데, 문제를 키우니 같은 순차 1단위로 6.7배다. 4절의 6.8배(순차 0%)와 거의 같다. 문제가 커지면서 순차 부분이 전체의 10%에서 1%로 줄었기 때문이다. 스레드 8과 10에서 예측보다 낮은 것은 4절과 같은 실효 코어의 한계다.
 
 {{< callout type="info" >}}
-**실전 조언:**
-1. **측정하라**: 추측하지 말고 실제로 성능을 측정
-2. **병렬화 비율을 높여라**: 코어 수를 늘리는 것보다 중요
-3. **문제 크기를 고려하라**: 작은 문제는 병렬화 오버헤드가 더 클 수 있음
-4. **프로파일링하라**: 어느 부분이 병목인지 파악
+**두 법칙은 모순이 아니라 질문이 다르다.** "지금 이 배치 작업을 코어를 늘려 얼마나 앞당길 수 있나"는 암달에게, "코어를 늘리면 같은 시간에 얼마나 더 처리할 수 있나"는 구스타프슨에게 묻는다. 웹 서버가 요청 하나의 지연을 줄이려면 암달의 세계이고, 받는 요청 수를 늘리려면 구스타프슨의 세계다. 뒤쪽이 [01](../01-what-is-concurrency)장 4절의 수평 확장이 통하는 이유이기도 하다.
+{{< /callout >}}
+
+---
+
+## 6. 병렬화를 결정하는 기준
+
+| 물음 | 병렬이 맞다 | 순차가 맞다 | 이 장의 실물 | 왜 |
+|:-----|:---------|:---------|:----------|:---|
+| 작업이 독립인가 | 예 | 앞 결과가 필요하다 | 의존 사슬 1,050 ms | 1절 |
+| 병목이 계산인가 | CPU 바운드 | I/O 바운드는 동시성으로 충분 | 대기 작업은 코어 없이 20배 | 3절 |
+| 문제가 충분히 큰가 | 나누는 비용보다 크다 | 1,000개 합 | 병렬이 열 배 느림 | 2.3절 |
+| 순차 부분이 작은가 | 10% 이하 | 50%면 코어 열 개에 1.75배 | 암달 표 | 4절 |
+| 문제를 키울 수 있나 | 처리량이 목표 | 지연이 목표면 암달의 상한 | 구스타프슨 6.7배 | 5절 |
+
+다섯 물음에 전부 "예"일 때 병렬화는 코어 수에 가까운 배속을 돌려준다. 하나라도 "아니오"면 그 물음이 상한을 정한다. 추측하지 말고 재야 한다. 이 장의 모든 숫자는 공식이 아니라 실측이었고, 공식은 실측을 설명하는 데 쓰였다. 순차 부분이 몇 %인지는 프로파일러가 알려 주고, 실효 코어 수는 순차 0%짜리 작업 하나를 돌려 보면 나온다. 그 둘을 암달의 공식에 넣으면 코어를 더 써서 얻을 것이 몇 배인지 나온다. 계산이 병목이 아닌 일에 코어를 더하는 것은 낭비이고, 그 일에 필요한 것은 [10](../10-nonblocking-io)장부터의 동시성이다.
+
+---
+
+## 핵심 정리
+
+| 개념 | 핵심 | 왜 |
+|:-----|:-----|:---|
+| 작업 | 논리적으로 독립인 일의 조각 | 나눌 수 있는 단위 |
+| 순차 실행 | 한 번에 하나, 걸린 시간은 합 | 다섯 작업 1,040 ms |
+| 의존성 | 앞 결과가 필요하면 스레드가 몇이든 순차 | 스레드 풀 5로도 1,050 ms |
+| 병렬 실행 | 독립인 작업을 같은 순간에, 시간은 가장 늦은 하나 | 247 ms. 같이 돌면 각각 느려진다 |
+| 병렬 컴퓨팅 | 분해 → 알고리즘 → 동기화 | 나누는 일이 내 몫이다 |
+| 나누는 비용 | 조각이 작으면 병렬이 느리다 | 1,000개 합 0.2 µs vs 2 µs |
+| 동시성 vs 병렬성 | 설계 vs 실행 환경 | 같은 스레드 20개, 대기는 211 ms·계산은 615 ms |
+| 암달의 법칙 | 배속 = 1 / ((1-P) + P/N), 상한 1/(1-P) | 순차 10%에 4.4배, 50%에 1.75배 |
+| 실효 코어 | 공식의 N은 코어 수가 아니라 실효 코어 | 이 PC는 10코어에 6.8 |
+| 구스타프슨의 법칙 | 배속 = N - (N-1)S, 문제를 키우면 순차 비중이 준다 | 일 9.1배에 시간 36% 증가 |
+| 병렬화 판단 | 독립·CPU 바운드·충분한 크기·작은 순차·키울 수 있는가 | 하나라도 아니면 그것이 상한 |
+
+{{< callout type="info" >}}
+**용어 정리**
+- **작업(task)**: 논리적으로 독립인 일의 한 조각
+- **순차 컴퓨팅 / 순차 실행**: 앞 작업에 의존하는 문제의 구조 / 한 번에 하나씩 실행하는 방식
+- **병렬 실행**: 계산 여러 개가 같은 순간에 실행되는 것. 독립성과 코어 여럿이 조건
+- **병렬 컴퓨팅**: 여러 처리 요소가 하나의 문제를 나눠 푸는 것. 분해·알고리즘·동기화
+- **데이터 의존성**: 앞 작업의 출력이 뒤 작업의 입력인 관계. 병렬화의 벽
+- **임계 경로**: 의존 그래프에서 가장 긴 사슬. 코어를 늘려도 못 넘는 하한
+- **부하 불균형**: 조각마다 걸리는 시간이 달라 가장 늦은 조각이 전체를 정하는 것
+- **성능 코어 / 효율 코어**: 빠른 코어 / 느리지만 전력이 적은 코어. 같은 스레드도 어디서 도느냐로 시간이 다르다
+- **실효 코어 수**: 순차 부분 0%인 일이 실제로 내는 배속. 이 PC는 6.8
+- **암달의 법칙**: 고정된 문제에서 배속 = 1 / ((1-P) + P/N). 상한은 1/(1-P)
+- **구스타프슨의 법칙**: 문제를 N에 비례해 키울 때 배속 = N - (N-1)S
+- **CPU 바운드 / I/O 바운드**: 계산이 병목 / 기다림이 병목. 앞은 병렬, 뒤는 동시성
 {{< /callout >}}
 
 ---
