@@ -4,621 +4,398 @@ date: 2025-12-30
 weight: 1
 ---
 
-동시성은 "여러 일을 동시에 다루는" 시스템을 만드는 기술이다. 이 장에서는 동시성의 정의부터 시작해 왜 필요한지(현실 세계 모델링), 무엇을 얻을 수 있는지(지연 시간 숨기기, 처리율 개선, 자원 활용), 그리고 확장의 두 방향(수직·수평 확장)과 문제 분해 전략까지 전체 그림을 잡는다.
+프로그램은 위에서 아래로 한 줄씩 실행되도록 배우지만, 프로그램이 다루는 세상은 그렇게 움직이지 않는다. 이 시리즈는 그로킹 동시성(Grokking Concurrency)을 따라 여러 일을 한꺼번에 다루는 프로그램을 언어와 무관하게 본다. 원리는 셋이다. 첫째, **동시성은 "동시에 실행"이 아니라 "동시에 다룸"이다.** 시작한 일을 끝내기 전에 다른 일을 시작할 수 있으면 그 시스템은 동시적이고, 코어가 하나여도 그렇다. 여러 일이 같은 순간에 실제로 실행되는 병렬성은 그중 한 경우다([02](../02-sequential-and-parallel-execution)장). 둘째, **동시성의 이득은 기다림에서 나온다.** 프로그램은 대부분의 시간을 네트워크와 디스크와 사용자를 기다리며 보내고, 그 시간에 다른 일을 하면 지연은 숨고 처리율은 오르고 놀던 CPU가 일한다. 기다림이 없는 순수 계산은 코어 수까지만 빨라진다. 셋째, **동시성은 확장의 언어다.** 문제를 서로 통신하는 독립된 부품으로 쪼개면, 그 부품을 코어에 나누는 것과 서버에 나누는 것은 같은 설계의 두 배치다. 대신 부품이 무언가를 공유하는 순간 새 문제가 생긴다. 이 PC(Apple M4 10코어, JDK 23)에서 실제 웹 서버 다섯 곳에 요청을 보내고, 스레드 수를 바꿔 가며 처리율을 재고, ATM 시뮬레이션이 잔액을 음수로 만드는 순간을 숫자로 봤다.
 
 ---
 
 ## 1. 동시 시스템의 정의
 
-> 동시 시스템이란 여러 일을 동시에 처리하는 시스템을 말한다.
+```text
+[순차] 걸린 시간 = 합
+A ██████████
+B           ██████████
+C                     ██████████
 
-### 순차 처리 vs 동시 처리
-
-**순차 처리 (Sequential Processing)**
-```
-작업A 시작 → 작업A 완료 → 작업B 시작 → 작업B 완료 → 작업C 시작 → 작업C 완료
-[========10초========][========10초========][========10초========]
-총 소요시간: 30초
-```
-
-**동시 처리 (Concurrent Processing)**
-```
-작업A 시작 ─────────→ 작업A 완료
-작업B 시작 ─────────→ 작업B 완료
-작업C 시작 ─────────→ 작업C 완료
-[=============10초=============]
-총 소요시간: 10초
+[동시] 걸린 시간 = 가장 긴 하나
+A ██████████
+B ██████████
+C ██████████
 ```
 
-### 예제: 순차 처리 vs 동시 처리
+동시 시스템은 여러 일을 동시에 다루는 시스템이다. "다룬다"는 말이 핵심이다. 일 A를 끝내기 전에 일 B를 시작할 수 있고, 그래서 어느 순간에나 **진행 중인 일이 여럿**이다. 순차 시스템은 진행 중인 일이 항상 하나이므로 걸린 시간은 각 일의 합이고, 동시 시스템은 겹쳐 진행하므로 가장 긴 하나에 가까워진다. 이 PC에서 실제 웹 서버 다섯 곳에 HTTP 요청을 보내 봤다.
+
+| 서버 | 응답까지 | 왜 이 시간인가 |
+|:-----|-------:|:------------|
+| api.github.com | 20 ms | 가까운 CDN, 작은 응답 |
+| en.wikipedia.org | 117 ms | 봇 차단으로 403이지만 응답은 응답 |
+| www.google.com | 142 ms | 본문이 크다 |
+| httpbin.org | 216 ms | 미국 서버 |
+| www.cloudflare.com | 458 ms | 본문이 가장 크다 |
+| **순차로 다섯** | **957 ms** | 다섯의 합 |
+| **동시에 다섯** | **458 ms** | 가장 느린 하나 |
 
 ```java
-import java.util.concurrent.*;
+static String fetch(String url)
+        throws Exception {
+    var req = HttpRequest
+        .newBuilder(URI.create(url))
+        .build();
+    var res = client.send(req,
+        BodyHandlers.ofString());
+    return res.body();
+}
 
-public class SequentialVsConcurrent {
+// 순차: 하나가 끝나야 다음을 시작
+for (var url : urls)
+    fetch(url);
 
-    // 시간이 걸리는 작업을 시뮬레이션
-    static String fetchDataFromServer(String server) {
-        try {
-            Thread.sleep(1000); // 1초 대기 (네트워크 지연 시뮬레이션)
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        return server + "로부터 데이터 수신 완료";
-    }
-
-    // 순차 처리 방식
-    static void sequentialApproach() {
-        long start = System.currentTimeMillis();
-
-        String result1 = fetchDataFromServer("서버A");
-        String result2 = fetchDataFromServer("서버B");
-        String result3 = fetchDataFromServer("서버C");
-
-        long end = System.currentTimeMillis();
-        System.out.println("순차 처리 소요시간: " + (end - start) + "ms");
-        // 출력: 순차 처리 소요시간: 3000ms (약 3초)
-    }
-
-    // 동시 처리 방식
-    static void concurrentApproach() throws Exception {
-        long start = System.currentTimeMillis();
-
-        ExecutorService executor = Executors.newFixedThreadPool(3);
-
-        Future<String> future1 = executor.submit(() -> fetchDataFromServer("서버A"));
-        Future<String> future2 = executor.submit(() -> fetchDataFromServer("서버B"));
-        Future<String> future3 = executor.submit(() -> fetchDataFromServer("서버C"));
-
-        // 모든 결과 수집
-        String result1 = future1.get();
-        String result2 = future2.get();
-        String result3 = future3.get();
-
-        executor.shutdown();
-
-        long end = System.currentTimeMillis();
-        System.out.println("동시 처리 소요시간: " + (end - start) + "ms");
-        // 출력: 동시 처리 소요시간: 1000ms (약 1초)
-    }
-
-    public static void main(String[] args) throws Exception {
-        sequentialApproach();
-        concurrentApproach();
-    }
+// 동시: 다섯을 한꺼번에 시작
+try (var pool = Executors
+        .newFixedThreadPool(5)) {
+    var futures = urls.stream()
+        .map(u -> pool.submit(
+            () -> fetch(u)))
+        .toList();
+    for (var f : futures)
+        f.get();
 }
 ```
 
-### 동시성(Concurrency) vs 병렬성(Parallelism)
+첫째 원리다. 다섯 요청의 합은 957ms인데 동시에 보내니 458ms, 곧 가장 느린 클라우드플레어 하나의 시간이었다. 다섯 스레드가 각자 요청을 보내고 응답을 **기다리는 동안** 다른 스레드의 응답이 도착했다. CPU는 거의 아무것도 안 했다. 요청을 만들고 응답을 읽는 데 몇 ms, 나머지는 전부 기다림이다. 그 기다림을 겹친 것이 동시성이 한 일의 전부다.
 
-| 구분 | 동시성 (Concurrency) | 병렬성 (Parallelism) |
-|:-----|:--------------------|:--------------------|
-| 정의 | 여러 작업을 번갈아가며 처리 | 여러 작업을 실제로 동시에 처리 |
-| 하드웨어 | 단일 코어에서도 가능 | 멀티 코어 필수 |
-| 비유 | 한 사람이 여러 일을 번갈아 처리 | 여러 사람이 각자 일을 처리 |
-| 목적 | 응답성 향상, 자원 효율화 | 처리량 극대화 |
+### 동시성과 병렬성
 
+| 구분 | 동시성 (Concurrency) | 병렬성 (Parallelism) | 왜 갈라 보나 |
+|:-----|:-------------------|:-------------------|:-----------|
+| 뜻 | 여러 일을 **다루는** 구조 | 여러 일을 같은 순간에 **실행**하는 것 | 구조와 실행은 다른 층이다 |
+| 하드웨어 | 코어 하나로도 된다 | 코어가 여럿이어야 한다 | 위 실험은 코어 하나여도 같은 결과 |
+| 이득의 원천 | 기다림을 겹친다 | 계산을 나눈다 | 둘째 원리 |
+| 목적 | 응답성, 자원 활용 | 처리량 | I/O가 많으면 동시성, 계산이 많으면 병렬 |
+
+```text
+[동시성: 코어 하나]
+시간 → |A|B|A|C|B|A|C|
+        번갈아 실행 (컨텍스트 스위칭)
+
+[병렬성: 코어 셋]
+코어1 |=== A ===|
+코어2 |=== B ===|
+코어3 |=== C ===|
+        같은 순간에 실행
 ```
-[동시성 - 단일 코어]
-시간 →  |작업A|작업B|작업A|작업C|작업B|작업A|작업C|
-        컨텍스트 스위칭으로 번갈아 실행
 
-[병렬성 - 멀티 코어]
-코어1:  |========= 작업A =========|
-코어2:  |========= 작업B =========|
-코어3:  |========= 작업C =========|
-        실제로 동시에 실행
-```
+롭 파이크의 말대로 동시성은 여러 일을 한꺼번에 **다루는** 것이고 병렬성은 여러 일을 한꺼번에 **하는** 것이다. 동시적으로 설계한 프로그램은 코어가 하나면 번갈아 돌고 열이면 나란히 돌지만 설계는 같다. 그래서 동시성이 먼저이고 병렬성은 실행 환경이 주는 보너스다. 위의 HTTP 실험이 코어 하나에서도 같은 458ms가 나오는 이유다. 둘의 차이와 병렬 실행의 한계는 [02](../02-sequential-and-parallel-execution)장 3절과 4절에서 본다.
+
+### 동시성은 어느 층에나 있다
+
+| 층 | 무엇이 동시에 | 예 | 어디서 다루나 |
+|:---|:-----------|:---|:-----------|
+| 하드웨어 | 코어, 명령어, 데이터 | 멀티코어, SIMD, GPU | [03](../03-how-computers-work)장 |
+| 운영체제 | 프로세스와 스레드 | 스케줄러가 코어에 번갈아 올린다 | [04](../04-concurrency-ingredients)장, [06](../06-multitasking)장 |
+| 런타임 | 언어가 주는 실행 단위 | JVM 스레드, 고루틴, 코루틴, 이벤트 루프 | [03](../03-how-computers-work)장 4절, [12](../12-asynchronous-communication)장 |
+| 애플리케이션 | 내가 쪼갠 일 | 요청마다 스레드, 파이프라인, 포크/조인 | [07](../07-task-decomposition)장 |
+
+내 코드에서 스레드를 하나도 만들지 않아도 아래 세 층은 이미 동시에 돌고 있다. 브라우저는 렌더링과 네트워크와 스크립트를 따로 돌리고, 운영체제는 수백 개 프로세스를 번갈아 올리고, CPU는 명령어 여러 개를 한 사이클에 처리한다. 이 시리즈는 위에서 두 번째 층부터 맨 위까지를 본다.
 
 ---
 
 ## 2. 동시성의 필요성: 현실 세계 모델링
 
-> 현실 세계에서는 여러 일이 동시에 일어난다. 이러한 현실 세계를 모델링하려면 동시성 프로그래밍이 필요하다.
+| 현실 세계 | 무엇이 동시에 일어나나 | 프로그램의 모양 | 왜 순차로는 안 되나 |
+|:---------|:------------------|:-------------|:----------------|
+| 은행 ATM | 여러 고객이 같은 계좌를 만진다 | 요청마다 스레드, 공유 계좌 | 한 고객이 끝날 때까지 다른 고객을 세울 수 없다 |
+| 식당 | 주문, 조리, 서빙이 겹친다 | 파이프라인, 큐 | 주문 하나가 나올 때까지 주문을 안 받으면 손님이 간다 |
+| 채팅방 | 모두가 동시에 보낸다 | 이벤트 루프, 브로드캐스트 | 한 명씩 차례로 받으면 대화가 아니다 |
+| 화면 | 사용자가 누르는 동안 다운로드가 진행된다 | UI 스레드 + 백그라운드 | 다운로드 동안 화면이 멈추면 죽은 것으로 보인다 |
+| 웹 서버 | 수천 명이 같은 페이지를 연다 | 요청마다 스레드 또는 이벤트 루프 | 한 명의 느린 회선이 모두를 세운다 |
 
-### 현실 세계의 동시성 예시
-
-| 현실 세계 상황 | 프로그래밍 모델링 |
-|:--------------|:-----------------|
-| 은행에서 여러 고객이 동시에 ATM 사용 | 다중 스레드로 각 고객 요청 처리 |
-| 식당에서 여러 테이블 주문을 동시 처리 | 비동기 이벤트 처리 |
-| 공장에서 여러 기계가 동시에 작동 | 병렬 작업 스케줄링 |
-| 채팅방에서 여러 사용자가 동시에 메시지 전송 | 이벤트 기반 동시 처리 |
-
-### 예제: 은행 ATM 시스템
+현실에서는 여러 일이 동시에 일어난다. 그 현실을 프로그램에 옮기면 프로그램도 동시적이어야 한다. 위 표의 오른쪽 열이 이유다. 순차 프로그램은 한 번에 한 명만 상대하므로, 나머지는 줄을 서고, 줄이 길어지면 시스템은 현실을 따라가지 못한다. 그런데 현실을 그대로 옮기면 현실의 문제도 함께 온다. 두 사람이 같은 계좌에서 동시에 돈을 뽑는 문제다.
 
 ```java
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
+class BankAccount {
+    private final AtomicInteger balance
+        = new AtomicInteger(1000);
 
-public class BankATMSimulation {
-
-    // 은행 계좌 (동시 접근 가능)
-    static class BankAccount {
-        private final String accountId;
-        private final AtomicInteger balance;  // 스레드 안전한 잔액
-
-        public BankAccount(String accountId, int initialBalance) {
-            this.accountId = accountId;
-            this.balance = new AtomicInteger(initialBalance);
+    boolean withdraw(int amount) {
+        // 점검
+        int cur = balance.get();
+        if (cur >= amount) {
+            // 행동. 그 사이가 틈
+            balance.addAndGet(-amount);
+            return true;
         }
-
-        public boolean withdraw(int amount) {
-            int current = balance.get();
-            if (current >= amount) {
-                balance.addAndGet(-amount);
-                return true;
-            }
-            return false;
-        }
-
-        public void deposit(int amount) {
-            balance.addAndGet(amount);
-        }
-
-        public int getBalance() {
-            return balance.get();
-        }
-    }
-
-    // ATM 기기 시뮬레이션
-    static class ATM implements Runnable {
-        private final String atmId;
-        private final BankAccount account;
-        private final int operationCount;
-
-        public ATM(String atmId, BankAccount account, int operationCount) {
-            this.atmId = atmId;
-            this.account = account;
-            this.operationCount = operationCount;
-        }
-
-        @Override
-        public void run() {
-            for (int i = 0; i < operationCount; i++) {
-                if (Math.random() > 0.5) {
-                    account.deposit(100);
-                    System.out.println(atmId + ": 100원 입금 완료. 잔액: " + account.getBalance());
-                } else {
-                    boolean success = account.withdraw(100);
-                    if (success) {
-                        System.out.println(atmId + ": 100원 출금 완료. 잔액: " + account.getBalance());
-                    } else {
-                        System.out.println(atmId + ": 잔액 부족으로 출금 실패");
-                    }
-                }
-
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-            }
-        }
-    }
-
-    public static void main(String[] args) throws InterruptedException {
-        BankAccount sharedAccount = new BankAccount("ACC-001", 1000);
-
-        // 3개의 ATM이 동시에 같은 계좌에 접근
-        Thread atm1 = new Thread(new ATM("ATM-1", sharedAccount, 5));
-        Thread atm2 = new Thread(new ATM("ATM-2", sharedAccount, 5));
-        Thread atm3 = new Thread(new ATM("ATM-3", sharedAccount, 5));
-
-        atm1.start();
-        atm2.start();
-        atm3.start();
-
-        atm1.join();
-        atm2.join();
-        atm3.join();
-
-        System.out.println("최종 잔액: " + sharedAccount.getBalance());
+        return false;
     }
 }
 ```
+
+잔액 1,000원인 계좌를 ATM 열 대가 동시에 100원씩 뽑는다. `AtomicInteger`를 썼으니 안전할 것 같지만, 잔액을 **확인하는 것**과 **빼는 것** 사이에 다른 ATM이 끼어들 수 있다. 둘 다 900원을 보고 둘 다 100원을 빼면 잔액은 700원이 되어야 할 자리에서 맞지만, 100원이 남았을 때 둘 다 100원을 보면 둘 다 뽑아 잔액이 마이너스가 된다. 이 PC에서 ATM 열 대가 각각 스무 번씩 시도하는 실험을 1,000번 반복했다.
+
+| 방식 | 잔액이 음수가 된 횟수 | 최저 잔액 | 성공한 출금 최대 |
+|:-----|:-----------------|:-------|:-------------|
+| 위 코드 (점검 후 행동) | 1,000번 중 2번 | -100원 | 11번 (1,000원이면 10번이어야) |
+| 아래 코드 (CAS 루프) | 0번 | 0원 | 10번 |
+
+```java
+    boolean withdraw(int amount) {
+        int cur;
+        do {
+            cur = balance.get();
+            if (cur < amount)
+                return false;
+        } while (!balance.compareAndSet(
+            cur, cur - amount));
+        return true;
+    }
+```
+
+1,000번에 두 번이다. 테스트에서는 안 보이다가 운영에서 한 달에 한 번 은행이 돈을 잃는다. 고친 쪽은 "잔액이 아직 내가 본 값이면 빼라"를 하나의 원자적 연산으로 묶었다. 이 패턴의 이름이 점검 후 행동(check-then-act)이고, 왜 `AtomicInteger`로도 안 되는지와 원자적 연산·락·세마포어로 어떻게 막는지는 [08](../08-race-conditions-and-synchronization)장의 주제다. 자바에서 같은 문제를 스레드 안전성의 언어로 다시 보는 것은 [자바 동시성 02](../../java/concurrency/02-thread-safety)장이다. 여기서 기억할 것은 하나다. 현실을 모델링하려면 동시성이 필요하고, 동시성을 들이면 **공유하는 것**을 지켜야 한다.
 
 ---
 
 ## 3. 동시성의 장점
 
-> 동시성을 적용하면 지연 시간을 드러나지 않게 하고, 기존 처리 자원의 활용도를 높여 시스템의 성능과 처리율을 크게 개선할 수 있다.
+### 3.1 지연 시간 숨기기
 
-### 3.1 지연 시간(Latency) 숨기기
+```text
+▓ = CPU 계산   ░ = I/O 대기
 
-I/O 작업 중 CPU가 놀고 있을 때 다른 작업을 수행하여 대기 시간을 활용한다.
+[순차] CPU가 기다리며 논다
+1: ▓▓░░░░░░
+2:         ▓▓░░░░░░
+3:                 ▓▓░░░░░░
 
-```
-[동시성 없음 - 지연 시간 노출]
-시간 →  |CPU작업|---I/O 대기---|CPU작업|---I/O 대기---|
-        CPU가 I/O 대기 동안 유휴 상태
-
-[동시성 적용 - 지연 시간 숨김]
-작업1:  |CPU|---I/O 대기---|CPU작업|
-작업2:      |CPU|---I/O 대기---|CPU작업|
-작업3:          |CPU|---I/O 대기---|
-        I/O 대기 중에 다른 작업의 CPU 처리 수행
+[동시] 기다리는 동안 다른 일
+1: ▓▓░░░░░░
+2:   ▓▓░░░░░░
+3:     ▓▓░░░░░░
 ```
 
-### 예제: I/O 대기 시간 활용
+| 용어 | 뜻 | 단위 | 왜 구분하나 |
+|:-----|:---|:-----|:----------|
+| 지연 시간 (latency) | 일 하나를 시작해서 끝날 때까지 | 초 | 사용자가 느끼는 것 |
+| 처리율 (throughput) | 단위 시간에 끝내는 일의 수 | 개/초 | 시스템이 감당하는 것 |
+| 활용도 (utilization) | 자원이 일하고 있는 시간의 비율 | % | 돈을 낸 만큼 쓰고 있는가 |
+
+둘째 원리다. 프로그램의 시간 대부분은 CPU 계산이 아니라 기다림이다. 디스크는 CPU보다 수만 배 느리고 네트워크는 수백만 배 느리다. 1절의 HTTP 요청에서 CPU가 일한 시간은 몇 ms이고 나머지 수백 ms는 응답을 기다린 시간이다. 순차 프로그램은 그 기다림 동안 아무것도 안 하고, 동시 프로그램은 그동안 다른 일의 계산을 한다. 기다림이 사라진 것이 아니라 **다른 일 뒤에 숨은** 것이다. 지연 시간 자체는 그대로인데 전체 시간이 줄어드는 이유다.
+
+이 관계를 수식으로 적은 것이 리틀의 법칙이다. 안정된 시스템에서 **진행 중인 일의 수 = 처리율 × 지연 시간**이다. 지연 시간이 서버의 사정이라 못 줄인다면, 처리율을 올리는 길은 진행 중인 일의 수를 늘리는 것뿐이고, 그것이 동시성이다.
+
+### 3.2 처리율 개선
 
 ```java
-import java.util.concurrent.*;
-import java.util.List;
-import java.util.ArrayList;
-
-public class LatencyHiding {
-
-    static String readFile(String filename) {
-        System.out.println(Thread.currentThread().getName() + ": " + filename + " 읽기 시작");
-        try {
-            Thread.sleep(500);  // I/O 대기 시뮬레이션
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        System.out.println(Thread.currentThread().getName() + ": " + filename + " 읽기 완료");
-        return filename + " 내용";
-    }
-
-    static String processData(String data) {
-        return data.toUpperCase() + " [처리됨]";
-    }
-
-    public static void main(String[] args) throws Exception {
-        List<String> files = List.of("file1.txt", "file2.txt", "file3.txt",
-                                      "file4.txt", "file5.txt");
-
-        // 순차 처리
-        long start = System.currentTimeMillis();
-        List<String> results1 = new ArrayList<>();
-        for (String file : files) {
-            String content = readFile(file);
-            results1.add(processData(content));
-        }
-        System.out.println("순차 처리 시간: " + (System.currentTimeMillis() - start) + "ms\n");
-
-        // 동시 처리
-        ExecutorService executor = Executors.newFixedThreadPool(5);
-        start = System.currentTimeMillis();
-
-        List<Future<String>> futures = new ArrayList<>();
-        for (String file : files) {
-            futures.add(executor.submit(() -> {
-                String content = readFile(file);
-                return processData(content);
-            }));
-        }
-
-        List<String> results2 = new ArrayList<>();
-        for (Future<String> future : futures) {
-            results2.add(future.get());
-        }
-
-        executor.shutdown();
-        System.out.println("동시 처리 시간: " + (System.currentTimeMillis() - start) + "ms");
-        // 순차: 약 2500ms, 동시: 약 500ms
-    }
-}
+try (var pool = Executors
+        .newFixedThreadPool(threads)) {
+    for (int i = 0; i < 100; i++)
+        pool.submit(task);
+}   // close()가 끝날 때까지 기다림
 ```
 
-### 3.2 처리율(Throughput) 개선
+이 PC에서 100ms를 기다리는 I/O 작업 100개를 스레드 수를 바꿔 가며 돌렸다.
 
-```java
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
+| 스레드 | 걸린 시간 | 처리율 | 리틀의 법칙 예측 | 왜 |
+|:------|--------:|------:|-------------:|:---|
+| 1 | 10,373 ms | 9.6개/초 | 1 ÷ 0.1 = 10 | 한 번에 하나, 100ms씩 100번 |
+| 10 | 1,039 ms | 96.2개/초 | 10 ÷ 0.1 = 100 | 열 개가 동시에 기다린다 |
+| 100 | 109 ms | 917개/초 | 100 ÷ 0.1 = 1,000 | 백 개가 동시에 기다린다 |
 
-public class ThroughputImprovement {
+스레드를 열 배 늘리니 처리율이 열 배 올랐고, 예측과 거의 맞는다. 기다리는 일은 코어를 안 쓰므로 코어 열 개짜리 기계에서 스레드 백 개가 전부 동시에 기다릴 수 있다. 같은 실험을 기다림 없이 계산만 하는 작업(제곱근 300만 번)으로 바꾸면 그림이 달라진다.
 
-    static AtomicInteger processedCount = new AtomicInteger(0);
+| 스레드 | 걸린 시간 | 배속 | 왜 |
+|:------|--------:|----:|:---|
+| 1 | 159 ms | 1.0 | 기준 |
+| 2 | 75 ms | 2.1 | 코어 둘이 나란히 |
+| 4 | 45 ms | 3.5 | 성능 코어 넷 |
+| 6 | 32 ms | 5.0 | 효율 코어가 거든다 |
+| 10 | 22 ms | 7.2 | 코어 열 개가 전부 일한다 |
+| 16 | 22 ms | 7.2 | 코어보다 많은 스레드는 순서만 기다린다 |
+| 32 | 25 ms | 6.4 | 번갈아 올리는 비용이 더 든다 |
 
-    static void handleRequest(int requestId) {
-        try {
-            Thread.sleep(100);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        processedCount.incrementAndGet();
-    }
-
-    public static void main(String[] args) throws Exception {
-        int totalRequests = 100;
-
-        // 단일 스레드 처리
-        processedCount.set(0);
-        long start = System.currentTimeMillis();
-
-        for (int i = 0; i < totalRequests; i++) {
-            handleRequest(i);
-        }
-
-        long singleThreadTime = System.currentTimeMillis() - start;
-        double singleThreadThroughput = (double) totalRequests / singleThreadTime * 1000;
-        System.out.println("단일 스레드:");
-        System.out.println("  처리 시간: " + singleThreadTime + "ms");
-        System.out.println("  처리율: " + String.format("%.1f", singleThreadThroughput) + " 요청/초\n");
-
-        // 멀티 스레드 처리
-        processedCount.set(0);
-        ExecutorService executor = Executors.newFixedThreadPool(10);
-        start = System.currentTimeMillis();
-
-        for (int i = 0; i < totalRequests; i++) {
-            final int requestId = i;
-            executor.submit(() -> handleRequest(requestId));
-        }
-
-        executor.shutdown();
-        executor.awaitTermination(1, TimeUnit.MINUTES);
-
-        long multiThreadTime = System.currentTimeMillis() - start;
-        double multiThreadThroughput = (double) totalRequests / multiThreadTime * 1000;
-        System.out.println("멀티 스레드 (10개):");
-        System.out.println("  처리 시간: " + multiThreadTime + "ms");
-        System.out.println("  처리율: " + String.format("%.1f", multiThreadThroughput) + " 요청/초");
-        System.out.println("  성능 향상: " + String.format("%.1f", (double)singleThreadTime/multiThreadTime) + "배");
-    }
-}
-```
+계산만 하는 일은 코어 수에서 멈춘다. 코어 열 개에 스레드 열 개까지는 올랐고, 그 위는 그대로이거나 오히려 느려졌다. 열 배가 아니라 7.2배인 것은 M4의 코어 열 개 중 넷만 성능 코어이기 때문이다. I/O 작업은 스레드 수만큼, 계산 작업은 코어 수까지. 이 구분(I/O 바운드와 CPU 바운드)이 동시성 설계의 첫 질문이고 [06](../06-multitasking)장 2절에서 본다. 스레드가 코어보다 많을 때 드는 비용은 [06](../06-multitasking)장 3절, 계산을 나눠도 넘지 못하는 한계는 [02](../02-sequential-and-parallel-execution)장 4절 암달의 법칙이다.
 
 ### 3.3 자원 활용도 향상
 
+```text
+CPU 활용 (코어 하나 기준)
+1 스레드  ████░░░░░░░░░░░░  24%
+4 스레드  ███████████████░  96%
 ```
-[CPU 사용률 비교]
 
-순차 처리:
-CPU 사용률: ████░░░░░░░░░░░░░░░░ 20%
-           (대부분 I/O 대기)
+| 스레드 | 벽시계 시간 | CPU가 일한 시간 | 활용도 | 왜 |
+|:------|---------:|-------------:|-----:|:---|
+| 1 | 1,491 ms | 362 ms | 24% | 나머지 76%는 I/O 대기 |
+| 4 | 376 ms | 362 ms | 96% | 넷이 번갈아 기다리니 코어 하나가 꽉 찬다 |
+| 12 | 135 ms | 318 ms | 236% | 코어 2.4개분. 열두 개가 동시에 기다리고 계산한다 |
 
-동시 처리:
-CPU 사용률: ████████████████░░░░ 80%
-           (I/O 대기 중 다른 작업 수행)
-```
+이 PC에서 계산 30ms와 기다림 90ms로 이루어진 작업 열두 개를 돌리며 프로세스의 CPU 시간을 쟀다. 세 경우 모두 CPU가 실제로 일한 시간은 360ms 남짓으로 같다. 동시성은 일을 줄이지 않는다. **같은 일을 더 짧은 벽시계 시간에** 하고, 그동안 놀던 CPU를 쓴 것이다. 순차일 때 CPU는 4분의 3을 놀았다. 서버 한 대 값의 4분의 3을 버린 것이고, 동시성은 그 값을 되찾는 가장 싼 방법이다.
+
+{{< callout type="warning" >}}
+**동시성은 공짜가 아니다.** 스레드를 만들고, 번갈아 올리고(컨텍스트 스위칭), 공유하는 것을 지키는(동기화) 비용이 든다. 위 표에서 스레드 32개가 10개보다 느렸던 것이 그 비용의 실물이다. 기다림이 없는 일에 스레드를 더하면 이득은 없고 비용만 남는다. 비용의 정체는 [06](../06-multitasking)장 3절과 [08](../08-race-conditions-and-synchronization)장 7절에서 본다.
+{{< /callout >}}
 
 ---
 
 ## 4. 확장성: 수직 확장 vs 수평 확장
 
-> 확장성은 수직 확장성과 수평 확장성으로 나뉜다.
+```text
+[수직 확장]  서버 하나를 키운다
+┌───────┐      ┌────────────┐
+│ 4코어 │  →   │   16코어   │
+└───────┘      └────────────┘
 
-### 비교 표
-
-| 특성 | 수직 확장 (Scale Up) | 수평 확장 (Scale Out) |
-|:-----|:--------------------|:---------------------|
-| 방법 | 단일 서버 성능 향상 | 서버 수 증가 |
-| 예시 | CPU/RAM 업그레이드 | 서버 추가 |
-| 한계 | 하드웨어 물리적 한계 | 이론적으로 무한 확장 가능 |
-| 비용 | 고성능일수록 기하급수적 증가 | 선형적 증가 |
-| 복잡도 | 낮음 (코드 변경 불필요) | 높음 (분산 시스템 설계 필요) |
-| 가용성 | 단일 장애점 존재 | 장애 허용 가능 |
-
-### 시각적 비교
-
-```
-[수직 확장 - Scale Up]
-
-Before:         After:
-┌─────────┐     ┌─────────────────┐
-│ Server  │     │   BIG Server    │
-│ 4 CPU   │ →   │   16 CPU        │
-│ 8GB RAM │     │   64GB RAM      │
-└─────────┘     └─────────────────┘
-처리량: 100/s   처리량: 400/s
-
-
-[수평 확장 - Scale Out]
-
-Before:              After:
-┌─────────┐          ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
-│ Server  │          │ Server  │ │ Server  │ │ Server  │ │ Server  │
-│ 4 CPU   │    →     │ 4 CPU   │ │ 4 CPU   │ │ 4 CPU   │ │ 4 CPU   │
-└─────────┘          └─────────┘ └─────────┘ └─────────┘ └─────────┘
-처리량: 100/s        처리량: 400/s (이론상)
+[수평 확장]  서버를 늘린다
+┌───────┐  ┌───────┐┌───────┐┌───────┐
+│ 4코어 │→ │ 4코어 ││ 4코어 ││ 4코어 │
+└───────┘  └───────┘└───────┘└───────┘
 ```
 
-### 예제: 수평 확장을 위한 Stateless 설계
+| 특성 | 수직 확장 (Scale Up) | 수평 확장 (Scale Out) | 왜 |
+|:-----|:-------------------|:--------------------|:---|
+| 방법 | 코어, 메모리를 늘린다 | 서버를 늘린다 | |
+| 코드 | 그대로. 단, 동시적이어야 | 무상태여야 하고 통신이 필요 | 순차 코드는 코어를 더 줘도 하나만 쓴다 |
+| 한계 | 하드웨어의 천장 | 이론상 없음 | 위 표의 7.2배가 이 PC의 천장 |
+| 비용 | 위로 갈수록 가파르다 | 대체로 선형 | 큰 서버 하나가 작은 서버 넷보다 비싸다 |
+| 장애 | 한 대가 죽으면 전부 | 한 대가 죽어도 나머지가 | 단일 장애점 |
+| 복잡도 | 낮다 | 높다 | 분산 시스템의 문제(일관성, 부분 실패)가 따라온다 |
+
+셋째 원리다. 3.2절의 표를 다시 보면 수직 확장의 두 얼굴이 보인다. 코어를 열 개 줬는데 순차 프로그램이라면 1배, 동시 프로그램이라야 7.2배다. 수직 확장은 **동시적으로 짜인 코드에만** 효과가 있다. 그리고 7.2배에서 멈춘다. 그 위로 가려면 서버를 늘려야 하고, 그러려면 일이 어느 서버에서 처리되어도 같아야 한다.
 
 ```java
-import java.util.concurrent.*;
-import java.util.*;
+class LoadBalancer {
+    private final List<Worker> workers;
+    private int next;   // 공유 상태
 
-public class HorizontalScalingExample {
-
-    // Stateless 작업 처리기
-    static class StatelessWorker {
-        private final String workerId;
-
-        public StatelessWorker(String workerId) {
-            this.workerId = workerId;
-        }
-
-        public int processTask(int input) {
-            System.out.println(workerId + ": 작업 처리 중 - 입력값: " + input);
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            return input * 2;
-        }
-    }
-
-    // 간단한 로드 밸런서
-    static class LoadBalancer {
-        private final List<StatelessWorker> workers;
-        private int currentIndex = 0;
-
-        public LoadBalancer(List<StatelessWorker> workers) {
-            this.workers = workers;
-        }
-
-        public synchronized StatelessWorker getNextWorker() {
-            StatelessWorker worker = workers.get(currentIndex);
-            currentIndex = (currentIndex + 1) % workers.size();
-            return worker;
-        }
-    }
-
-    public static void main(String[] args) throws Exception {
-        List<StatelessWorker> workers = List.of(
-            new StatelessWorker("Worker-1"),
-            new StatelessWorker("Worker-2"),
-            new StatelessWorker("Worker-3")
-        );
-
-        LoadBalancer loadBalancer = new LoadBalancer(workers);
-        ExecutorService executor = Executors.newFixedThreadPool(3);
-
-        List<Future<Integer>> futures = new ArrayList<>();
-
-        for (int i = 1; i <= 9; i++) {
-            final int taskInput = i;
-            final StatelessWorker worker = loadBalancer.getNextWorker();
-            futures.add(executor.submit(() -> worker.processTask(taskInput)));
-        }
-
-        System.out.println("\n=== 결과 ===");
-        for (int i = 0; i < futures.size(); i++) {
-            System.out.println("작업 " + (i + 1) + " 결과: " + futures.get(i).get());
-        }
-
-        executor.shutdown();
+    synchronized Worker pick() {
+        var w = workers.get(next);
+        next = (next + 1)
+            % workers.size();
+        return w;
     }
 }
 ```
+
+작업을 워커 셋에 돌아가며 나눠 주는 가장 단순한 분배기다. 워커가 요청 안의 것만 보고 답하면(무상태) 어느 워커가 받아도 같으니 워커를 늘리기만 하면 된다. REST가 서버를 무상태로 두는 이유가 이것이고 [REST 01](../../architecture/restful/01-basics)장 2절에서 봤다. 눈여겨볼 곳은 분배기 자신이다. `next`라는 공유 상태가 있어서 `synchronized`가 붙었다. 2절의 ATM과 같은 문제가 분배기에도 있다. 수평 확장은 동시성 문제를 없애는 것이 아니라 **네트워크 너머로 옮기는** 것이다. 서버가 여럿이면 공유 상태는 데이터베이스나 캐시로 가고, 거기서 같은 점검 후 행동 문제가 분산 락과 트랜잭션이라는 이름으로 다시 나온다. 서버 사이의 통신 방법은 [05](../05-inter-process-communication)장이다.
 
 ---
 
 ## 5. 복잡한 문제의 분해 전략
 
-> 복잡한 문제를 서로 통신하는 여러 개의 더 단순한 구성 요소로 분해할 수 있다.
-
-### 분해 패턴
-
-```
-[복잡한 문제]
-┌────────────────────────────────────────────────┐
-│     대용량 이미지 처리 파이프라인               │
-└────────────────────────────────────────────────┘
-                    ↓ 분해
-┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐
-│ 이미지   │ → │ 필터    │ → │ 크기    │ → │ 저장    │
-│ 읽기    │   │ 적용    │   │ 조정    │   │ 처리    │
-└──────────┘   └──────────┘   └──────────┘   └──────────┘
-   스레드1        스레드2        스레드3        스레드4
+```text
+대용량 이미지 처리
+      │ 분해
+      ▼
+읽기 → 필터 → 크기 조정 → 저장
+스레드1  스레드2  스레드3   스레드4
 ```
 
-### 예제: Fork-Join을 활용한 분할 정복
+| 분해 | 무엇을 나누나 | 모양 | 왜 |
+|:-----|:-----------|:-----|:---|
+| 작업 분해 | 서로 다른 일을 | 파이프라인, 역할별 스레드 | 읽기와 필터는 다른 일이라 다른 부품이 맡는다 |
+| 데이터 분해 | 같은 일을 데이터 조각마다 | 맵, 포크/조인, 맵리듀스 | 합계는 같은 일이라 조각을 나눠 맡긴다 |
+
+셋째 원리의 앞부분이다. 동시성은 문제를 **서로 통신하는 더 단순한 부품들**로 쪼개는 데서 시작한다. 쪼개는 방향은 둘이다. 일이 다르면 일을 나누고, 일이 같으면 데이터를 나눈다. 어느 쪽이든 조건은 같다. 부품이 서로 **독립**이어야 하고(A가 B의 결과를 기다려야 하면 나눈 의미가 없다), 부품 사이의 통신 비용이 나눠서 얻는 이득보다 작아야 한다. 이 PC에서 1억 개 숫자의 합을 데이터 분해로 돌려 봤다.
 
 ```java
-import java.util.concurrent.*;
+class SumTask
+        extends RecursiveTask<Long> {
+    static final int CUTOFF = 1_000_000;
+    final long[] arr; final int lo, hi;
+    // 생성자 생략
 
-public class ForkJoinDecomposition extends RecursiveTask<Long> {
-
-    private final long[] array;
-    private final int start;
-    private final int end;
-    private static final int THRESHOLD = 10000;
-
-    public ForkJoinDecomposition(long[] array, int start, int end) {
-        this.array = array;
-        this.start = start;
-        this.end = end;
-    }
-
-    @Override
     protected Long compute() {
-        int length = end - start;
-
-        if (length <= THRESHOLD) {
-            return computeDirectly();
+        if (hi - lo <= CUTOFF) {
+            long s = 0;
+            for (int i = lo; i < hi;)
+                s += arr[i++];
+            return s;
         }
-
-        int mid = start + length / 2;
-
-        ForkJoinDecomposition leftTask = new ForkJoinDecomposition(array, start, mid);
-        ForkJoinDecomposition rightTask = new ForkJoinDecomposition(array, mid, end);
-
-        leftTask.fork();
-        Long rightResult = rightTask.compute();
-        Long leftResult = leftTask.join();
-
-        return leftResult + rightResult;
-    }
-
-    private long computeDirectly() {
-        long sum = 0;
-        for (int i = start; i < end; i++) {
-            sum += array[i];
-        }
-        return sum;
-    }
-
-    public static void main(String[] args) {
-        int size = 100_000_000;
-        long[] numbers = new long[size];
-        for (int i = 0; i < size; i++) {
-            numbers[i] = i + 1;
-        }
-
-        // 순차 처리
-        long start = System.currentTimeMillis();
-        long sequentialSum = 0;
-        for (long num : numbers) {
-            sequentialSum += num;
-        }
-        System.out.println("순차 처리:");
-        System.out.println("  합계: " + sequentialSum);
-        System.out.println("  시간: " + (System.currentTimeMillis() - start) + "ms\n");
-
-        // Fork-Join 병렬 처리
-        ForkJoinPool pool = ForkJoinPool.commonPool();
-        start = System.currentTimeMillis();
-
-        ForkJoinDecomposition task = new ForkJoinDecomposition(numbers, 0, numbers.length);
-        long parallelSum = pool.invoke(task);
-
-        System.out.println("Fork-Join 병렬 처리:");
-        System.out.println("  합계: " + parallelSum);
-        System.out.println("  시간: " + (System.currentTimeMillis() - start) + "ms");
-        System.out.println("  사용된 스레드: " + pool.getParallelism() + "개");
+        int mid = (lo + hi) / 2;
+        var left =
+            new SumTask(arr, lo, mid);
+        var right =
+            new SumTask(arr, mid, hi);
+        // 왼쪽은 풀에, 오른쪽은 내가
+        left.fork();
+        long r = right.compute();
+        // 왼쪽 결과를 기다려 합친다
+        return r + left.join();
     }
 }
+
+long sum = ForkJoinPool.commonPool()
+    .invoke(new SumTask(arr, 0, n));
+// 같은 일을 한 줄로
+long sum2 = Arrays.stream(arr)
+    .parallel().sum();
 ```
+
+```text
+합(0..1억)
+├─ fork ─ 합(0..5천만)
+│          ├─ 합(0..2500만) ...
+│          └─ 합(2500만..5천만) ...
+└─ 직접 ─ 합(5천만..1억)
+           ├─ ...
+           └─ ...
+100만 개 이하가 되면 그냥 더한다
+```
+
+| 방식 | 1억 개 합 | 배속 | 왜 |
+|:-----|--------:|----:|:---|
+| 순차 루프 | 26 ms | 1.0 | 코어 하나 |
+| 포크/조인 | 7 ms | 3.7 | 코어 아홉이 조각을 나눠 더한다 |
+| 병렬 스트림 | 7 ms | 3.7 | 속은 같은 포크/조인 |
+
+반으로 쪼개고, 쪼갠 것을 또 반으로 쪼개다가 100만 개 이하가 되면 그냥 더한다. 조각들은 서로 독립이라(각자 자기 구간만 읽는다) 나란히 돌 수 있고, 통신은 마지막에 결과 둘을 더하는 것뿐이다. 코어 아홉을 썼는데 3.7배인 이유는 이 일이 계산이 아니라 **메모리 읽기**에 묶여 있기 때문이다. 8억 바이트를 읽는 속도는 코어 수가 아니라 메모리 대역폭이 정한다. 얼마나 잘게 쪼갤지(입도)와 파이프라인·맵리듀스의 모양은 [07](../07-task-decomposition)장에서 본다.
 
 ---
 
-## 6. 정리: 동시성의 핵심 개념
+## 6. 동시성의 도전 과제
 
-| 개념 | 설명 | 장점 |
-|:-----|:-----|:-----|
-| **동시 처리** | 여러 작업을 동시에 처리 | 전체 처리 시간 단축 |
-| **지연 시간 숨기기** | I/O 대기 중 다른 작업 수행 | 응답성 향상 |
-| **처리율 개선** | 단위 시간당 처리량 증가 | 더 많은 요청 처리 가능 |
-| **수평 확장** | 여러 서버에 부하 분산 | 무한한 확장 가능성 |
-| **문제 분해** | 복잡한 문제를 작은 단위로 분할 | 유지보수성, 확장성 향상 |
+| 문제 | 뜻 | 이 장에서 본 실물 | 어디서 다루나 |
+|:-----|:---|:--------------|:-----------|
+| 경쟁 조건 | 결과가 타이밍에 달린다 | ATM 1,000번 중 2번 음수 잔액 | [08](../08-race-conditions-and-synchronization)장 |
+| 교착 상태 | 서로가 서로를 기다려 아무도 못 움직인다 | 2절의 계좌가 둘이고 서로 이체하면 생긴다 | [09](../09-deadlock-and-starvation)장 |
+| 기아 상태 | 누군가 영원히 차례를 못 받는다 | 4절 분배기가 공정하지 않으면 | [09](../09-deadlock-and-starvation)장 |
+| 비결정성 | 돌릴 때마다 다르다 | 1,000번 중 2번. 재현이 안 된다 | 시리즈 전체 |
+| 비용 | 스레드, 스위칭, 동기화 | 스레드 32개가 10개보다 느렸다 | [06](../06-multitasking)장, [08](../08-race-conditions-and-synchronization)장 |
 
-### 동시성 프로그래밍의 도전 과제
+동시성의 이득은 전부 기다림을 겹치고 일을 나누는 데서 오고, 동시성의 문제는 전부 **공유**에서 온다. 계좌 하나를 ATM 열 대가 공유하고, `next` 하나를 요청 스레드들이 공유하고, 코어 열 개를 스레드 서른 개가 공유한다. 앞으로의 장은 이 두 축을 따라간다. 무엇으로 동시성을 만드는지(4~6장), 어떻게 나누는지(7장), 공유하면 무엇이 깨지고 어떻게 지키는지(8~9장), 그리고 스레드 없이 기다림을 겹치는 법(10~12장)이다.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    동시성의 어려움                           │
-├─────────────────────────────────────────────────────────────┤
-│ 1. 경쟁 조건 (Race Condition)                               │
-│    - 여러 스레드가 동시에 같은 자원에 접근                   │
-│                                                             │
-│ 2. 교착 상태 (Deadlock)                                     │
-│    - 스레드들이 서로의 자원을 기다리며 무한 대기             │
-│                                                             │
-│ 3. 기아 상태 (Starvation)                                   │
-│    - 특정 스레드가 영원히 자원을 얻지 못함                   │
-│                                                             │
-│ 4. 디버깅의 어려움                                          │
-│    - 비결정적 실행으로 버그 재현이 어려움                    │
-└─────────────────────────────────────────────────────────────┘
-```
+---
 
-이러한 도전 과제들은 이후 챕터에서 자세히 다룰 예정이다.
+## 핵심 정리
+
+| 개념 | 핵심 | 왜 |
+|:-----|:-----|:---|
+| 동시 시스템 | 진행 중인 일이 여럿 | 끝내기 전에 다른 일을 시작할 수 있다 |
+| 걸린 시간 | 순차는 합, 동시는 최댓값 | 다섯 요청 957ms가 458ms로 |
+| 동시성 vs 병렬성 | 다루는 구조 vs 같은 순간에 실행 | 코어 하나여도 동시성은 있다 |
+| 현실 모델링 | 세상이 동시적이라 프로그램도 | 대신 세상의 문제(공유)도 따라온다 |
+| 지연 시간 숨기기 | 기다리는 동안 다른 일 | 기다림은 그대로, 전체 시간이 준다 |
+| 리틀의 법칙 | 진행 중 = 처리율 × 지연 | 지연을 못 줄이면 진행 중을 늘린다 |
+| 처리율 | I/O는 스레드 수만큼, 계산은 코어 수까지 | 9.6→917개/초 vs 7.2배에서 정지 |
+| 활용도 | 같은 CPU 시간을 더 짧은 벽시계에 | 24%→96%→236% |
+| 수직 확장 | 서버를 키운다. 동시적 코드에만 효과 | 천장이 있다 |
+| 수평 확장 | 서버를 늘린다. 무상태와 통신이 조건 | 공유 상태가 네트워크 너머로 옮겨 간다 |
+| 분해 | 일이 다르면 일을, 같으면 데이터를 | 조건은 독립성과 통신 비용 |
+| 도전 과제 | 경쟁, 교착, 기아, 비결정성, 비용 | 전부 공유에서 온다 |
+
+{{< callout type="info" >}}
+**용어 정리**
+- **동시성**: 여러 일을 한꺼번에 다루는 구조. 진행 중인 일이 여럿인 상태
+- **병렬성**: 여러 일을 같은 순간에 실제로 실행하는 것. 코어가 여럿이어야
+- **지연 시간 / 처리율 / 활용도**: 일 하나의 시간 / 단위 시간의 일 수 / 자원이 일한 비율
+- **리틀의 법칙**: 진행 중인 일의 수 = 처리율 × 지연 시간
+- **I/O 바운드 / CPU 바운드**: 기다림이 대부분인 일 / 계산이 대부분인 일
+- **컨텍스트 스위칭**: 코어에 올라간 스레드를 바꾸는 것. 공짜가 아니다
+- **점검 후 행동**: 확인하고 행동하는 사이에 다른 스레드가 끼는 경쟁 조건의 모양
+- **수직 / 수평 확장**: 서버를 키운다 / 서버를 늘린다
+- **무상태**: 요청 안의 것만 보고 답하는 성질. 수평 확장의 조건
+- **작업 분해 / 데이터 분해**: 다른 일을 나눈다 / 같은 일을 데이터 조각으로 나눈다
+- **포크/조인**: 반으로 쪼개 맡기고(fork) 결과를 합친다(join)
+- **입도**: 얼마나 잘게 쪼개는가
+{{< /callout >}}
 
 ---
 
