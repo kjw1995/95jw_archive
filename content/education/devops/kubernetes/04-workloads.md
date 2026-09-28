@@ -4,7 +4,7 @@ date: 2026-04-23
 weight: 4
 ---
 
-[02. 핵심 개념](../02-core-concepts)에서 워크로드 종류를 훑고 Deployment가 ReplicaSet을 거쳐 파드를 다룬다는 것을 봤고, [03. 클러스터 구성](../03-cluster-setup)에서 그것을 돌릴 클러스터를 세웠다. 이 장은 그 위에서 애플리케이션을 배포하고, 바꾸고, 설정을 넣는 방법이다. 원리는 셋이다. 첫째, **매니페스트는 명령이 아니라 원하는 상태의 선언이고, 컨트롤러가 현재 상태를 거기에 맞춘다.** Deployment는 ReplicaSet에게 "몇 개"를 맡기고 ReplicaSet은 파드를 세며, 누가 누구 것인지는 라벨과 셀렉터가 정한다. 그래서 셀렉터와 템플릿 라벨이 어긋나면 API 서버가 받아 주지도 않는다. 둘째, **변경은 파드를 고치는 것이 아니라 새 파드로 바꾸는 것이다.** 파드 템플릿이 바뀌면 새 ReplicaSet이 생기고, 개수가 옛것에서 새것으로 옮겨 간다. 롤아웃, 롤백, 리비전이 모두 이 ReplicaSet 교체의 다른 이름이고, `maxSurge`와 `maxUnavailable`은 그 옮기는 속도다. 셋째, **설정과 비밀은 이미지 밖에 두고 파드가 뜰 때 주입한다.** 환경 변수는 시작할 때 한 번 읽히고, 볼륨은 kubelet이 계속 갱신하며, Secret은 base64로 적히고 메모리 파일 시스템에 놓인다. 이 PC의 Docker Desktop 위에 k3s 두 노드를 띄워 이 장의 롤아웃, 롤백, 일시 정지, 설정 갱신, 사이드카, 블루/그린과 카나리를 전부 실제로 돌려봤다.
+[02. 핵심 개념](../02-core-concepts)에서 워크로드 종류를 훑고 Deployment가 ReplicaSet을 거쳐 파드를 다룬다는 것을 봤고, [03. 클러스터 구성](../03-cluster-setup)에서 그것을 돌릴 클러스터를 세웠다. 이 장은 그 위에서 애플리케이션을 배포하고, 바꾸고, 설정을 넣는 방법이다. 원리는 셋이다. 첫째, **매니페스트는 명령이 아니라 원하는 상태의 선언이고, 컨트롤러가 현재 상태를 거기에 맞춘다.** Deployment는 ReplicaSet에게 "몇 개"를 맡기고 ReplicaSet은 파드를 세며, 누가 누구 것인지는 라벨과 셀렉터가 정한다. 그래서 셀렉터와 템플릿 라벨이 어긋나면 API 서버가 받아 주지도 않는다. 둘째, **변경은 파드를 고치는 것이 아니라 새 파드로 바꾸는 것이다.** 파드 템플릿이 바뀌면 새 ReplicaSet이 생기고, 개수가 옛것에서 새것으로 옮겨 간다. 롤아웃, 롤백, 리비전이 모두 이 ReplicaSet 교체의 다른 이름이고, `maxSurge`와 `maxUnavailable`은 그 옮기는 속도다. 셋째, **설정과 비밀은 이미지 밖에 두고 파드가 뜰 때 주입한다.** 환경 변수는 시작할 때 한 번 읽히고, 볼륨은 kubelet이 계속 갱신하며, Secret은 base64로 적히고 메모리 파일 시스템에 놓인다.
 
 ---
 
@@ -34,7 +34,7 @@ kubectl exec -it web-xxx -- sh
 
 명령형으로 시작해도 선언형으로 넘어갈 수 있다. `--dry-run=client -o yaml`을 붙이면 자원을 만들지 않고 매니페스트만 찍어 주므로, 골격을 받아 파일로 저장한 뒤 apply로 관리한다.
 
-이 PC에서 `kubectl get deployment web`이 보여 준 열이다.
+`kubectl get deployment web`이 보여 주는 열이다.
 
 ```text
 NAME  READY  UP-TO-DATE  AVAILABLE  AGE
@@ -44,7 +44,7 @@ web   3/3    3           3          28s
 | 열 | 뜻 | 왜 따로 있나 |
 |:---|:---|:-----------|
 | READY | 준비된 파드 / 원하는 파드 | 준비 검사(readiness)를 통과한 것만 센다 |
-| UP-TO-DATE | 최신 템플릿으로 뜬 파드 수 | 롤아웃 진행률. 8절의 잘못된 이미지에서는 READY 3/3인데 UP-TO-DATE 1이었다 |
+| UP-TO-DATE | 최신 템플릿으로 뜬 파드 수 | 롤아웃 진행률. 5절의 잘못된 이미지 예에서는 READY 3/3인데 UP-TO-DATE 1이다 |
 | AVAILABLE | 사용 가능한 파드 수 | READY에서 `minReadySeconds`를 넘긴 것 |
 | AGE | 생성 후 경과 시간 | |
 
@@ -94,7 +94,7 @@ spec:
         - containerPort: 80
 ```
 
-`selector`가 소유권이다. Deployment는 이 라벨을 가진 파드를 자기 것으로 세고, 템플릿은 그 라벨을 달고 파드를 만든다. 둘이 어긋나면 만든 파드를 자기 것으로 못 세니 성립할 수 없는 선언이고, API 서버는 그것을 받아 주지 않는다. 이 PC에서 셀렉터는 `app: bad`, 템플릿은 `app: other`로 apply하자 이렇게 거절됐다.
+`selector`가 소유권이다. Deployment는 이 라벨을 가진 파드를 자기 것으로 세고, 템플릿은 그 라벨을 달고 파드를 만든다. 둘이 어긋나면 만든 파드를 자기 것으로 못 세니 성립할 수 없는 선언이고, API 서버는 그것을 받아 주지 않는다. 셀렉터는 `app: bad`, 템플릿은 `app: other`로 apply하면 이렇게 거절된다.
 
 ```text
 The Deployment "bad" is invalid:
@@ -105,7 +105,7 @@ template `labels`
 ```
 
 {{< callout type="info" >}}
-원문은 어긋나면 "파드를 끝없이 생성한다"고 했는데, 그 일은 일어나지 않는다. `apps/v1`의 Deployment는 생성 시점에 검증에 걸리고, 이미 있는 Deployment의 `spec.selector`를 바꾸려 하면 `field is immutable`로 거절된다(이 PC에서 확인). 셀렉터를 바꾸고 싶으면 새 Deployment를 만든다. 끝없는 생성에 가까운 일은 다른 곳에서 난다. 돌고 있는 파드의 라벨을 손으로 바꾸면 ReplicaSet은 그 파드를 잃은 것으로 보고 하나를 더 만들고, 라벨을 뗀 파드는 고아로 남는다.
+원문은 어긋나면 "파드를 끝없이 생성한다"고 했는데, 그 일은 일어나지 않는다. `apps/v1`의 Deployment는 생성 시점에 검증에 걸리고, 이미 있는 Deployment의 `spec.selector`를 바꾸려 하면 `field is immutable`로 거절된다. 셀렉터를 바꾸고 싶으면 새 Deployment를 만든다. 끝없는 생성에 가까운 일은 다른 곳에서 난다. 돌고 있는 파드의 라벨을 손으로 바꾸면 ReplicaSet은 그 파드를 잃은 것으로 보고 하나를 더 만들고, 라벨을 뗀 파드는 고아로 남는다.
 {{< /callout >}}
 
 ---
@@ -169,11 +169,11 @@ kubectl delete rs my-rs \
   --cascade=orphan   # RS만 지우고 보존
 ```
 
-`--cascade=orphan`이 첫째 원리를 보여 준다. 이 PC에서 파드 2개짜리 ReplicaSet을 고아 삭제하자 파드 `rs-demo-rccqc`, `rs-demo-sqg4w`는 그대로 돌았고, 같은 셀렉터의 ReplicaSet을 다시 만들자 새 파드를 하나도 만들지 않고 그 둘을 다시 자기 것으로 셌다(READY 2/2). 소유는 이름이 아니라 라벨이 정하고, 컨트롤러는 "라벨이 맞는 파드가 몇 개인가"만 본다. 이 성질 덕에 Deployment를 지웠다가 다시 만들어도 파드를 이어받을 수 있다.
+`--cascade=orphan`이 첫째 원리를 보여 준다. 파드 2개짜리 ReplicaSet을 고아 삭제하면 파드는 그대로 돌고, 같은 셀렉터의 ReplicaSet을 다시 만들면 새 파드를 하나도 만들지 않고 그 둘을 다시 자기 것으로 센다(READY 2/2). 소유는 이름이 아니라 라벨이 정하고, 컨트롤러는 "라벨이 맞는 파드가 몇 개인가"만 본다. 이 성질 덕에 Deployment를 지웠다가 다시 만들어도 파드를 이어받을 수 있다.
 
 ### DaemonSet
 
-모든(또는 셀렉터로 고른) 노드에 파드 1개씩 둔다. 이 PC의 두 노드에서 DaemonSet 하나가 파드 2개가 됐고, 02장에서는 컨트롤 플레인 노드에 올리려면 toleration이 필요한 것도 봤다.
+모든(또는 셀렉터로 고른) 노드에 파드 1개씩 둔다. 노드 둘이면 DaemonSet 하나가 파드 2개가 되고, 02장에서 봤듯 컨트롤 플레인 노드에 올리려면 toleration이 필요하다.
 
 ```yaml
 apiVersion: apps/v1
@@ -200,14 +200,14 @@ spec:
 
 Job은 완주가 목표다. `completions`는 성공해야 하는 횟수, `parallelism`은 동시에 돌릴 파드 수, `backoffLimit`은 실패 허용 횟수(기본 6)다. 파드의 `restartPolicy`는 `Never`나 `OnFailure`만 허용된다. `Always`면 성공해도 다시 시작해 끝이 없기 때문이다.
 
-이 PC에서 두 Job을 돌렸다.
+두 Job의 예를 보자.
 
 | Job | 설정 | 결과 |
 |:----|:-----|:-----|
-| batch | `completions: 3`, `parallelism: 2`, 5초 잠자기 | 파드 2개가 먼저, 1개가 뒤에 돌아 3/3 완료, 36초 |
-| failing | `exit 1`, `backoffLimit: 2` | 파드 3개(첫 시도 + 재시도 2회)가 모두 Error, 54초 뒤 `Failed`, 이유 `BackoffLimitExceeded` |
+| batch | `completions: 3`, `parallelism: 2`, 5초 잠자기 | 파드 2개가 먼저, 1개가 뒤에 돌아 3/3 완료 |
+| failing | `exit 1`, `backoffLimit: 2` | 파드 3개(첫 시도 + 재시도 2회)가 모두 Error, 1분 남짓 뒤 `Failed`, 이유 `BackoffLimitExceeded` |
 
-재시도 파드의 시작 시각은 0초, 28초, 50초였다. 실패할수록 간격을 두는 지수 백오프(문서상 10초, 20초, 40초, 최대 6분)에 파드 기동 시간이 얹힌 값이다. 끝난 Job은 남아 있으므로 `ttlSecondsAfterFinished`를 주면 지정 시간 뒤 파드와 함께 지워진다.
+재시도는 실패할수록 간격을 두는 지수 백오프(10초, 20초, 40초, 최대 6분)를 따르고, 거기에 파드 기동 시간이 얹힌다. 끝난 Job은 남아 있으므로 `ttlSecondsAfterFinished`를 주면 지정 시간 뒤 파드와 함께 지워진다.
 
 CronJob은 Job을 스케줄마다 만든다. 02장에서 1분마다 도는 CronJob이 실제로 Job을 만드는 것을 봤다.
 
@@ -272,7 +272,7 @@ spec:
     type: Recreate
 ```
 
-이 PC에서 파드 3개짜리 Deployment의 이미지를 바꾸며 1초마다 준비된 파드 수를 셌다.
+파드 3개짜리 Deployment의 이미지를 바꾸며 준비된 파드 수를 초 단위로 세어 보면 이렇다.
 
 ```text
 t+1s  [v1×][v1×][v1×]   ready 0
@@ -281,7 +281,7 @@ t+5s  [v2][v2][v2]      ready 3
 (×: 종료 중, *: 준비 중)
 ```
 
-약 4초 동안 응답할 파드가 하나도 없었다. 이미지가 이미 노드에 있고 nginx가 1초 만에 뜨는 조건에서도 그렇고, 이미지를 새로 받아야 하면 그 시간이 그대로 다운타임이 된다.
+몇 초 동안 응답할 파드가 하나도 없다. 이미지가 이미 노드에 있고 컨테이너가 1초 만에 뜨는 조건에서도 그렇고, 이미지를 새로 받아야 하면 그 시간이 그대로 다운타임이 된다.
 
 ### RollingUpdate (기본)
 
@@ -296,7 +296,7 @@ spec:
       maxUnavailable: 0  # 모자라도 됨
 ```
 
-이 PC에서 `maxSurge: 1`, `maxUnavailable: 0`, 파드 3개, 준비 검사 2초 조건으로 nginx 1.27을 1.28로 바꾸며 관찰한 것이다.
+`maxSurge: 1`, `maxUnavailable: 0`, 파드 3개, 준비 검사 2초 조건으로 이미지를 바꾸면 이런 순서로 교체된다.
 
 ```text
 t+1s   [v1][v1][v1] + [v2*]      4
@@ -307,12 +307,12 @@ t+31s  [v2][v2][v2]              3
 (*: 준비 중, ×: 종료 중)
 ```
 
-준비된 파드는 45초 동안 한 번도 3 아래로 내려가지 않았다. `maxUnavailable: 0`이 지켜진 것이다. 목록에 5개가 보인 순간은 종료 중인 파드가 아직 사라지지 않았을 때인데, 종료 중인 파드는 surge 계산에 들어가지 않으므로 규칙 위반이 아니다. 첫 새 파드가 준비되기까지 14초가 걸린 것은 노드가 1.28 이미지를 받는 시간이고, 그 뒤로는 한 개씩 12초 간격으로 교체됐다. 세 개를 바꾸는 데 31초, 하나당 이미지 기동과 준비 검사 두 번이 든 값이다.
+준비된 파드는 내내 3 아래로 내려가지 않는다. `maxUnavailable: 0`이 지켜지는 것이다. 목록에 5개가 보이는 순간은 종료 중인 파드가 아직 사라지지 않았을 때인데, 종료 중인 파드는 surge 계산에 들어가지 않으므로 규칙 위반이 아니다. 첫 새 파드가 준비되기까지 가장 오래 걸리는 것은 노드가 새 이미지를 받는 시간이고, 그 뒤로는 한 개씩 이미지 기동과 준비 검사만큼의 간격으로 교체된다.
 
 | maxSurge | maxUnavailable | 성격 | 왜 |
 |:---------|:--------------|:-----|:---|
 | 25% | 25% | 기본값, 균형 | 절대 수는 surge가 올림, unavailable이 내림이라 파드 3개면 surge 1, unavailable 0이 된다 |
-| 1 | 0 | 가용성 우선 | 위 실측. 항상 원하는 수 이상이 준비돼 있다 |
+| 1 | 0 | 가용성 우선 | 위 예. 항상 원하는 수 이상이 준비돼 있다 |
 | 0 | 1 | 자원 절약 | 노드에 여유 자원이 없을 때. 하나는 항상 비어 있다 |
 | 50% | 0 | 빠른 배포 + 무중단 | 절반씩 교체. 자원이 1.5배 필요 |
 
@@ -326,8 +326,8 @@ t+31s  [v2][v2][v2]              3
 
 둘 다 Deployment 하나의 전략이 아니라 Deployment 둘과 Service로 만드는 구성이다. 트래픽을 나누는 것은 Service의 셀렉터([07](../07-networking)장 3절)다.
 
-- **Blue/Green**: v1(blue)과 v2(green)을 다 띄워 놓고 Service의 `selector`만 바꿔 트래픽을 한 번에 옮긴다. 이 PC에서 `version: blue`를 가리키던 Service를 `green`으로 패치하자 다음 요청부터 여섯 번 모두 green이 답했다. 엔드포인트가 즉시 바뀌므로 돌아가는 것도 패치 한 번이다. 대가는 두 배의 자원이다.
-- **Canary**: 일부 트래픽만 v2로 보내 본다. 같은 라벨 `app: cn`에 stable 3개, canary 1개를 두고 Service가 `app: cn`을 고르게 하자 40번 요청 중 29번이 stable, 11번이 canary였다. 비율이 파드 수로 정해지므로 1%를 보내려면 파드 100개가 필요하다. 정밀한 비율은 Ingress나 Gateway API(07장 8절과 9절), 서비스 메시(07장 11절)가 한다.
+- **Blue/Green**: v1(blue)과 v2(green)을 다 띄워 놓고 Service의 `selector`만 바꿔 트래픽을 한 번에 옮긴다. `version: blue`를 가리키던 Service를 `green`으로 패치하면 다음 요청부터 green이 답한다. 엔드포인트가 즉시 바뀌므로 돌아가는 것도 패치 한 번이다. 대가는 두 배의 자원이다.
+- **Canary**: 일부 트래픽만 v2로 보내 본다. 같은 라벨 `app: cn`에 stable 3개, canary 1개를 두고 Service가 `app: cn`을 고르게 하면 요청의 약 4분의 1이 canary로 간다. 비율이 파드 수로 정해지므로 1%를 보내려면 파드 100개가 필요하다. 정밀한 비율은 Ingress나 Gateway API(07장 8절과 9절), 서비스 메시(07장 11절)가 한다.
 
 ```bash
 kubectl patch service bg -p \
@@ -357,7 +357,7 @@ kubectl rollout history deployment/web \
   --revision=2
 ```
 
-이력의 CHANGE-CAUSE 열은 Deployment의 `kubernetes.io/change-cause` 어노테이션을 ReplicaSet에 복사한 것이다. 예전의 `--record` 플래그는 도움말에서 사라진 숨은 플래그라 쓰지 않고, 어노테이션을 직접 단다. 순서에 함정이 있다. 어노테이션은 **그 순간 최신인 ReplicaSet**에 복사되므로, 어노테이션을 먼저 달고 이미지를 바꾸면 옛 리비전에 새 설명이 붙는다. 이 PC에서 그렇게 했더니 리비전 1과 2가 둘 다 "nginx 1.28"로 찍혔다. 이미지와 어노테이션을 파일에서 함께 바꿔 한 번에 apply하는 것이 맞다.
+이력의 CHANGE-CAUSE 열은 Deployment의 `kubernetes.io/change-cause` 어노테이션을 ReplicaSet에 복사한 것이다. 예전의 `--record` 플래그는 도움말에서 사라진 숨은 플래그라 쓰지 않고, 어노테이션을 직접 단다. 순서에 함정이 있다. 어노테이션은 **그 순간 최신인 ReplicaSet**에 복사되므로, 어노테이션을 먼저 달고 이미지를 바꾸면 옛 리비전에 새 설명이 붙는다. 그렇게 하면 리비전 1과 2가 둘 다 "nginx 1.28"로 찍히는 식이다. 이미지와 어노테이션을 파일에서 함께 바꿔 한 번에 apply하는 것이 맞다.
 
 ### 이미지 업데이트
 
@@ -375,15 +375,15 @@ kubectl edit deployment web
 
 ### 잘못된 이미지를 배포하면
 
-둘째 원리가 롤아웃을 안전하게 만든다. 이 PC에서 존재하지 않는 `nginx:9.99-alpine`으로 바꾸고 `progressDeadlineSeconds: 45`를 두었다.
+둘째 원리가 롤아웃을 안전하게 만든다. 존재하지 않는 `nginx:9.99-alpine`으로 바꾸고 `progressDeadlineSeconds: 45`를 두면 이렇게 진행된다.
 
 | 시점 | 관찰 |
 |:-----|:-----|
-| 12초 | 파드 4개: Running 3(옛 1.28) + ErrImagePull 1. `kubectl get deployment`는 READY 3/3, UP-TO-DATE 1, AVAILABLE 3 |
+| 직후 | 파드 4개: Running 3(옛 1.28) + ErrImagePull 1. `kubectl get deployment`는 READY 3/3, UP-TO-DATE 1, AVAILABLE 3 |
 | 내내 | Service로 보낸 요청은 전부 옛 파드가 정상 응답 |
-| 52초 | `rollout status`가 "exceeded its progress deadline"으로 끝남. 조건은 `Available=True`, `Progressing=False, ProgressDeadlineExceeded` |
+| 45초 뒤 | `rollout status`가 "exceeded its progress deadline"으로 끝남. 조건은 `Available=True`, `Progressing=False, ProgressDeadlineExceeded` |
 
-`maxUnavailable: 0`이라 옛 파드는 새 파드가 준비되기 전까지 하나도 내려가지 않았고, 새 파드는 준비될 수 없으니 롤아웃이 거기서 멈췄다. 서비스는 멀쩡했다. `progressDeadlineSeconds`(기본 600)는 이 멈춤을 "실패"로 보고하는 시한이고, 컨트롤러는 그 뒤에도 계속 시도한다. 사람이 `undo`를 하거나 파일을 고쳐 apply하면 된다. 이미지 이름 오타는 [14](../14-troubleshooting)장 5절의 ImagePullBackOff가 된다.
+`maxUnavailable: 0`이라 옛 파드는 새 파드가 준비되기 전까지 하나도 내려가지 않고, 새 파드는 준비될 수 없으니 롤아웃이 거기서 멈춘다. 서비스는 멀쩡하다. `progressDeadlineSeconds`(기본 600)는 이 멈춤을 "실패"로 보고하는 시한이고, 컨트롤러는 그 뒤에도 계속 시도한다. 사람이 `undo`를 하거나 파일을 고쳐 apply하면 된다. 이미지 이름 오타는 [14](../14-troubleshooting)장 5절의 ImagePullBackOff가 된다.
 
 ### 롤백과 일시 정지
 
@@ -400,16 +400,16 @@ kubectl rollout pause  deployment/web
 kubectl rollout resume deployment/web
 ```
 
-이 PC의 롤백 기록이다. 9.99에서 `undo`하자 이미지가 1.28로 돌아왔고 이력에서 리비전 2가 사라지고 4가 생겼다. 다시 `--to-revision=1`로 가자 1.27이 되며 리비전 1이 사라지고 5가 생겼다. 롤백한 리비전은 새 리비전이 되고, 그 템플릿의 ReplicaSet은 하나뿐이니 옛 번호가 사라지는 것이다. 보관하는 옛 ReplicaSet 개수는 `revisionHistoryLimit`(기본 10)이고, 이 PC에서 5로 두어 ReplicaSet 3개(1.27, 1.28, 9.99)가 남았다.
+위 그림의 롤백 순서다. 9.99에서 `undo`하면 이미지가 1.28로 돌아오고 이력에서 리비전 2가 사라지고 4가 생긴다. 다시 `--to-revision=1`로 가면 1.27이 되며 리비전 1이 사라지고 5가 생긴다. 롤백한 리비전은 새 리비전이 되고, 그 템플릿의 ReplicaSet은 하나뿐이니 옛 번호가 사라지는 것이다. 보관하는 옛 ReplicaSet 개수는 `revisionHistoryLimit`(기본 10)이고, 5로 두면 이 예에서 ReplicaSet 3개(1.27, 1.28, 9.99)가 남는다.
 
 ```yaml
 spec:
   revisionHistoryLimit: 5
 ```
 
-`undo`는 경고를 하나 찍었다. 롤백은 `kubectl.kubernetes.io/last-applied-configuration` 어노테이션을 건드리지 않으므로, 다음 `kubectl apply`가 파일과 클러스터의 차이를 잘못 계산할 수 있다는 것이다. 파일로 관리하는 클러스터라면 롤백도 파일을 되돌려 apply하는 것이 맞고, `undo`는 응급용이다.
+`undo`는 경고를 하나 찍는다. 롤백은 `kubectl.kubernetes.io/last-applied-configuration` 어노테이션을 건드리지 않으므로, 다음 `kubectl apply`가 파일과 클러스터의 차이를 잘못 계산할 수 있다는 것이다. 파일로 관리하는 클러스터라면 롤백도 파일을 되돌려 apply하는 것이 맞고, `undo`는 응급용이다.
 
-일시 정지도 봤다. `pause` 뒤에 이미지를 1.28로 바꾸고 4개로 늘리자, 스케일은 즉시 적용되어 옛 이미지 파드가 4개가 됐지만 UP-TO-DATE는 0이었고 조건은 `DeploymentPaused`였다. `resume`하자 그때 롤아웃이 시작됐다. 여러 필드를 고치면서 롤아웃을 한 번만 일으키고 싶을 때 쓴다.
+일시 정지는 이렇게 동작한다. `pause` 뒤에 이미지를 1.28로 바꾸고 4개로 늘리면, 스케일은 즉시 적용되어 옛 이미지 파드가 4개가 되지만 UP-TO-DATE는 0이고 조건은 `DeploymentPaused`다. `resume`하면 그때 롤아웃이 시작된다. 여러 필드를 고치면서 롤아웃을 한 번만 일으키고 싶을 때 쓴다.
 
 ---
 
@@ -422,16 +422,16 @@ spec:
 | ENTRYPOINT | `command` | 실행 프로그램 |
 | CMD | `args` | 인자 |
 
-네 경우를 이 PC에서 파드 넷으로 확인했다.
+네 경우를 나누면 이렇다.
 
-| command | args | 실행되는 것 | 실측 |
+| command | args | 실행되는 것 | 예 |
 |:--------|:-----|:-----------|:-----|
 | 없음 | 없음 | 이미지의 ENTRYPOINT + CMD | nginx가 그냥 뜬다 |
-| 없음 | `["nginx", "-v"]` | 이미지 ENTRYPOINT + 내 args | nginx 이미지의 진입 스크립트가 먼저 돌고 `nginx -v`를 실행했다 |
+| 없음 | `["nginx", "-v"]` | 이미지 ENTRYPOINT + 내 args | nginx 이미지의 진입 스크립트가 먼저 돌고 `nginx -v`를 실행한다 |
 | `["sh", "-c", "echo hi"]` | 없음 | 내 command만, CMD는 버려진다 | `hi from command` |
 | `["echo"]` | `["from", "args"]` | 내 command + 내 args | `from args` |
 
-busybox처럼 ENTRYPOINT가 없는 이미지에서 `args`만 주면 그 args가 곧 명령이 된다(`echo busybox args only`가 그대로 출력됐다). 그래서 "args만 주면 안전하다"는 이미지에 따라 다르다. 만들어진 뒤에는 둘 다 바꿀 수 없다. 파드는 불변이고 바꾸려면 새 파드다.
+busybox처럼 ENTRYPOINT가 없는 이미지에서 `args`만 주면 그 args가 곧 명령이 된다(`args: ["echo", "hi"]`면 `hi`가 그대로 출력된다). 그래서 "args만 주면 안전하다"는 이미지에 따라 다르다. 만들어진 뒤에는 둘 다 바꿀 수 없다. 파드는 불변이고 바꾸려면 새 파드다.
 
 ```yaml
 apiVersion: v1
@@ -500,12 +500,12 @@ env:
       resource: limits.memory
 ```
 
-이 PC의 파드가 찍은 값이다.
+파드 안에서 읽으면 이런 값이 온다.
 
 ```text
 POD_NAME=envdemo
 POD_IP=10.42.0.14
-NODE_NAME=k3s-lab
+NODE_NAME=node-1
 MEM_LIMIT=67108864
 ```
 
@@ -563,7 +563,7 @@ spec:
         name: app-config   # 모든 키
 ```
 
-`envFrom`은 키 이름이 곧 변수 이름이다. 이 PC에서 위 ConfigMap을 `envFrom`으로 넣자 `DB_HOST`, `LOG_LEVEL`과 함께 `application.properties=server.port=8080`까지 변수로 들어왔다. 1.34에서 GA가 된 완화된 이름 검증 덕에 점이 든 키도 거절되지 않는 것인데, 셸에서는 `$application.properties`로 읽을 수 없는 이름이라 쓸모는 없다. 파일 성격의 키는 볼륨으로 넣는다.
+`envFrom`은 키 이름이 곧 변수 이름이다. 위 ConfigMap을 `envFrom`으로 넣으면 `DB_HOST`, `LOG_LEVEL`과 함께 `application.properties=server.port=8080`까지 변수로 들어온다. 1.34에서 GA가 된 완화된 이름 검증 덕에 점이 든 키도 거절되지 않는 것인데, 셸에서는 `$application.properties`로 읽을 수 없는 이름이라 쓸모는 없다. 파일 성격의 키는 볼륨으로 넣는다.
 
 ### 사용: 볼륨 마운트
 
@@ -588,11 +588,11 @@ spec:
 | 주입 방식 | ConfigMap을 바꾸면 | 왜 |
 |:---------|:-----------------|:---|
 | `env`, `envFrom` | 바뀌지 않는다. 파드 재시작 필요 | 환경 변수는 프로세스 시작 시 한 번 만들어지는 것이라 커널이 바꿀 길이 없다 |
-| 볼륨 | kubelet이 갱신한다. 이 PC에서 30초 | kubelet이 주기 동기화마다 확인하고, 파일을 새 디렉터리에 쓴 뒤 심볼릭 링크를 바꿔 원자적으로 교체한다 |
+| 볼륨 | kubelet이 갱신한다. 수십 초에서 1~2분 | kubelet이 주기 동기화마다 확인하고, 파일을 새 디렉터리에 쓴 뒤 심볼릭 링크를 바꿔 원자적으로 교체한다 |
 | 볼륨 + `subPath` | 바뀌지 않는다 | 링크 교체 대신 파일 하나를 직접 마운트해서 링크가 바뀌어도 옛 파일을 본다 |
 | `immutable: true` | 바꿀 수 없다(다시 만들어야) | kubelet이 지켜보지 않아도 되므로 API 서버 부하가 줄고, 실수로 바뀌는 일이 없다 |
 
-이 PC에서 같은 ConfigMap을 세 방식으로 넣은 파드에 `msg: v1`을 `v2`로 패치했다. 30초 뒤 볼륨의 파일은 v2가 됐고, `subPath` 파일과 환경 변수는 끝까지 v1이었다. 마운트 디렉터리 안을 보면 `msg -> ..data/msg`처럼 파일이 링크이고, `..data`가 타임스탬프 디렉터리를 가리킨다. 갱신은 새 디렉터리를 만들고 `..data` 링크를 옮기는 것이라 앱이 읽는 도중에 반쪽 파일을 보는 일이 없다. 지연은 kubelet 동기화 주기(기본 1분)에 캐시 전파 시간이 더해진 값이라 "즉시"는 아니다. 앱이 파일 변경을 감지해 다시 읽는 코드가 없으면 갱신돼도 소용없다는 점도 기억한다.
+같은 ConfigMap을 세 방식으로 넣은 파드에 `msg: v1`을 `v2`로 패치하면, 잠시 뒤 볼륨의 파일은 v2가 되지만 `subPath` 파일과 환경 변수는 끝까지 v1이다. 마운트 디렉터리 안을 보면 `msg -> ..data/msg`처럼 파일이 링크이고, `..data`가 타임스탬프 디렉터리를 가리킨다. 갱신은 새 디렉터리를 만들고 `..data` 링크를 옮기는 것이라 앱이 읽는 도중에 반쪽 파일을 보는 일이 없다. 지연은 kubelet 동기화 주기(기본 1분)에 캐시 전파 시간이 더해진 값이라 "즉시"는 아니다. 앱이 파일 변경을 감지해 다시 읽는 코드가 없으면 갱신돼도 소용없다는 점도 기억한다.
 
 ---
 
@@ -601,7 +601,7 @@ spec:
 패스워드, API 키, 인증서 같은 민감 정보를 담는다. 값은 **base64로 인코딩**되어 저장되고 전달된다.
 
 {{< callout type="warning" >}}
-**base64는 암호화가 아니다.** 이 PC에서 `S3cr3t!`를 넣은 Secret을 `kubectl get secret -o jsonpath`로 읽으니 `UzNjcjN0IQ==`였고 `base64 -d` 한 줄로 원문이 나왔다. 공식 문서도 Secret이 기본으로는 etcd에 **암호화 없이** 저장된다고 적는다. 그래서 etcd 저장 시 암호화(kubeadm의 EncryptionConfiguration, k3s의 `--secrets-encryption`), Secret에 대한 RBAC 최소 권한([08](../08-security)장 4절), 저장소에 커밋하지 않기, Vault나 클라우드 시크릿 매니저 같은 외부 저장소를 함께 쓴다. base64를 쓰는 이유는 보안이 아니라 인증서 파일 같은 바이너리를 JSON에 담기 위해서다.
+**base64는 암호화가 아니다.** `S3cr3t!`를 넣은 Secret을 `kubectl get secret -o jsonpath`로 읽으면 `UzNjcjN0IQ==`이고 `base64 -d` 한 줄로 원문이 나온다. 공식 문서도 Secret이 기본으로는 etcd에 **암호화 없이** 저장된다고 적는다. 그래서 etcd 저장 시 암호화(kubeadm의 EncryptionConfiguration, k3s의 `--secrets-encryption`), Secret에 대한 RBAC 최소 권한([08](../08-security)장 4절), 저장소에 커밋하지 않기, Vault나 클라우드 시크릿 매니저 같은 외부 저장소를 함께 쓴다. base64를 쓰는 이유는 보안이 아니라 인증서 파일 같은 바이너리를 JSON에 담기 위해서다.
 {{< /callout >}}
 
 ### 생성
@@ -674,7 +674,7 @@ spec:
       defaultMode: 0400
 ```
 
-이 PC의 파드 안에서 확인한 것이다. 환경 변수 `DB_PASSWORD`와 파일 `/etc/sec/password`에 모두 평문 `S3cr3t!`가 있었고, 파일 권한은 `-r--------`(0400), 마운트의 파일 시스템은 **tmpfs**였다. Secret 볼륨은 메모리에만 놓여 노드 디스크에 남지 않는다. 그래서 파드가 떠 있는 노드의 메모리 덤프가 아니면 디스크에서 비밀을 건질 수 없다. 갱신 규칙은 ConfigMap과 같다. 환경 변수는 재시작 전까지 옛 값, 볼륨은 kubelet이 갱신, `subPath`는 갱신 없음, 크기는 1MiB까지.
+파드 안에서 보면 환경 변수와 마운트된 파일에 모두 평문이 들어 있고, 파일 권한은 `defaultMode`대로 `-r--------`(0400), 마운트의 파일 시스템은 **tmpfs**다. Secret 볼륨은 메모리에만 놓여 노드 디스크에 남지 않는다. 그래서 파드가 떠 있는 노드의 메모리 덤프가 아니면 디스크에서 비밀을 건질 수 없다. 갱신 규칙은 ConfigMap과 같다. 환경 변수는 재시작 전까지 옛 값, 볼륨은 kubelet이 갱신, `subPath`는 갱신 없음, 크기는 1MiB까지.
 
 ---
 
@@ -711,7 +711,7 @@ spec:
     image: my-app
 ```
 
-이 PC에서 init 둘(서비스 대기, 3초짜리 마이그레이션 흉내)을 가진 파드의 STATUS 열을 1초마다 봤다.
+init 둘(서비스 대기, 짧은 마이그레이션)을 가진 파드의 STATUS 열은 이렇게 바뀐다.
 
 ```text
 t+0s  0/1  Init:0/2   wait-db 실행 중
@@ -747,7 +747,7 @@ kubectl logs app -c wait-for-db  # init
 
 ### 사이드카를 쓰는 두 가지 방법
 
-원문의 방식은 `containers`에 컨테이너를 하나 더 두는 것이다. 이 PC의 02장 실험이 그것이다. 1.33에서 GA가 된 **네이티브 사이드카**는 `initContainers`에 두고 `restartPolicy: Always`를 준다. 이름과 달리 끝나지 않는 init이다.
+고전적인 방식은 `containers`에 컨테이너를 하나 더 두는 것이다. 02장의 사이드카 예가 그것이다. 1.33에서 GA가 된 **네이티브 사이드카**는 `initContainers`에 두고 `restartPolicy: Always`를 준다. 이름과 달리 끝나지 않는 init이다.
 
 ```yaml
 apiVersion: v1
@@ -785,7 +785,7 @@ spec:
 | `containers`에 추가 | 메인과 동시(순서 보장 없음) | 동시 | 사이드카가 안 끝나면 Job이 끝나지 않는다 | 파드의 컨테이너는 대등하다 |
 | `initContainers` + `restartPolicy: Always` | 메인보다 먼저, 준비되면 메인 시작 | 메인이 끝난 뒤 | 메인이 끝나면 함께 내려가 Job이 완료된다 | init 순서 규칙을 빌려 "먼저 뜨고 나중에 내려가는" 컨테이너를 만든 것 |
 
-이 PC에서 네이티브 사이드카 파드는 READY `2/2`로 떴고, `initContainerStatuses`의 상태가 `running`이었으며, `kubectl logs -c log-shipper`에 앱이 `emptyDir`에 쓴 줄이 그대로 흘러나왔다. 프록시 사이드카가 앱보다 늦게 떠서 앱의 첫 요청이 실패하는 옛 문제가 이 순서 보장으로 풀린다. 같은 파드 안에서는 `localhost`로 서로 부른다.
+네이티브 사이드카 파드는 READY `2/2`로 뜨고, `initContainerStatuses`의 상태가 `running`으로 남으며, `kubectl logs -c log-shipper`에 앱이 `emptyDir`에 쓴 줄이 그대로 흘러나온다. 프록시 사이드카가 앱보다 늦게 떠서 앱의 첫 요청이 실패하는 옛 문제가 이 순서 보장으로 풀린다. 같은 파드 안에서는 `localhost`로 서로 부른다.
 
 ---
 
@@ -806,7 +806,7 @@ kubectl autoscale deployment web \
   --cpu=50% --min=2 --max=5
 ```
 
-`--cpu-percent`는 deprecated이고 `--cpu=50%`를 쓴다(이 PC의 kubectl 1.36이 경고했다). HPA는 메트릭 API가 있어야 돈다. 이 PC의 k3s에는 metrics-server가 있어서 만들고 17초 뒤 `TARGETS`가 `cpu: 2%/50%`로 나왔다. 백분율의 분모는 컨테이너의 `resources.requests.cpu`라 requests가 없는 파드는 계산에서 빠진다. 원하는 개수는 `ceil(현재 개수 × 현재값 / 목표값)`이라 이 경우 `ceil(3 × 2/50) = 1`이지만 `--min=2`에 걸리고, 줄이는 쪽은 안정화 창 5분을 기다리므로 17초 뒤에도 3개였다. 상세 설정, 메트릭 종류, 튜닝은 [09](../09-observability)장 5절과 6절에서 본다.
+`--cpu-percent`는 deprecated이고 `--cpu=50%`를 쓴다. HPA는 메트릭 API가 있어야 돈다. metrics-server가 있으면 만들고 잠시 뒤 `TARGETS`가 `cpu: 2%/50%`처럼 채워지고, 없으면 `<unknown>`에 머문다. 백분율의 분모는 컨테이너의 `resources.requests.cpu`라 requests가 없는 파드는 계산에서 빠진다. 원하는 개수는 `ceil(현재 개수 × 현재값 / 목표값)`이라 위 경우 `ceil(3 × 2/50) = 1`이지만 `--min=2`에 걸리고, 줄이는 쪽은 안정화 창 5분을 기다리므로 당장은 3개 그대로다. 상세 설정, 메트릭 종류, 튜닝은 [09](../09-observability)장 5절과 6절에서 본다.
 
 ---
 
@@ -858,22 +858,14 @@ kubectl get events \
 | 매니페스트 | 원하는 상태의 선언. `apply`가 기본 | 컨트롤러가 맞추는 것이라 두 번 적용해도 같다 |
 | 셀렉터 | 소유권. 템플릿 라벨과 일치해야 하고 바꿀 수 없다 | 어긋나면 API 서버가 거절한다. 고아 파드도 라벨로 다시 거둔다 |
 | Deployment | ReplicaSet을 갈아 끼우며 롤아웃·롤백 | 파드는 고치지 않고 바꾼다 |
-| RollingUpdate | `maxSurge`/`maxUnavailable`로 속도와 가용성 | 이 PC에서 준비 파드가 3 아래로 내려간 적이 없다 |
-| Recreate | 전부 내리고 새로 | 약 4초의 빈 시간을 실측 |
+| RollingUpdate | `maxSurge`/`maxUnavailable`로 속도와 가용성 | `maxUnavailable: 0`이면 준비 파드가 원하는 수 아래로 내려가지 않는다 |
+| Recreate | 전부 내리고 새로 | 새 파드가 뜰 때까지 빈 시간이 생긴다 |
 | Rollback | `rollout undo`, 롤백한 리비전은 새 번호 | 리비전은 ReplicaSet이고 템플릿마다 하나다 |
 | 잘못된 이미지 | 옛 파드가 남고 새 파드만 멈춘다 | `maxUnavailable`이 옛것을 지킨다. `progressDeadlineSeconds`가 실패를 보고 |
-| ConfigMap | 설정을 이미지 밖으로 | env는 재시작 전까지 고정, 볼륨은 30초 뒤 갱신, subPath는 갱신 없음 |
+| ConfigMap | 설정을 이미지 밖으로 | env는 재시작 전까지 고정, 볼륨은 잠시 뒤 갱신, subPath는 갱신 없음 |
 | Secret | base64 + tmpfs, 암호화는 아님 | etcd 암호화와 RBAC은 따로 |
 | Init / 사이드카 | 먼저 끝나는 것 / 먼저 떠서 나중에 내려가는 것 | 1.33부터 `restartPolicy: Always`인 init이 사이드카 |
-| Blue/Green, Canary | Service 셀렉터 전환 / 파드 수 비율 | 40번 중 11번이 카나리로 갔다 |
-
-{{< callout type="warning" >}}
-**검증하지 못한 것**
-- 모든 실측은 k3s 두 노드, nginx와 busybox 같은 작은 이미지에서 한 것이다. 이미지가 크거나 준비 검사가 길면 롤아웃 시간과 Recreate의 빈 시간은 그만큼 늘어난다.
-- ConfigMap 볼륨 갱신 30초는 이 PC의 k3s 기본 설정(동기화 1분, watch 캐시)에서 한 번 잰 값이다. 클러스터 설정에 따라 최대 2분 가까이 걸릴 수 있다.
-- StatefulSet, VPA, Cluster Autoscaler, Ingress와 서비스 메시의 트래픽 분할, 외부 시크릿 저장소는 실행하지 않았고 해당 장으로 미룬다.
-- Job의 재시도 간격은 문서의 10초, 20초, 40초와 달리 28초, 22초로 잡혔다. 파드 기동 시간이 섞인 값이라 지수 증가를 직접 확인한 것은 아니다.
-{{< /callout >}}
+| Blue/Green, Canary | Service 셀렉터 전환 / 파드 수 비율 | 파드 3:1이면 요청도 약 3:1 |
 
 {{< callout type="info" >}}
 **용어 정리**
