@@ -4,7 +4,7 @@ date: 2026-04-23
 weight: 3
 ---
 
-[01. 입문](../01-introduction)에서 컨트롤 플레인과 워커의 역할을, [02. 핵심 개념](../02-core-concepts)에서 모든 컴포넌트가 API 서버 하나만 바라보며 각자 제 몫을 한다는 것을 봤다. 이 장은 그 구조를 실제 기계 위에 세우는 절차다. 원리는 셋이다. 첫째, **클러스터를 세운다는 것은 노드마다 런타임과 kubelet을 두고, 인증서와 kubeconfig로 API 서버에 등록시키는 일이다.** kubeadm의 init과 join은 그 절차의 자동화이고, 무슨 도구를 쓰든 결과물은 같다. PKI 디렉터리 하나, kubeconfig 몇 개, 정적 파드 매니페스트 네 개, 그리고 조인 토큰. 둘째, **고가용성은 상태와 결정을 따로 본다.** 상태는 etcd에 있고 과반수가 살아야 쓸 수 있다. 결정은 컨트롤러와 스케줄러가 하는데 리스로 한 대만 일한다. API 서버는 상태가 없어 몇 대를 두어도 상관없다. 셋째, **설치 방법의 선택은 "컨트롤 플레인을 누가 운영하는가"의 문제다.** 학습이면 컨테이너 하나가 컨트롤 플레인이고, 운영이면 kubeadm으로 세 대를 세우거나 클라우드에 맡긴다. 이 PC의 Docker Desktop 위에서 k3s로 서버 1대와 에이전트 1대, 서버 3대와 HAProxy, 그리고 etcd 3대를 실제로 띄우고 죽여 봤고, kubeadm v1.34.1은 컨테이너 안에서 오프라인 단계만 돌려 인증서와 kubeconfig와 매니페스트를 직접 열어 봤다.
+[01. 입문](../01-introduction)에서 컨트롤 플레인과 워커의 역할을, [02. 핵심 개념](../02-core-concepts)에서 모든 컴포넌트가 API 서버 하나만 바라보며 각자 제 몫을 한다는 것을 봤다. 이 장은 그 구조를 실제 기계 위에 세우는 절차다. 원리는 셋이다. 첫째, **클러스터를 세운다는 것은 노드마다 런타임과 kubelet을 두고, 인증서와 kubeconfig로 API 서버에 등록시키는 일이다.** kubeadm의 init과 join은 그 절차의 자동화이고, 무슨 도구를 쓰든 결과물은 같다. PKI 디렉터리 하나, kubeconfig 몇 개, 정적 파드 매니페스트 네 개, 그리고 조인 토큰. 둘째, **고가용성은 상태와 결정을 따로 본다.** 상태는 etcd에 있고 과반수가 살아야 쓸 수 있다. 결정은 컨트롤러와 스케줄러가 하는데 리스로 한 대만 일한다. API 서버는 상태가 없어 몇 대를 두어도 상관없다. 셋째, **설치 방법의 선택은 "컨트롤 플레인을 누가 운영하는가"의 문제다.** 학습이면 컨테이너 하나가 컨트롤 플레인이고, 운영이면 kubeadm으로 세 대를 세우거나 클라우드에 맡긴다.
 
 ---
 
@@ -36,10 +36,10 @@ weight: 3
 |:-----|:---------------|:-----|:---------|
 | **Minikube** | VM 또는 Docker 드라이버 위에 노드 하나 | 단일(다중 가능) | 공식 학습 도구, 애드온 명령이 많다 |
 | **kind** | Docker 컨테이너 하나가 노드 하나(Kubernetes IN Docker) | 단일/다중 | 노드 여러 개를 설정 파일 하나로, CI에서 쓰기 좋다 |
-| **k3s** | 컨트롤 플레인 전체가 바이너리 하나, 기본 저장소는 SQLite | 단일/다중 | 가장 가볍다. 이 PC에서 서버 502MB, 에이전트 158MB |
+| **k3s** | 컨트롤 플레인 전체가 바이너리 하나, 기본 저장소는 SQLite | 단일/다중 | 가장 가볍다. 서버 프로세스가 500MB 안팎, 에이전트는 200MB 아래로 돈다 |
 | **Docker Desktop** | 설정의 토글 하나로 켜는 단일 노드 | 단일 | 이미 Docker를 쓰면 설치가 없다 |
 
-이 시리즈가 k3s를 고른 이유는 셋째 원리의 학습 쪽 극단이기 때문이다. 컨테이너 하나가 노드 하나여서 `docker run` 두 번이면 2노드 클러스터가 되고, `docker stop`으로 노드 장애를 흉내 낼 수 있다. 02장에서 컨테이너 하나가 13초 만에 Ready가 됐고, 이 장에서는 에이전트 노드가 서버에 붙는 데 9초가 걸렸다. 무엇을 골라도 결과물은 첫째 원리의 그것이다. kubeconfig 하나를 받아 `kubectl`이 붙으면 그 뒤의 장들은 도구와 무관하다.
+이 시리즈가 k3s를 고른 이유는 셋째 원리의 학습 쪽 극단이기 때문이다. 컨테이너 하나가 노드 하나여서 `docker run` 두 번이면 2노드 클러스터가 되고, `docker stop`으로 노드 장애를 흉내 낼 수 있다. 서버 컨테이너 하나가 십여 초 만에 Ready가 되고, 에이전트 노드는 이미지만 있으면 몇 초 만에 붙는다. 무엇을 골라도 결과물은 첫째 원리의 그것이다. kubeconfig 하나를 받아 `kubectl`이 붙으면 그 뒤의 장들은 도구와 무관하다.
 
 ### 1.3 자체 운영 vs 관리형
 
@@ -139,11 +139,11 @@ weight: 3
 
 순서에 이유가 있다. kubelet은 런타임이 있어야 컨테이너를 띄우고(2), kubeadm은 kubelet이 있어야 정적 파드를 맡길 수 있고(3→4), CNI가 있어야 노드가 Ready가 되고(5), 노드가 Ready여야 워커를 붙일 의미가 있다(6). 3절부터 9절이 이 상자 하나씩이다.
 
-### 2.3 이 PC에서 본 kubeadm
+### 2.3 kubeadm이 가져오는 것
 
-kubeadm은 클러스터 없이도 많은 단계를 실행할 수 있다. alpine 컨테이너에 v1.34.1 바이너리를 받아 돌려 봤다. `kubeadm config images list`가 보여 준 것은 컨트롤 플레인이 "이미지 일곱 개"라는 사실이다.
+kubeadm은 클러스터 없이도 많은 단계를 실행할 수 있다. `kubeadm config images list`가 보여 주는 것은 컨트롤 플레인이 "이미지 일곱 개"라는 사실이다(v1.34 기준).
 
-| 이미지 | 태그(실측) | 왜 필요한가 |
+| 이미지 | 태그(v1.34) | 왜 필요한가 |
 |:------|:----------|:-----------|
 | kube-apiserver, kube-controller-manager, kube-scheduler | v1.34.11 | 컨트롤 플레인 세 개는 정적 파드로 뜬다 |
 | kube-proxy | v1.34.11 | 노드마다 DaemonSet으로 뜬다(02장) |
@@ -151,7 +151,7 @@ kubeadm은 클러스터 없이도 많은 단계를 실행할 수 있다. alpine 
 | pause | 3.10.1 | 파드의 네트워크 네임스페이스를 잡아 두는 샌드박스 컨테이너(02장) |
 | etcd | 3.6.4-0 | 스택 토폴로지의 로컬 etcd(10장) |
 
-바이너리는 v1.34.1인데 이미지 태그가 v1.34.11인 이유가 있다. `--kubernetes-version`을 주지 않으면 kubeadm은 그 마이너의 최신 패치를 온라인으로 물어본다. 그래서 오프라인 설치는 버전을 반드시 고정해야 하고, `init-defaults`가 찍어 준 `kubernetesVersion: 1.34.0`은 조회에 실패했을 때의 정적 기본값일 뿐이다.
+kubeadm 바이너리가 v1.34.1이어도 이미지 태그가 v1.34.11처럼 더 높을 수 있는 이유가 있다. `--kubernetes-version`을 주지 않으면 kubeadm은 그 마이너의 최신 패치를 온라인으로 물어본다. 그래서 오프라인 설치는 버전을 반드시 고정해야 하고, `init-defaults`가 찍어 준 `kubernetesVersion: 1.34.0`은 조회에 실패했을 때의 정적 기본값일 뿐이다.
 
 ---
 
@@ -164,7 +164,7 @@ kubeadm은 클러스터 없이도 많은 단계를 실행할 수 있다. alpine 
 | 컨트롤 플레인 | 2 CPU, 2GB | 4 CPU, 8GB, SSD | etcd가 디스크 fsync 지연에 민감하고(11장), API 서버 부하는 노드와 파드 수에 비례한다 |
 | 워커 | 2GB(그보다 적으면 앱 자리가 없다) | 워크로드에 따라 | kubelet, kube-proxy, 런타임이 먼저 수백 MB를 쓴다 |
 
-공식 문서의 최소값은 "2GB 이상, 컨트롤 플레인은 2 CPU 이상"이다. 실측은 훨씬 아래에서도 돈다. 이 PC의 k3s 서버 컨테이너는 파드 여덟 개를 얹은 채 502MiB, 에이전트는 158MiB였고, 3대 HA의 서버들은 370~490MiB, HAProxy는 76MiB였다. k3s가 컴포넌트를 한 프로세스에 묶고 저장소를 내장한 결과지 kubeadm 클러스터의 수치는 아니다. 사이징의 나머지는 13절에서 본다.
+공식 문서의 최소값은 "2GB 이상, 컨트롤 플레인은 2 CPU 이상"이다. 실제로는 훨씬 아래에서도 돈다. k3s 서버 프로세스는 파드 몇 개를 얹은 채 500MiB 안팎, 에이전트는 200MiB 아래, 3대 HA의 서버들도 각 500MiB 아래에서 돈다. k3s가 컴포넌트를 한 프로세스에 묶고 저장소를 내장한 결과지 kubeadm 클러스터의 수치는 아니다. 사이징의 나머지는 13절에서 본다.
 
 ### 3.2 노드 요구사항
 
@@ -176,7 +176,7 @@ kubeadm은 클러스터 없이도 많은 단계를 실행할 수 있다. alpine 
 | 포트 개방 | 3.3 표 | 컴포넌트 사이의 모든 통신이 TCP 포트다 |
 | 스왑 | `swapon --show` | kubelet 기본값 `failSwapOn: true`라 스왑이 있으면 시작을 거부한다 |
 
-스왑은 원문의 "반드시 비활성화"에서 한 발 물러났다. 왜 원래 금지였는지부터 보자. 스케줄러는 메모리 requests로 배치를 정하고 kubelet은 limits를 넘긴 컨테이너를 OOM으로 죽이는데, 스왑이 끼면 "메모리가 모자란다"는 신호가 늦어져 그 계산이 어긋난다. 그래서 kubelet은 스왑을 보면 시작하지 않는 것이 기본값이다. 다만 1.22에 알파로 들어온 NodeSwap이 1.34에서 GA가 되어, cgroup v2 노드에서는 `failSwapOn: false`와 `swapBehavior: LimitedSwap`을 주고 스왑을 쓰는 것이 공식 지원이 됐다. 기본값 `NoSwap`은 kubelet은 뜨되 파드는 스왑을 못 쓰게 한다. 이 PC의 WSL2 커널에는 4GB 스왑(`/dev/sdc`)이 있었고, k3s는 kubelet 설정에 `failSwapOn: false`를 넣어 두기 때문에 그 위에서 아무 불평 없이 떴다. kubeadm 클러스터라면 3.4의 `swapoff`를 하거나 kubelet 설정을 바꿔야 한다.
+스왑은 원문의 "반드시 비활성화"에서 한 발 물러났다. 왜 원래 금지였는지부터 보자. 스케줄러는 메모리 requests로 배치를 정하고 kubelet은 limits를 넘긴 컨테이너를 OOM으로 죽이는데, 스왑이 끼면 "메모리가 모자란다"는 신호가 늦어져 그 계산이 어긋난다. 그래서 kubelet은 스왑을 보면 시작하지 않는 것이 기본값이다. 다만 1.22에 알파로 들어온 NodeSwap이 1.34에서 GA가 되어, cgroup v2 노드에서는 `failSwapOn: false`와 `swapBehavior: LimitedSwap`을 주고 스왑을 쓰는 것이 공식 지원이 됐다. 기본값 `NoSwap`은 kubelet은 뜨되 파드는 스왑을 못 쓰게 한다. k3s는 kubelet 설정에 `failSwapOn: false`를 넣어 두기 때문에 스왑이 있는 호스트에서도 그대로 뜬다. kubeadm 클러스터라면 3.4의 `swapoff`를 하거나 kubelet 설정을 바꿔야 한다.
 
 ### 3.3 필수 포트
 
@@ -200,9 +200,9 @@ kubeadm은 클러스터 없이도 많은 단계를 실행할 수 있다. alpine 
 
 여기에 CNI가 쓰는 포트가 더해진다. Flannel과 Cilium의 VXLAN은 UDP 8472, Calico의 BGP는 TCP 179다. 기본 포트는 전부 바꿀 수 있고, API 서버 앞에 443으로 듣는 로드밸런서를 두는 구성도 흔하다.
 
-이 PC의 k3s 노드에서 LISTEN 상태의 TCP 포트를 `/proc/net/tcp`로 읽어 보니 표와 맞았다.
+k3s 노드에서 LISTEN 상태의 TCP 포트를 `/proc/net/tcp`로 읽어 보면 표와 맞는다.
 
-| 노드 | 실측 LISTEN 포트 | 뜻 |
+| 노드 | LISTEN 포트 | 뜻 |
 |:-----|:---------------|:---|
 | k3s 서버(단일) | 6443, 10250, 10257, 10259, 10256, 10248, 10249, 10010, 6444 | API 서버, kubelet, controller-manager, scheduler, kube-proxy 헬스체크, kubelet 헬스체크, kube-proxy 메트릭, containerd 스트리밍, k3s 내부 포트 |
 | k3s 에이전트 | 10250, 10256, 10248, 10249, 10010, 6444 | 컨트롤 플레인 포트가 하나도 없다 |
@@ -244,13 +244,13 @@ sudo sysctl --system
 | `br_netfilter` + `bridge-nf-call-iptables=1` | 같은 노드의 파드끼리 브리지(Flannel의 `cni0`)로 오가는 트래픽도 iptables를 지나야 kube-proxy 규칙과 NetworkPolicy가 먹는다 |
 | `ip_forward=1` | 노드가 파드의 veth와 바깥 NIC 사이에서 패킷을 중계하는 라우터다 |
 
-이 PC의 k3s 노드 안에서 `ip_forward`와 `bridge-nf-call-iptables`는 둘 다 1이었다. k3s가 켜 준 것이 아니라 WSL2 커널이 그렇게 떠 있었는데, 어느 쪽이든 없으면 파드 통신이 끊긴다.
+많은 배포판 커널이 `ip_forward`를 기본으로 켜 두지만 전제하지 말고 위처럼 명시한다. 어느 쪽이든 없으면 파드 통신이 끊긴다.
 
 ---
 
 ## 4. Container Runtime 설치
 
-01장 4절에서 봤듯 1.24부터 dockershim이 빠져 kubelet은 CRI로 런타임과 말하고, 사실상의 표준은 containerd다. 이 PC의 Docker Desktop은 containerd v2.2.5, k3s가 내장한 것은 v2.1.4였다. 2.x가 이제 보통이라는 뜻이고, 설정 파일의 키 이름이 1.x와 다르다는 뜻이기도 하다.
+01장 4절에서 봤듯 1.24부터 dockershim이 빠져 kubelet은 CRI로 런타임과 말하고, 사실상의 표준은 containerd다. Docker Desktop과 k3s가 내장한 containerd도 2.x다. 2.x가 이제 보통이라는 뜻이고, 설정 파일의 키 이름이 1.x와 다르다는 뜻이기도 하다.
 
 ### 4.1 containerd 설치 (Ubuntu)
 
@@ -308,9 +308,9 @@ SystemdCgroup = true
 | 샌드박스 이미지 | `sandbox_image = "registry.k8s.io/pause:3.9"` | `pinned_images` 아래 `sandbox = '...pause:3.10.1'` | kubeadm 1.34가 쓰는 pause와 맞추면 경고가 사라진다 |
 | cgroup 드라이버 | runc options의 `SystemdCgroup` | 같은 키, 위치만 다름 | 아래 설명 |
 
-cgroup 드라이버는 "누가 cgroup 트리를 관리하나"의 문제다. systemd로 부팅한 호스트는 systemd가 cgroup을 관리하므로 kubelet과 런타임도 systemd 드라이버를 써야 자원 계산이 한 곳에서 이뤄진다. 공식 문서는 systemd 호스트에서 둘을 cgroupfs로 두면 부하 상황에서 노드가 불안정해진다고 적는다. 그런데 containerd의 기본 설정은 아직 `SystemdCgroup = false`다. 이 PC의 Docker Desktop containerd 2.2.5에 `containerd config default`를 시키자 `version = 3`, `sandbox = 'registry.k8s.io/pause:3.10.1'`, 그리고 `SystemdCgroup = false`가 나왔다. 위 `sed`가 그 줄을 바꾼다. k3s가 내장한 2.1.4 빌드는 그 줄을 아예 찍지 않았으므로, 없으면 직접 넣는다.
+cgroup 드라이버는 "누가 cgroup 트리를 관리하나"의 문제다. systemd로 부팅한 호스트는 systemd가 cgroup을 관리하므로 kubelet과 런타임도 systemd 드라이버를 써야 자원 계산이 한 곳에서 이뤄진다. 공식 문서는 systemd 호스트에서 둘을 cgroupfs로 두면 부하 상황에서 노드가 불안정해진다고 적는다. 그런데 containerd의 기본 설정은 아직 `SystemdCgroup = false`다. containerd 2.x에 `containerd config default`를 시키면 `version = 3`, `sandbox = 'registry.k8s.io/pause:3.10.1'`, 그리고 `SystemdCgroup = false`가 나온다. 위 `sed`가 그 줄을 바꾼다. 빌드에 따라 그 줄을 아예 찍지 않는 경우도 있으므로, 없으면 직접 넣는다.
 
-kubelet 쪽은 사정이 바뀌었다. kubeadm은 1.22부터 kubelet 기본값을 `cgroupDriver: systemd`로 두었고, 1.31부터는(1.34에서 GA) kubelet이 CRI의 RuntimeConfig 호출로 런타임에게 드라이버를 물어보고 그것을 따른다. 그래서 containerd 2.x와 1.34 이상의 조합에서는 "둘이 어긋나서 kubelet이 죽는" 옛 사고가 구조적으로 사라졌다. 이 PC의 k3s 노드는 systemd가 없는 컨테이너라 둘 다 cgroupfs였다. containerd의 `config.toml`에 `SystemdCgroup = false`, kubelet 설정 드롭인에 `cgroupDriver: cgroupfs`, `crictl info`에도 `"SystemdCgroup": false`. 어느 쪽이든 짝이 맞는 것이 요점이다.
+kubelet 쪽은 사정이 바뀌었다. kubeadm은 1.22부터 kubelet 기본값을 `cgroupDriver: systemd`로 두었고, 1.31부터는(1.34에서 GA) kubelet이 CRI의 RuntimeConfig 호출로 런타임에게 드라이버를 물어보고 그것을 따른다. 그래서 containerd 2.x와 1.34 이상의 조합에서는 "둘이 어긋나서 kubelet이 죽는" 옛 사고가 구조적으로 사라졌다. systemd가 없는 환경(컨테이너 안에서 도는 k3s 노드 같은)에서는 둘 다 cgroupfs가 된다. containerd의 `config.toml`에 `SystemdCgroup = false`, kubelet 설정에 `cgroupDriver: cgroupfs`, `crictl info`에도 `"SystemdCgroup": false`. 어느 쪽이든 짝이 맞는 것이 요점이다.
 
 {{< callout type="warning" >}}
 containerd 1.x처럼 RuntimeConfig를 지원하지 않는 런타임에서는 kubelet이 자기 설정값(kubeadm 기본 systemd)을 쓰므로, 런타임이 `SystemdCgroup = false`면 여전히 어긋난다. 증상은 kubelet 시작 실패나 파드가 뜨자마자 죽는 반복이다. systemd 호스트에서는 `SystemdCgroup = true`로 바꾸고 `systemctl restart containerd`를 한 뒤에 kubeadm을 돌린다. 이미 도는 노드의 드라이버를 바꾸는 것은 노드를 비우고(10장) 다시 조인하는 일이다.
@@ -354,7 +354,7 @@ sudo apt-mark hold \
 sudo systemctl enable --now kubelet
 ```
 
-저장소 주소에 마이너 버전이 들어가는 이유는 pkgs.k8s.io가 마이너마다 별도 저장소이기 때문이다. 다른 마이너로 올라가려면 이 주소부터 바꿔야 하고, 그래서 `apt-mark hold`로 세 패키지를 자동 업그레이드에서 뺀다. 쿠버네티스 업그레이드는 순서가 있는 일이지 `apt upgrade`가 할 일이 아니다(10장). 이 글의 실측은 v1.34.1로 했고 공식 문서의 현재 버전은 v1.37이다. 주소의 버전은 "설치하려는 마이너"로 고른다.
+저장소 주소에 마이너 버전이 들어가는 이유는 pkgs.k8s.io가 마이너마다 별도 저장소이기 때문이다. 다른 마이너로 올라가려면 이 주소부터 바꿔야 하고, 그래서 `apt-mark hold`로 세 패키지를 자동 업그레이드에서 뺀다. 쿠버네티스 업그레이드는 순서가 있는 일이지 `apt upgrade`가 할 일이 아니다(10장). 이 글의 예시는 v1.34이고 공식 문서의 현재 버전은 v1.37이다. 주소의 버전은 "설치하려는 마이너"로 고른다.
 
 `systemctl enable --now kubelet` 직후 kubelet은 몇 초마다 죽고 다시 뜬다. 정상이다. `/var/lib/kubelet/config.yaml`이 아직 없어서 kubeadm이 써 줄 때까지 기다리는 것이고, 6절의 `kubelet-start` 단계가 그 파일을 만든다.
 
@@ -388,7 +388,7 @@ sudo systemctl enable --now kubelet
 
 ### 5.3 버전 스큐
 
-kubectl은 서버와 마이너 버전 하나까지만 차이를 지원한다. 이 PC의 kubectl은 Docker Desktop이 넣어 준 1.36.1이고 k3s 서버는 1.34.1이어서 명령마다 경고가 붙었다.
+kubectl은 서버와 마이너 버전 하나까지만 차이를 지원한다. 예를 들어 kubectl이 1.36이고 서버가 1.34이면 명령마다 경고가 붙는다.
 
 ```text
 Client Version: v1.36.1
@@ -399,7 +399,7 @@ exceeds the supported minor version
 skew of +/-1
 ```
 
-동작은 했지만 보증 밖이다. kubelet은 API 서버보다 세 마이너까지 낮아도 되고, 절대 높으면 안 된다. 규칙 전체는 [10](../10-cluster-maintenance)장 4절에서 본다.
+동작은 하지만 보증 밖이다. kubelet은 API 서버보다 세 마이너까지 낮아도 되고, 절대 높으면 안 된다. 규칙 전체는 [10](../10-cluster-maintenance)장 4절에서 본다.
 
 ---
 
@@ -423,7 +423,7 @@ sudo kubeadm init \
 
 `kubeadm config print init-defaults`가 찍어 준 기본값과 함께 본다.
 
-| 옵션 | 기본값(실측) | 왜 |
+| 옵션 | 기본값 | 왜 |
 |:-----|:-----------|:---|
 | `--pod-network-cidr` | 없음(Flannel은 10.244.0.0/16을 기대) | 컨트롤러 매니저가 노드마다 /24를 잘라 주는 원본 대역. 7절에서 실물을 본다 |
 | `--service-cidr` | 10.96.0.0/12 | Service 가상 IP 대역. 첫 IP 10.96.0.1이 `kubernetes` Service다 |
@@ -457,7 +457,7 @@ addon              CoreDNS, kube-proxy
 show-join-command  join 명령 출력
 ```
 
-순서가 첫째 원리다. 인증서가 먼저고, 그것으로 kubeconfig를 만들고, 매니페스트를 쓴 다음에야 kubelet을 시작한다. 5절에서 재시작을 반복하던 kubelet은 이 `kubelet-start`에서 설정 파일을 받아 제대로 뜨고, `/etc/kubernetes/manifests`에 있는 정적 파드 매니페스트 네 개를 읽어 컨트롤 플레인을 띄운다. 이 PC의 컨테이너에서 `certs`, `kubeconfig`, `control-plane`, `etcd` 단계만 따로 돌렸을 때 나온 결과물이 다음이다.
+순서가 첫째 원리다. 인증서가 먼저고, 그것으로 kubeconfig를 만들고, 매니페스트를 쓴 다음에야 kubelet을 시작한다. 5절에서 재시작을 반복하던 kubelet은 이 `kubelet-start`에서 설정 파일을 받아 제대로 뜨고, `/etc/kubernetes/manifests`에 있는 정적 파드 매니페스트 네 개를 읽어 컨트롤 플레인을 띄운다. `certs`, `kubeconfig`, `control-plane`, `etcd` 단계를 따로 돌리면(`kubeadm init phase <단계>`) 다음 결과물이 남는다.
 
 ```text
 /etc/kubernetes/manifests/
@@ -473,7 +473,7 @@ show-join-command  join 명령 출력
   scheduler.conf
 ```
 
-정적 파드는 API 서버 없이 kubelet이 디렉터리를 보고 직접 띄우는 파드다([05](../05-scheduling)장 9절). API 서버 자신을 파드로 띄우려면 API 서버 없이도 뜨는 파드가 필요하고, 그것이 정적 파드인 것이다. 매니페스트 안의 플래그도 읽어 봤다. API 서버는 `--etcd-servers=https://127.0.0.1:2379`로 같은 노드의 etcd를 보고, `--service-cluster-ip-range=10.96.0.0/12`, `--authorization-mode=Node,RBAC`, `--secure-port=6443`이었다. 스케줄러에는 `--leader-elect=true`가 있었다. 10절의 리더 선출이 기본으로 켜져 있다는 뜻이다.
+정적 파드는 API 서버 없이 kubelet이 디렉터리를 보고 직접 띄우는 파드다([05](../05-scheduling)장 9절). API 서버 자신을 파드로 띄우려면 API 서버 없이도 뜨는 파드가 필요하고, 그것이 정적 파드인 것이다. 매니페스트 안의 플래그를 읽어 보면 API 서버는 `--etcd-servers=https://127.0.0.1:2379`로 같은 노드의 etcd를 보고, `--service-cluster-ip-range=10.96.0.0/12`, `--authorization-mode=Node,RBAC`, `--secure-port=6443`이 적혀 있다. 스케줄러에는 `--leader-elect=true`가 있다. 10절의 리더 선출이 기본으로 켜져 있다는 뜻이다.
 
 인증서는 CA 셋과 잎 인증서들로 나뉜다.
 
@@ -489,12 +489,12 @@ pki/
   sa.key, sa.pub         SA 토큰 서명 키
 ```
 
-| 인증서 | 만료(실측) | 왜 |
+| 인증서 | 만료 | 왜 |
 |:------|:----------|:---|
 | CA 셋(ca, etcd-ca, front-proxy-ca) | 10년 | 갈아 끼우려면 모든 노드의 신뢰를 바꿔야 하므로 길게 |
 | 잎 인증서 전부와 *.conf 안의 클라이언트 인증서 | 1년 | 유출 피해를 제한하고, `kubeadm upgrade`가 매년 자동 갱신한다(14절) |
 
-`apiserver.crt`의 SAN에는 `kubernetes`, `kubernetes.default`, `kubernetes.default.svc`, `kubernetes.default.svc.cluster.local`, 노드 이름, 그리고 IP 10.96.0.1과 광고 주소가 들어 있었다. 10.96.0.1이 있는 이유는 파드 안에서 API 서버를 부를 때 `kubernetes` Service의 ClusterIP로 가기 때문이다. 이름이 하나라도 빠지면 그 경로의 TLS가 깨진다.
+`apiserver.crt`의 SAN에는 `kubernetes`, `kubernetes.default`, `kubernetes.default.svc`, `kubernetes.default.svc.cluster.local`, 노드 이름, 그리고 IP 10.96.0.1과 광고 주소가 들어 있다. 10.96.0.1이 있는 이유는 파드 안에서 API 서버를 부를 때 `kubernetes` Service의 ClusterIP로 가기 때문이다. 이름이 하나라도 빠지면 그 경로의 TLS가 깨진다.
 
 ### 6.4 kubectl 설정
 
@@ -511,7 +511,7 @@ KUBECONFIG=/etc/kubernetes/admin.conf
 export KUBECONFIG
 ```
 
-`admin.conf` 안의 클라이언트 인증서 주체는 `O=kubeadm:cluster-admins, CN=kubernetes-admin`이었고, 옆에 `super-admin.conf`가 하나 더 있었다. 1.29부터의 구조다. 일상용 admin은 ClusterRoleBinding으로 권한을 받는 보통 그룹이어서 필요하면 회수할 수 있고, `system:masters` 그룹인 super-admin은 RBAC로도 막을 수 없는 비상 열쇠라 따로 둔다. k3s의 `k3s.yaml`은 아직 `O=system:masters, CN=system:admin`이었다. 인증서로 사람을 인증하는 이 방식은 [08](../08-security)장 2절에서 본다.
+`admin.conf` 안의 클라이언트 인증서 주체는 `O=kubeadm:cluster-admins, CN=kubernetes-admin`이고, 옆에 `super-admin.conf`가 하나 더 있다. 1.29부터의 구조다. 일상용 admin은 ClusterRoleBinding으로 권한을 받는 보통 그룹이어서 필요하면 회수할 수 있고, `system:masters` 그룹인 super-admin은 RBAC로도 막을 수 없는 비상 열쇠라 따로 둔다. k3s의 `k3s.yaml`은 아직 `O=system:masters, CN=system:admin`이다. 인증서로 사람을 인증하는 이 방식은 [08](../08-security)장 2절에서 본다.
 
 {{< callout type="warning" >}}
 `kubeadm init` 출력 끝의 **join 명령과 토큰은 안전한 곳에 보관**한다. 토큰 기본 수명은 24시간이고, 지나면 `kubeadm token create --print-join-command`로 새로 받는다. CA 해시는 바뀌지 않으므로 그대로 쓴다(8절).
@@ -534,16 +534,16 @@ CNI를 깔기 전까지 노드는 **NotReady**고 CoreDNS는 Pending이다. kube
 
 원문 표에 있던 Weave는 개발사 Weaveworks가 문을 닫으며 저장소가 읽기 전용이 됐다. 셋 중 무엇을 고르든 6.2의 `--pod-network-cidr`과 CNI의 대역이 같아야 한다. 따로 놀면 파드는 뜨는데 노드 사이 통신이 안 되는 식으로 조용히 깨진다.
 
-### 7.2 이 PC의 Flannel
+### 7.2 Flannel이 만드는 것
 
-k3s가 Flannel을 VXLAN으로 깔아 준 2노드 클러스터에서 실물을 봤다.
+k3s가 Flannel을 VXLAN으로 깔아 준 2노드 클러스터를 예로 보면 이렇다.
 
-| 확인한 것 | 값 | 뜻 |
+| 항목 | 예 | 뜻 |
 |:---------|:---|:---|
-| 노드별 podCIDR | k3s-lab 10.42.1.0/24, k3s-agent 10.42.0.0/24 | 컨트롤러 매니저가 클러스터 대역 10.42.0.0/16을 노드마다 /24로 잘라 준다 |
+| 노드별 podCIDR | 서버 10.42.1.0/24, 에이전트 10.42.0.0/24 | 컨트롤러 매니저가 클러스터 대역 10.42.0.0/16을 노드마다 /24로 잘라 준다 |
 | 노드의 인터페이스 | `cni0`, `flannel.1`, veth 다섯 개 | 파드는 veth로 브리지 cni0에, 다른 노드행은 VXLAN 장치 flannel.1로 |
 | 파드 IP | 10.42.1.3 ~ 10.42.1.6(서버), 10.42.0.3 ~ 10.42.0.4(에이전트) | 어느 노드인지 IP만 봐도 안다 |
-| 노드 간 파드 통신 | 에이전트의 파드에서 서버의 nginx 파드로 HTTP 성공 | 오버레이가 두 노드의 /24를 이어 준다 |
+| 노드 간 파드 통신 | 에이전트의 파드에서 서버의 파드 IP로 바로 HTTP가 된다 | 오버레이가 두 노드의 /24를 이어 준다 |
 
 ```text
 $ ip route  (k3s 서버 노드)
@@ -564,11 +564,11 @@ kubectl get nodes
 
 ```text
 NAME      STATUS ROLES          VERSION
-k3s-agent Ready  <none>         v1.34.1
-k3s-lab   Ready  control-plane  v1.34.1
+worker-1  Ready  <none>         v1.34.1
+cp-1      Ready  control-plane  v1.34.1
 ```
 
-CNI 파드가 Running이 되면 몇 초 안에 노드가 Ready로 바뀌고 CoreDNS가 뜬다. 이 PC의 2노드에서는 CoreDNS가 에이전트 노드에 배치됐다. k3s는 서버 노드에 taint를 걸지 않아 어디든 갈 수 있다.
+CNI 파드가 Running이 되면 몇 초 안에 노드가 Ready로 바뀌고 CoreDNS가 뜬다. k3s는 서버 노드에 taint를 걸지 않아 CoreDNS가 어느 노드로든 갈 수 있다.
 
 ---
 
@@ -590,15 +590,15 @@ join에는 비밀이 둘 들어간다. 각각 방향이 다르다.
 | `--token` | 클러스터가 새 노드를 | 부트스트랩 토큰은 `system:bootstrappers` 그룹으로 인증되어 인증서 서명 요청(CSR)을 낼 권한만 있다. 24시간 뒤 사라지는 임시 자격 |
 | `--discovery-token-ca-cert-hash` | 새 노드가 클러스터를 | 노드는 `kube-public`의 cluster-info를 인증 없이 받아 오는데, 그 안의 CA 공개키 해시가 이 값과 다르면 가짜 API 서버다 |
 
-토큰 형식은 `[a-z0-9]{6}.[a-z0-9]{16}`이고, `kubeadm token generate`가 이 PC에서 만든 것은 `wx01fj.x5ok8u84w5u7dcf6`였다. 앞 여섯 자는 토큰 ID로 공개되고 뒤 열여섯 자가 비밀이다. 조인이 끝나면 kubelet은 토큰으로 CSR을 내고, 컨트롤러 매니저의 승인 컨트롤러가 자동 승인하며, `O=system:nodes, CN=system:node:<이름>`인 1년짜리 클라이언트 인증서를 받아 그 뒤로는 인증서로만 말한다. 이 PC에서 kubeadm이 만든 `kubelet.conf` 안의 인증서 주체가 정확히 그것이었다. `kubeadm join --help`의 단계는 다섯 개다. preflight, control-plane-prepare, kubelet-start, control-plane-join, wait-control-plane. 워커는 이 중 preflight와 kubelet-start만 지난다.
+토큰 형식은 `[a-z0-9]{6}.[a-z0-9]{16}`이고, `kubeadm token generate`는 `wx01fj.x5ok8u84w5u7dcf6` 같은 값을 만든다. 앞 여섯 자는 토큰 ID로 공개되고 뒤 열여섯 자가 비밀이다. 조인이 끝나면 kubelet은 토큰으로 CSR을 내고, 컨트롤러 매니저의 승인 컨트롤러가 자동 승인하며, `O=system:nodes, CN=system:node:<이름>`인 1년짜리 클라이언트 인증서를 받아 그 뒤로는 인증서로만 말한다. kubeadm이 만든 `kubelet.conf` 안의 인증서 주체가 정확히 그것이다. `kubeadm join --help`의 단계는 다섯 개다. preflight, control-plane-prepare, kubelet-start, control-plane-join, wait-control-plane. 워커는 이 중 preflight와 kubelet-start만 지난다.
 
-k3s도 같은 두 가지를 한 문자열에 담는다. 서버의 `/var/lib/rancher/k3s/server/node-token`은 108자였고 구조가 이렇다.
+k3s도 같은 두 가지를 한 문자열에 담는다. 서버의 `/var/lib/rancher/k3s/server/node-token`의 구조가 이렇다.
 
 ```text
 K10<sha256(server-ca.crt)>::server:<pw>
 ```
 
-`K10` 뒤 64자가 서버 CA 인증서 파일의 SHA-256인지 직접 계산해 맞춰 봤고, 정확히 일치했다. 이름만 다를 뿐 kubeadm의 CA 해시와 같은 물건이다. 이 토큰으로 에이전트 컨테이너를 띄우자 9초 뒤 두 노드가 Ready였고, 에이전트 노드의 이벤트가 순서대로 남았다.
+`K10` 뒤 64자는 서버 CA 인증서 파일의 SHA-256이다. 이름만 다를 뿐 kubeadm의 CA 해시와 같은 물건이다. 이 토큰으로 에이전트를 띄우면 몇 초 뒤 두 노드가 Ready가 되고, 에이전트 노드의 이벤트가 순서대로 남는다.
 
 ```text
 Starting → NodeHasSufficientMemory
@@ -625,7 +625,7 @@ openssl x509 -pubkey \
   | sed 's/^.* //'
 ```
 
-해시는 CA 인증서가 아니라 **CA 공개키의 DER 인코딩**을 SHA-256한 값이다. 그래서 인증서를 갱신해도 키가 같으면 해시가 같다. kubeadm의 CA는 RSA라 `openssl rsa`가 맞지만, k3s처럼 EC 키(이 PC의 k3s CA는 `id-ecPublicKey`)면 `openssl pkey -pubin -outform der`를 쓴다.
+해시는 CA 인증서가 아니라 **CA 공개키의 DER 인코딩**을 SHA-256한 값이다. 그래서 인증서를 갱신해도 키가 같으면 해시가 같다. kubeadm의 CA는 RSA라 `openssl rsa`가 맞지만, k3s처럼 EC 키(`id-ecPublicKey`)면 `openssl pkey -pubin -outform der`를 쓴다.
 
 ### 8.3 라벨과 taint
 
@@ -635,7 +635,7 @@ kubectl label node worker1 \
 kubectl get nodes
 ```
 
-`ROLES` 열은 `node-role.kubernetes.io/<역할>` 라벨을 보여 주는 것뿐이다. kubeadm은 `mark-control-plane` 단계에서 컨트롤 플레인 노드에 라벨과 함께 `node-role.kubernetes.io/control-plane:NoSchedule` taint를 걸어 워크로드가 올라가지 못하게 한다. 컨트롤 플레인의 CPU를 etcd와 API 서버에 남겨 두려는 것이다(taint는 02장 8절, [05](../05-scheduling)장 3절). 워커에는 아무 라벨이 없어 `<none>`으로 보이고, 위 명령은 보기 좋게 이름을 붙이는 관례다. k3s는 반대다. 서버 노드에 taint가 없어서(`taints=` 빈 값) 이 PC의 파드 여섯 개 중 넷이 서버 노드에 올라갔다. 한 대짜리 클러스터가 기본 시나리오라서다.
+`ROLES` 열은 `node-role.kubernetes.io/<역할>` 라벨을 보여 주는 것뿐이다. kubeadm은 `mark-control-plane` 단계에서 컨트롤 플레인 노드에 라벨과 함께 `node-role.kubernetes.io/control-plane:NoSchedule` taint를 걸어 워크로드가 올라가지 못하게 한다. 컨트롤 플레인의 CPU를 etcd와 API 서버에 남겨 두려는 것이다(taint는 02장 8절, [05](../05-scheduling)장 3절). 워커에는 아무 라벨이 없어 `<none>`으로 보이고, 위 명령은 보기 좋게 이름을 붙이는 관례다. k3s는 반대다. 서버 노드에 taint가 없어서 보통 파드도 서버 노드에 올라간다. 한 대짜리 클러스터가 기본 시나리오라서다.
 
 ---
 
@@ -659,15 +659,15 @@ kubectl run dns --image=busybox:1.36 \
   nslookup kubernetes.default
 ```
 
-| 확인 | 무엇을 증명하나 | 이 PC 실측 |
+| 확인 | 무엇을 증명하나 | 정상이면 |
 |:-----|:--------------|:----------|
 | `/healthz`, `/livez`, `/readyz` | API 서버가 살아 있고(livez) 요청을 받을 준비가 됐나(readyz). readyz에는 etcd 검사가 들어 있다 | 셋 다 `ok`, `readyz?verbose`에 `[+]etcd ok` |
-| `get nodes -o wide` | 노드 전부 Ready, 버전과 런타임 | 두 노드 Ready, v1.34.1+k3s1, containerd 2.1.4, 커널 6.18.33(WSL2) |
-| 배포 + NodePort | 스케줄러, kubelet, kube-proxy가 모두 돈다 | web 파드 2개를 서버 노드에 고정해 두고, **파드가 없는 에이전트 노드**의 30080으로 요청해 nginx 응답을 받았다 |
-| 노드 간 파드 통신 | CNI | 에이전트의 파드에서 서버의 파드 IP로 HTTP 성공 |
-| DNS | CoreDNS와 Service | 02장에서 `web`과 `kubernetes.default`가 10.43.0.10으로 풀렸다 |
+| `get nodes -o wide` | 노드 전부 Ready, 버전과 런타임 | 모든 노드 Ready, 버전과 런타임이 기대한 값 |
+| 배포 + NodePort | 스케줄러, kubelet, kube-proxy가 모두 돈다 | 파드가 한 노드에만 있어도 **파드가 없는 노드**의 30080으로 요청해 응답을 받는다 |
+| 노드 간 파드 통신 | CNI | 한 노드의 파드에서 다른 노드의 파드 IP로 HTTP가 된다 |
+| DNS | CoreDNS와 Service | `kubernetes.default`가 API 서버의 ClusterIP로 풀린다 |
 
-파드가 없는 노드의 NodePort가 응답한 것이 kube-proxy의 증명이다. 노드마다 같은 규칙이 있어 어느 노드로 들어와도 파드가 있는 노드로 보내 준다([07](../07-networking)장 5절). `kubectl get nodes`가 나오면 API 서버와 etcd가, 노드가 Ready면 kubelet과 CNI가, NodePort가 답하면 kube-proxy가, DNS가 풀리면 CoreDNS가 정상이다. 2절의 상자 일곱 개가 이 표 한 장으로 검증된다.
+파드가 없는 노드의 NodePort가 응답하는 것이 kube-proxy의 증명이다. 노드마다 같은 규칙이 있어 어느 노드로 들어와도 파드가 있는 노드로 보내 준다([07](../07-networking)장 5절). `kubectl get nodes`가 나오면 API 서버와 etcd가, 노드가 Ready면 kubelet과 CNI가, NodePort가 답하면 kube-proxy가, DNS가 풀리면 CoreDNS가 정상이다. 2절의 상자 일곱 개가 이 표 한 장으로 검증된다.
 
 ---
 
@@ -684,7 +684,7 @@ kubectl run dns --image=busybox:1.36 \
 | **scheduler** | Active-Standby | 같은 파드를 두 노드에 배치하는 사고를 막는다 |
 | **etcd** | Raft 다수결 | 쓰기는 과반수 동의로만 커밋된다(11절) |
 
-이 PC의 k3s 3대 클러스터에서 `kubernetes` Service의 EndpointSlice에 API 서버 IP 세 개가 다 들어 있었다. 세 대가 동시에 활성이라는 뜻이다. 반면 컨트롤러와 스케줄러는 리스 하나씩만 있었다.
+3대 클러스터에서 `kubernetes` Service의 EndpointSlice를 보면 API 서버 IP 세 개가 다 들어 있다. 세 대가 동시에 활성이라는 뜻이다. 반면 컨트롤러와 스케줄러는 리스가 하나씩뿐이다.
 
 ### 10.2 API Server Load Balancing
 
@@ -722,7 +722,7 @@ backend control-plane
     server cp3 10.0.0.13:6443 check
 ```
 
-TCP 모드인 이유는 TLS를 API 서버가 직접 끝내야 하기 때문이다. 클라이언트 인증서로 사람과 kubelet을 인증하는데(8절, 08장) LB가 TLS를 풀면 그 인증서가 API 서버에 닿지 않는다. 헬스체크는 6443 TCP 연결 확인으로 충분하고, `redispatch`와 `retries`가 있으면 방금 죽은 서버로 배정된 연결을 다른 서버로 다시 보낸다. 이 PC에서 HAProxy 뒤의 cp1을 `docker stop`으로 죽인 직후 kubectl은 한 번도 실패하지 않았고, HAProxy 로그에는 "Server control-plane/cp1 is DOWN, reason: Layer4 timeout"이 1초 간격 검사 두 번 뒤에 찍혔다.
+TCP 모드인 이유는 TLS를 API 서버가 직접 끝내야 하기 때문이다. 클라이언트 인증서로 사람과 kubelet을 인증하는데(8절, 08장) LB가 TLS를 풀면 그 인증서가 API 서버에 닿지 않는다. 헬스체크는 6443 TCP 연결 확인으로 충분하고, `redispatch`와 `retries`가 있으면 방금 죽은 서버로 배정된 연결을 다른 서버로 다시 보낸다. HAProxy 뒤의 서버 하나를 갑자기 내려도 kubectl은 실패하지 않고, HAProxy 로그에는 "Server control-plane/cp1 is DOWN, reason: Layer4 timeout"이 검사 두 번 뒤에 찍힌다.
 
 ### 10.3 Leader Election
 
@@ -740,7 +740,7 @@ spec:
 
 컨트롤러 매니저와 스케줄러는 `kube-system`의 Lease 객체 하나를 두고 다툰다. 리더는 2초마다 갱신을 시도하고, 10초 안에 갱신하지 못하면 스스로 리더를 포기하고 프로세스를 끝낸다. 다른 인스턴스는 리스가 15초 동안 갱신되지 않은 것을 보고 인수한다. 리더가 "포기하면서 죽는" 이유는 둘이 동시에 리더라고 믿는 순간을 없애기 위해서다. 정적 파드라면 kubelet이 곧 다시 띄우고, 새 프로세스는 후보로 돌아간다.
 
-이 PC의 3대 클러스터에서 실물을 봤다.
+3대 클러스터에서 리스의 주인이 어떻게 움직이는지를 예로 보면 이렇다.
 
 | 리스(kube-system) | 3대 정상 | cp1 정지 뒤 | 뜻 |
 |:-----------------|:--------|:-----------|:---|
@@ -749,7 +749,7 @@ spec:
 | k3s, k3s-etcd, k3s-cloud-controller-manager | cp1 | cp2, cp3, cp3 | k3s 자체 컨트롤러들도 같은 장치를 쓴다 |
 | apiserver-… 세 개 | 각자 | 각자 | API 서버는 선출이 없다. 존재를 알리는 신원 리스다 |
 
-첫 서버가 처음엔 전부 쥐고 있다가 죽자 리스가 남은 두 대로 흩어졌다. 단일 서버 k3s에는 kube-controller-manager와 kube-scheduler 리스가 아예 없었다. 후보가 하나면 선출을 생략하기 때문이고, 3대가 되자 나타났다. 리더 인수를 실제로 본 것은 12절에서 cp1이 죽은 뒤에도 새 Deployment가 정상 배포된 장면이다. 반대 방향도 봤다. 12절에서 etcd 쿼럼이 사라지자 리더였던 cp3의 컨트롤러 매니저가 갱신에 실패했고, 로그에 `failed to renew lease kube-system/kube-controller-manager`와 `leaderelection lost`를 남기며 정확히 11초 뒤 종료했다. renew-deadline 10초가 그대로 보인 것이다.
+첫 서버가 처음엔 전부 쥐고 있다가 죽으면 리스가 남은 두 대로 흩어진다. 단일 서버 k3s에는 kube-controller-manager와 kube-scheduler 리스가 아예 없다. 후보가 하나면 선출을 생략하기 때문이고, 3대가 되면 나타난다. 리더 인수가 실제로 뜻하는 것은 12절에서 보듯 한 대가 죽은 뒤에도 새 Deployment가 정상 배포된다는 것이다. 반대 방향도 있다. etcd 쿼럼이 사라지면 리더였던 컨트롤러 매니저는 갱신에 실패하고, 로그에 `failed to renew lease kube-system/kube-controller-manager`와 `leaderelection lost`를 남기며 renew-deadline 10초 남짓 뒤 종료한다.
 
 ### 10.4 etcd 토폴로지
 
@@ -783,7 +783,7 @@ spec:
 | 설정 | kubeadm 기본. `--etcd-servers=https://127.0.0.1:2379` | API 서버에 외부 주소 셋과 클라이언트 인증서 | 아래 플래그 |
 | 용도 | 소규모, 기본 선택 | 대규모, etcd를 따로 튠하고 싶을 때 | etcd 디스크를 전용으로 줄 수 있다 |
 
-이 PC의 실험은 전부 Stacked였다. kubeadm이 만든 `etcd.yaml`에는 `--listen-client-urls=https://127.0.0.1:2379,https://<노드IP>:2379`와 `--initial-cluster=<호스트>=https://<노드IP>:2380`이 있었고, API 서버는 `127.0.0.1:2379`의 자기 옆 etcd만 봤다. k3s 3대도 서버마다 내장 etcd가 떠서 2379/2380이 열렸고 데이터는 `/var/lib/rancher/k3s/server/db/etcd`에 있었다.
+kubeadm이 만든 `etcd.yaml`에는 `--listen-client-urls=https://127.0.0.1:2379,https://<노드IP>:2379`와 `--initial-cluster=<호스트>=https://<노드IP>:2380`이 있고, API 서버는 `127.0.0.1:2379`의 자기 옆 etcd만 본다. k3s를 3대로 세워도 서버마다 내장 etcd가 떠서 2379/2380이 열리고 데이터는 `/var/lib/rancher/k3s/server/db/etcd`에 놓인다.
 
 External이면 API 서버 플래그가 이렇게 바뀐다.
 
@@ -824,12 +824,12 @@ Client ─► put foo=bar
 과반수(리더+Flw1) ACK → 커밋 → 응답
 ```
 
-이 PC에서 etcd v3.5.21 컨테이너 세 개로 클러스터를 만들고 하나씩 죽여 봤다.
+3멤버 etcd 클러스터의 멤버를 하나씩 내리면 이렇게 된다.
 
 | 단계 | 살아 있는 멤버 | put | 선형(기본) get | 직렬화 get | 리더 / term |
 |:-----|:-------------|:----|:-------------|:----------|:-----------|
 | 시작 | 3/3 | OK | OK | OK | etcd1, term 2 |
-| 리더 정지 | 2/3 | OK | OK | OK | 4초 안에 etcd2로, term 3 |
+| 리더 정지 | 2/3 | OK | OK | OK | 몇 초 안에 새 리더, term 3 |
 | 하나 더 정지 | 1/3 | 실패(`context deadline exceeded`) | 실패 | 마지막 값 반환 | 리더 없음 |
 | 하나 복구 | 2/3 | OK | OK | OK | term 4 |
 
@@ -843,7 +843,7 @@ Client ─► put foo=bar
 |:-------|:-----|:---------|:---|
 | 1 | 1 | 0 | HA 아님. 단일 서버 k3s와 kubeadm 기본이 이것 |
 | 2 | 2 | 0 | 하나 죽으면 쿼럼을 잃는다. 1대보다 나은 게 없다 |
-| **3** | **2** | **1** | 최소 HA. 이 PC에서 1대 정지는 정상, 2대 정지는 쓰기 불가 |
+| **3** | **2** | **1** | 최소 HA. 1대 정지는 정상, 2대 정지는 쓰기 불가 |
 | 4 | 3 | 1 | 3과 같은 허용치에 복제 비용만 늘어난다 |
 | **5** | **3** | **2** | 운영 권장. 하나가 유지보수 중일 때 하나가 더 죽어도 된다 |
 | 6 | 4 | 2 | 5와 같다 |
@@ -889,7 +889,7 @@ etcdctl alarm list
 etcdctl check perf
 ```
 
-`endpoint status -w table`이 이 PC에서 보여 준 열은 엔드포인트, 멤버 ID, 버전, DB 크기(빈 클러스터에 20kB), 리더 여부, Raft term, Raft index였다. 리더를 죽이기 전 term 2였고 죽인 뒤 term 3, 하나 더 죽였다 살린 뒤 term 4였다. 운영에서 term이 이유 없이 오르면 네트워크나 디스크를 의심한다. kubeadm 클러스터에서 인증서 경로는 위와 같고, 백업과 복원은 [10](../10-cluster-maintenance)장 11절에서 본다.
+`endpoint status -w table`이 보여 주는 열은 엔드포인트, 멤버 ID, 버전, DB 크기, 리더 여부, Raft term, Raft index다. 리더가 한 번 바뀔 때마다 term이 하나씩 오르므로, 운영에서 term이 이유 없이 오르면 네트워크나 디스크를 의심한다. kubeadm 클러스터에서 인증서 경로는 위와 같고, 백업과 복원은 [10](../10-cluster-maintenance)장 11절에서 본다.
 
 ---
 
@@ -937,9 +937,9 @@ sudo kubeadm join lb.example.com:6443 \
 
 워커의 join 주소도 LB다. kubelet이 API 서버에 말하는 경로가 노드 하나에 묶이면 그 노드가 죽을 때 워커가 전부 NotReady가 된다.
 
-### 12.4 이 PC에서 3대를 세우고 죽여 본 기록
+### 12.4 3대 클러스터가 죽고 살아나는 순서
 
-kubeadm은 systemd가 있는 기계가 세 대 필요해 이 PC에서 끝까지 돌리지 못했다. 대신 같은 구조를 k3s로 만들었다. 첫 서버를 `--cluster-init`으로, 나머지 둘을 첫 서버의 토큰으로 붙이면 내장 etcd 3대의 Stacked 클러스터가 되고, 앞에 HAProxy 컨테이너를 뒀다.
+kubeadm이 아니어도 같은 구조를 k3s로 만들 수 있다. 첫 서버를 `--cluster-init`으로, 나머지 둘을 첫 서버의 토큰으로 붙이면 내장 etcd 3대의 Stacked 클러스터가 되고, 앞에 HAProxy를 둔다. 이 구성에서 서버를 하나씩 내렸다 올리면 다음 순서로 일이 벌어진다.
 
 ```bash
 # k3s로 같은 것을 만들면
@@ -948,19 +948,19 @@ k3s server --server https://cp1:6443 \
   --token <node-token>    # cp2, cp3
 ```
 
-| 시점 | 한 일 | 결과(실측) |
+| 단계 | 한 일 | 일어나는 일 |
 |:-----|:-----|:----------|
-| 0초 | cp1 기동 | 21초 뒤 토큰 발급 |
-| | cp2, cp3 조인, HAProxy 기동 | 37~53초 뒤 3대 Ready(`control-plane,etcd`), 각 370~490MiB |
+| 준비 | cp1 기동 | 수십 초 뒤 토큰 발급 |
+| | cp2, cp3 조인, HAProxy 기동 | 1분 안에 3대 Ready(`control-plane,etcd`) |
 | | Deployment 3개 배포 | 노드마다 하나씩 |
-| A | cp1 정지(2/3) | kubectl은 한 번도 실패하지 않았고, `readyz`의 etcd는 ok. 60초 뒤 cp1이 NotReady. 리스는 cp2, cp3로 이동. 새 Deployment 2개가 cp2, cp3에 정상 배포. `kubernetes` 엔드포인트가 3개에서 2개로 |
-| B | cp2 정지(1/3) | kubectl은 EOF. LB 뒤에 남은 cp3는 응답하지 못했다. 리더였던 cp3의 컨트롤러 매니저가 리스 갱신에 실패해 11초 뒤 `leaderelection lost`로 종료 |
-| B' | 같은 실험을 다시 하되 리스를 cp1이 쥔 상태에서 cp1, cp2를 연달아 정지 | cp3는 후보라 종료하지 않고 150초 넘게 선출을 반복 |
-| C | cp2를 다시 기동(2/3) | 36초 뒤 API 응답, 37초 뒤 두 노드 Ready, `readyz`의 etcd ok |
+| A | cp1 정지(2/3) | kubectl은 실패하지 않고 `readyz`의 etcd는 ok. 40초 남짓 뒤 cp1이 NotReady. 리스는 cp2, cp3로 이동. 새 Deployment가 cp2, cp3에 정상 배포. `kubernetes` 엔드포인트가 3개에서 2개로 |
+| B | cp2 정지(1/3) | kubectl은 연결이 끊긴다. LB 뒤에 남은 cp3는 응답하지 못한다. 리더였던 cp3의 컨트롤러 매니저는 리스 갱신에 실패해 10초 남짓 뒤 `leaderelection lost`로 종료 |
+| B' | 리스를 cp1이 쥔 상태에서 cp1, cp2를 연달아 정지 | cp3는 후보라 종료하지 않고 선출을 반복 |
+| C | cp2를 다시 기동(2/3) | 수십 초 뒤 API 응답, 두 노드 Ready, `readyz`의 etcd ok |
 
-한 대가 죽었을 때와 두 대가 죽었을 때의 차이가 둘째 원리다. 2/3에서는 etcd가 쓸 수 있으니 컨트롤러가 새 파드를 만들고 스케줄러가 배치해 아무 일도 없던 것처럼 돌았다. 1/3에서는 API 서버가 답을 못 하고, 리더였던 컨트롤러 매니저는 자기 리스를 못 갱신해 물러났다. 복구는 쿼럼을 되찾는 순간부터 시작되고 이 PC에서는 36초였다. 두 실험에서 cp3의 운명이 갈린 것도 그 원리다. 리더는 "갱신 못 하면 물러난다"는 규칙이 있어 죽었고, 후보는 기다리는 것이 일이라 살아 있었다.
+한 대가 죽었을 때와 두 대가 죽었을 때의 차이가 둘째 원리다. 2/3에서는 etcd가 쓸 수 있으니 컨트롤러가 새 파드를 만들고 스케줄러가 배치해 아무 일도 없던 것처럼 돈다. 1/3에서는 API 서버가 답을 못 하고, 리더였던 컨트롤러 매니저는 자기 리스를 못 갱신해 물러난다. 복구는 쿼럼을 되찾는 순간부터 시작되고, etcd 멤버 재합류와 API 서버의 readyz가 돌아오는 데 수십 초가 든다. B와 B'에서 cp3의 운명이 갈리는 것도 그 원리다. 리더는 "갱신 못 하면 물러난다"는 규칙이 있어 죽고, 후보는 기다리는 것이 일이라 살아 있다.
 
-k3s는 컴포넌트가 한 프로세스라 컨트롤러 매니저가 물러나자 서버 전체가 내려갔고, 이 실험은 컨테이너 안이라 그 노드의 파드도 함께 사라졌다. 실제 기계에서는 systemd가 k3s를 다시 올리고 containerd 아래의 파드는 그대로 돈다. kubeadm 클러스터라면 컨트롤러 매니저 정적 파드 하나만 재시작 루프에 들어가고 API 서버 파드는 남는다. 정지한 서버를 다시 올렸을 때 API가 돌아오는 데 36초가 걸린 것은 etcd 멤버 재합류와 API 서버의 readyz가 돌아오는 시간이다.
+k3s는 컴포넌트가 한 프로세스라 컨트롤러 매니저가 물러나면 서버 프로세스 전체가 내려가고, 실제 기계에서는 systemd가 그것을 다시 올리며 containerd 아래의 파드는 그대로 돈다. kubeadm 클러스터라면 컨트롤러 매니저 정적 파드 하나만 재시작 루프에 들어가고 API 서버 파드는 남는다.
 
 ---
 
@@ -973,9 +973,9 @@ k3s는 컴포넌트가 한 프로세스라 컨트롤러 매니저가 물러나�
 | 노드 수 | 5,000 | 1,000 미만이 보통 | 노드마다 kubelet이 API 서버에 상태를 보고하고 리스를 갱신한다 |
 | 전체 파드 | 150,000 | | etcd 크기와 watch 이벤트 양 |
 | 전체 컨테이너 | 300,000 | | |
-| 노드당 파드 | 110 | 30~50 | kubelet의 `maxPods` 기본값이 110이다. 이 PC의 k3s 노드도 allocatable pods가 110이었다 |
+| 노드당 파드 | 110 | 30~50 | kubelet의 `maxPods` 기본값이 110이고, 노드의 allocatable pods에 그대로 보인다 |
 
-원문의 "노드당 100"은 110으로 고쳤고, 근거를 찾지 못한 "네임스페이스당 Service 5,000"은 뺐다. 노드당 파드 수는 파드마다 IP가 필요하다는 사실과도 묶여 있다. 7.2의 노드당 /24는 주소 254개이고, 그중 110개를 파드가 쓰는 계산이다. 상한은 "이 조건을 전부 만족하는 구성을 지원한다"는 뜻이지 "여기까지 빠르다"는 뜻이 아니다. 문서는 큰 클러스터에서 컨트롤 플레인을 장애 영역마다 한두 대씩 두고 먼저 수직으로 키우라고 권하며, Event 객체를 별도 etcd로 빼는 방법을 소개한다.
+노드당 파드 수는 파드마다 IP가 필요하다는 사실과도 묶여 있다. 7.2의 노드당 /24는 주소 254개이고, 그중 110개를 파드가 쓰는 계산이다. 상한은 "이 조건을 전부 만족하는 구성을 지원한다"는 뜻이지 "여기까지 빠르다"는 뜻이 아니다. 문서는 큰 클러스터에서 컨트롤 플레인을 장애 영역마다 한두 대씩 두고 먼저 수직으로 키우라고 권하며, Event 객체를 별도 etcd로 빼는 방법을 소개한다.
 
 ### 13.2 규모별 사이징
 
@@ -1013,7 +1013,7 @@ k3s는 컴포넌트가 한 프로세스라 컨트롤러 매니저가 물러나�
 | join 실패 | 토큰 만료(24h), 해시 불일치, 6443 차단 | 8절의 두 비밀 중 하나가 틀렸다 | `token create --print-join-command`, 방화벽 |
 | 1년 뒤 갑자기 `x509: certificate has expired` | 잎 인증서 만료 | 6.3의 1년 수명. 업그레이드를 1년 넘게 안 했다 | 14.3 |
 | API 서버 접근 불가(HA) | LB 장애, 인증서 SAN에 LB 이름 없음 | 12.1의 endpoint를 뒤늦게 바꿨다 | LB 이중화, 인증서 재발급 |
-| etcd 쓰기 실패, API 서버 503/EOF | 쿼럼 손실 | 11절. 2/3 이하가 살아 있다 | 멤버 복구. 이 PC에서 복구 뒤 36초 |
+| etcd 쓰기 실패, API 서버 503/EOF | 쿼럼 손실 | 11절. 과반수가 죽었다 | 멤버 복구. 쿼럼이 돌아오면 수십 초 안에 API도 돌아온다 |
 | 리더가 자주 바뀐다 | 네트워크 지연, 디스크 fsync 지연 | 하트비트 100ms를 놓친다(11.1) | SSD, `--heartbeat-interval`과 `--election-timeout` 조정 |
 
 ### 14.2 로그 및 디버깅
@@ -1051,7 +1051,7 @@ sleep 20   # kubelet이 파드를 내린다
 sudo mv /root/m/*.yaml $M/
 ```
 
-이 PC에서 kubeadm이 만든 인증서 디렉터리에 `check-expiration`을 돌리자 잎 인증서 열한 개(admin.conf, apiserver, apiserver-etcd-client, apiserver-kubelet-client, controller-manager.conf, etcd-healthcheck-client, etcd-peer, etcd-server, front-proxy-client, scheduler.conf, super-admin.conf)가 전부 `364d`, CA 셋이 `9y`였다. `renew apiserver`를 하니 만료일이 그날부터 1년으로 다시 찍혔다. `kubeadm upgrade`가 매번 갱신해 주므로 1년 안에 한 번은 업그레이드하는 클러스터에서는 만료를 볼 일이 없고, 그러지 못한 클러스터가 1년째 되는 날 깨진다. 갱신 뒤 컨트롤 플레인 파드를 다시 띄워야 하는 이유는 프로세스가 인증서 파일을 시작할 때만 읽기 때문이다. 정적 파드는 `kubectl delete`로 지울 수 없어 매니페스트를 잠시 치우는 방법을 쓴다. kubelet 자신의 클라이언트 인증서는 이 목록에 없다. kubelet은 만료 전에 스스로 CSR을 내 갱신한다(`rotateCertificates`).
+갓 만든 클러스터에서 `check-expiration`을 돌리면 잎 인증서 열한 개(admin.conf, apiserver, apiserver-etcd-client, apiserver-kubelet-client, controller-manager.conf, etcd-healthcheck-client, etcd-peer, etcd-server, front-proxy-client, scheduler.conf, super-admin.conf)가 전부 `364d`, CA 셋이 `9y`로 나온다. `renew apiserver`를 하면 만료일이 그날부터 1년으로 다시 찍힌다. `kubeadm upgrade`가 매번 갱신해 주므로 1년 안에 한 번은 업그레이드하는 클러스터에서는 만료를 볼 일이 없고, 그러지 못한 클러스터가 1년째 되는 날 깨진다. 갱신 뒤 컨트롤 플레인 파드를 다시 띄워야 하는 이유는 프로세스가 인증서 파일을 시작할 때만 읽기 때문이다. 정적 파드는 `kubectl delete`로 지울 수 없어 매니페스트를 잠시 치우는 방법을 쓴다. kubelet 자신의 클라이언트 인증서는 이 목록에 없다. kubelet은 만료 전에 스스로 CSR을 내 갱신한다(`rotateCertificates`).
 
 ### 14.4 클러스터 리셋
 
@@ -1068,7 +1068,7 @@ sudo crictl rm -af
 sudo crictl rmi -a
 ```
 
-`kubeadm reset`의 단계는 preflight, remove-etcd-member, cleanup-node 셋이다. 컨트롤 플레인이면 로컬 etcd를 클러스터에서 탈퇴시키고, 매니페스트와 `/var/lib/kubelet`, `/etc/kubernetes`를 지운다. CNI 설정과 iptables 규칙은 kubeadm이 만든 것이 아니라서 남는다. 워커를 지울 때는 먼저 `kubectl drain`으로 파드를 옮기고 `kubectl delete node`를 한 뒤 그 노드에서 reset한다. 이 PC에서 에이전트 노드를 `drain`하니 파드 세 개가 서버 노드로 옮겨 가고 노드는 `Ready,SchedulingDisabled`가 됐으며, `delete node`를 하자 목록에서 사라졌지만 컨테이너 안의 k3s 프로세스는 그대로 돌고 있었다. 노드 객체 삭제는 등록 해제일 뿐 기계를 끄는 것이 아니다. 절차 전체는 [10](../10-cluster-maintenance)장 2절이다.
+`kubeadm reset`의 단계는 preflight, remove-etcd-member, cleanup-node 셋이다. 컨트롤 플레인이면 로컬 etcd를 클러스터에서 탈퇴시키고, 매니페스트와 `/var/lib/kubelet`, `/etc/kubernetes`를 지운다. CNI 설정과 iptables 규칙은 kubeadm이 만든 것이 아니라서 남는다. 워커를 지울 때는 먼저 `kubectl drain`으로 파드를 옮기고 `kubectl delete node`를 한 뒤 그 노드에서 reset한다. `drain`을 하면 그 노드의 파드가 다른 노드로 옮겨 가고 노드는 `Ready,SchedulingDisabled`가 되며, `delete node`를 하면 목록에서 사라지지만 노드 위의 kubelet 프로세스는 그대로 돈다. 노드 객체 삭제는 등록 해제일 뿐 기계를 끄는 것이 아니다. 절차 전체는 [10](../10-cluster-maintenance)장 2절이다.
 
 ---
 
@@ -1131,16 +1131,8 @@ kubeadm certs renew all
 | CNI | 설치 전까지 NotReady. `--pod-network-cidr`과 대역을 맞춘다 | 노드마다 /24를 잘라 주고 그 사이를 이어 주는 것이 CNI다 |
 | join | 토큰(24h)은 클러스터가 노드를, CA 해시는 노드가 클러스터를 믿게 한다 | 두 방향의 신뢰 |
 | HA | API 서버는 LB 뒤에 여러 대, 컨트롤러와 스케줄러는 리스로 한 대, etcd는 과반수 | 상태와 결정을 따로 본다 |
-| etcd 쿼럼 | `floor(N/2)+1`, 홀수 3 또는 5. 2/3은 정상, 1/3은 쓰기 불가 | 이 PC에서 그대로 재현 |
+| etcd 쿼럼 | `floor(N/2)+1`, 홀수 3 또는 5. 2/3은 정상, 1/3은 쓰기 불가 | 과반수가 살아야 쓴다 |
 | 인증서 | 잎 1년, CA 10년. 업그레이드가 갱신한다 | 1년 넘게 방치한 클러스터가 깨지는 이유 |
-
-{{< callout type="warning" >}}
-**검증하지 못한 것**
-- kubeadm은 컨테이너 안에서 preflight, certs, kubeconfig, control-plane, etcd, check-expiration, renew 단계만 돌렸다. systemd가 있는 기계에서의 실제 `init`과 `join`, CSR 자동 승인, 워커 조인은 문서와 k3s의 동작으로 대신했다.
-- 3대 HA는 k3s의 내장 etcd로 재현했다. kubeadm의 Stacked 토폴로지와 구조는 같지만 프로세스 배치가 다르다. 컨트롤러 매니저가 물러날 때 k3s는 서버 전체가 내려갔고, 컨테이너 실험이라 그 노드의 파드도 함께 사라졌다.
-- Calico와 Cilium 설치, External etcd, keepalived 같은 LB 이중화, 관리형 서비스의 동작과 요금은 직접 확인하지 않았다.
-- 노드당 110개 파드나 5,000 노드 같은 상한은 공식 문서 값이고, 13.2의 사이징 표는 경험적 기준이다.
-{{< /callout >}}
 
 {{< callout type="info" >}}
 **용어 정리**
