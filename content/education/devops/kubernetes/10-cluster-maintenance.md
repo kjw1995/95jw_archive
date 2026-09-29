@@ -490,7 +490,7 @@ etcdutl snapshot status \
 | HASH | 파일의 해시 | 옮기다 깨졌는지 |
 | REVISION | 스냅샷 시점의 etcd 리비전 | 클러스터의 모든 변경마다 하나씩 오른다. 어느 시점인지 |
 | KEYS | 키 개수 | 오브젝트 수의 대략. 0이면 잘못 찍은 것 |
-| SIZE | DB 크기 | 기본 상한 8GB의 어디쯤인지 |
+| SIZE | DB 크기 | 용량 한도(기본 2GiB, 권장 최대 8GiB)의 어디쯤인지. 한도에 닿으면 쓰기가 막힌다([14](../14-troubleshooting)장 8.1절) |
 
 스냅샷은 도는 멤버 하나에서 찍는다. [03](../03-cluster-setup)장 11.4절의 `etcdctl`이고, kubeadm 클러스터의 인증서 경로는 위와 같다. etcd 3.6부터 `etcdctl`은 찍는 일만 하고, 검사와 복원은 `etcdutl`이 한다. 호스트에 두 바이너리가 없으면 etcd 정적 파드 안의 것을 쓴다. `/var/lib/etcd`가 hostPath라 컨테이너 안에서 그 아래에 찍으면 호스트에 남는다.
 
