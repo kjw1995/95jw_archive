@@ -28,7 +28,8 @@ style_ref: 06-storage.md
 | 09 관측성 | 완료 (새 방식으로 작성) | 271da80, eb89bd1 |
 | 10 클러스터 유지보수 | 완료 (새 방식으로 작성) | c8d4d6f |
 | 11 Helm | 완료 (새 방식으로 작성. Helm 4 기준, 15절 예제를 WordPress에서 모니터링 스택으로 교체) | 0a00bc3 |
-| 12 Kustomize ~ 15 JSONPath | 남음 | |
+| 12 Kustomize | 완료 (새 방식으로 작성. v5 기준, commonLabels를 labels로) | 5c5f037 |
+| 13 CI/CD ~ 15 JSONPath | 남음 | |
 
 ## 문체 규칙
 
