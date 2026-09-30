@@ -4,7 +4,7 @@ date: 2026-04-23
 weight: 5
 ---
 
-[02. 핵심 개념](../02-core-concepts)에서 "어디에 놓는가"는 스케줄러의 일이라고 했고, [04. 워크로드 관리](../04-workloads)에서 파드는 고치지 않고 새로 만든다고 했다. 이 장은 그 새 파드가 어느 노드로 가는지, 그리고 그것을 사람이 어떻게 조종하는지다. 원리는 셋이다. 첫째, **스케줄링은 못 갈 노드를 지우고 남은 노드에 점수를 매기는 두 단계이고, 결과는 파드의 `nodeName` 한 줄이다.** kubelet은 자기 이름이 적힌 파드만 띄우므로, 그 한 줄을 누가 적었는지는 상관없다. 스케줄러가 적어도, 사람이 처음부터 적어도, Binding API로 나중에 적어도 결과는 같다. 둘째, **제약에는 방향이 있다.** 파드가 노드를 고르는 것(nodeSelector, affinity), 노드가 파드를 거르는 것(taint), 파드끼리 서로 밀고 끄는 것(pod affinity, topology spread), 파드 사이의 서열(priority)이 다 다른 장치이고, 노드 하나를 완전히 전용으로 만들려면 두 방향을 합쳐야 한다. 셋째, **자원은 requests로 배치되고 limits로 다스려진다.** 스케줄러는 requests만 보고, 노드 위에서 limits를 지키는 것은 kubelet과 cgroup이며, 그 값들을 채우고 막는 것은 API 서버의 admission 단계다. 이 PC의 Docker Desktop 위 k3s 두 노드에서 이 장의 거의 모든 것을 실제로 돌려봤다. 수동 바인딩, 안티 어피니티로 남는 파드, NoExecute 퇴거, OOM과 CPU 스로틀링, 선점, 두 번째 스케줄러, CEL 정책까지다.
+[02. 핵심 개념](../02-core-concepts)에서 "어디에 놓는가"는 스케줄러의 일이라고 했고, [04. 워크로드 관리](../04-workloads)에서 파드는 고치지 않고 새로 만든다고 했다. 이 장은 그 새 파드가 어느 노드로 가는지, 그리고 그것을 사람이 어떻게 조종하는지다. 원리는 셋이다. 첫째, **스케줄링은 못 갈 노드를 지우고 남은 노드에 점수를 매기는 두 단계이고, 결과는 파드의 `nodeName` 한 줄이다.** kubelet은 자기 이름이 적힌 파드만 띄우므로, 그 한 줄을 누가 적었는지는 상관없다. 스케줄러가 적어도, 사람이 처음부터 적어도, Binding API로 나중에 적어도 결과는 같다. 둘째, **제약에는 방향이 있다.** 파드가 노드를 고르는 것(nodeSelector, affinity), 노드가 파드를 거르는 것(taint), 파드끼리 서로 밀고 끄는 것(pod affinity, topology spread), 파드 사이의 서열(priority)이 다 다른 장치이고, 노드 하나를 완전히 전용으로 만들려면 두 방향을 합쳐야 한다. 셋째, **자원은 requests로 배치되고 limits로 다스려진다.** 스케줄러는 requests만 보고, 노드 위에서 limits를 지키는 것은 kubelet과 cgroup이며, 그 값들을 채우고 막는 것은 API 서버의 admission 단계다.
 
 ---
 
@@ -41,11 +41,11 @@ weight: 5
 | Scoring | 남은 노드마다 플러그인 점수를 합산한다 | 여러 후보 중 "더 좋은" 곳을 고르는 것은 선호의 문제다 |
 | Binding | 파드의 `nodeName`을 채우는 API 호출 | 결정과 기록을 분리해 다른 것도 같은 API로 기록할 수 있다 |
 
-이 PC에서 제약 없는 파드 하나를 만들자 이벤트가 순서대로 남았다.
+제약 없는 파드 하나를 만들면 이벤트가 순서대로 남는다.
 
 ```text
 Scheduled  Successfully assigned
-           default/plain to k3s-agent
+           default/plain to node-2
 Pulling → Pulled → Created → Started
 ```
 
@@ -61,13 +61,13 @@ kind: Pod
 metadata:
   name: manual
 spec:
-  nodeName: k3s-agent
+  nodeName: node-2
   containers:
   - name: nginx
     image: nginx:1.27-alpine
 ```
 
-이 PC에서 이 파드의 이벤트는 `Pulling`부터 시작했다. `Scheduled`가 없다. 스케줄러가 한 일이 없기 때문이고, `nodeSelector`나 affinity가 있어도 무시된다. 첫째 원리다. kubelet은 `nodeName`이 자기 이름인 파드를 가져가 띄울 뿐이라 누가 적었는지 묻지 않는다. 그래서 위험도 있다. `nodeName: no-such-node`로 만든 파드는 이벤트 하나 없이 Pending에 머물렀다. 그 이름의 kubelet이 없으니 아무도 읽어 가지 않고, 스케줄러는 이미 노드가 적힌 파드라 손대지 않는다. 자원 검사도 없어서 노드가 꽉 차 있으면 kubelet이 띄우다 실패한다. 클라우드처럼 노드 이름이 자주 바뀌는 환경에서는 쓰지 않는다.
+이 파드의 이벤트는 `Pulling`부터 시작한다. `Scheduled`가 없다. 스케줄러가 한 일이 없기 때문이고, `nodeSelector`나 affinity가 있어도 무시된다. 첫째 원리다. kubelet은 `nodeName`이 자기 이름인 파드를 가져가 띄울 뿐이라 누가 적었는지 묻지 않는다. 그래서 위험도 있다. `nodeName: no-such-node`로 만든 파드는 이벤트 하나 없이 Pending에 머문다. 그 이름의 kubelet이 없으니 아무도 읽어 가지 않고, 스케줄러는 이미 노드가 적힌 파드라 손대지 않는다. 자원 검사도 없어서 노드가 꽉 차 있으면 kubelet이 띄우다 실패한다. 클라우드처럼 노드 이름이 자주 바뀌는 환경에서는 쓰지 않는다.
 
 {{< callout type="warning" >}}
 `nodeName`은 **파드가 만들어질 때 한 번** 정해진다. 돌고 있는 파드의 노드를 바꾸는 API는 없다. 옮기려면 파드를 지우고 다시 만든다(04장의 "파드는 고치지 않고 바꾼다"). 비어 있는 `nodeName`을 나중에 채우는 길이 하나 있는데 그것이 아래 Binding API고, 스케줄러 자신이 쓰는 문이다.
@@ -75,7 +75,7 @@ spec:
 
 **Binding API**
 
-이 PC에서 `schedulerName: nobody`로 만들어 아무 스케줄러도 집어 가지 않는 파드에 직접 Binding을 보냈다.
+`schedulerName: nobody`로 만들어 아무 스케줄러도 집어 가지 않는 파드에는 Binding을 직접 보낼 수 있다.
 
 ```json
 {
@@ -85,7 +85,7 @@ spec:
   "target": {
     "apiVersion": "v1",
     "kind": "Node",
-    "name": "k3s-lab"
+    "name": "node-1"
   }
 }
 ```
@@ -96,7 +96,7 @@ kubectl create --raw $P/bindme/binding \
   -f binding.json
 ```
 
-응답은 `"status":"Success","code":201`이었고, Pending이던 파드가 `k3s-lab`에서 Running이 됐다. 이벤트에는 역시 `Scheduled`가 없고 `Pulled`부터다. 스케줄러가 매 파드마다 하는 마지막 동작이 정확히 이 호출이다. 원문의 `curl` 예시는 `kubectl proxy`를 8001 포트에 띄운 뒤 같은 경로로 POST하는 것이고, 위 명령은 kubectl이 인증을 대신 처리해 준다.
+응답은 `"status":"Success","code":201`이고, Pending이던 파드가 `node-1`에서 Running이 된다. 이벤트에는 역시 `Scheduled`가 없고 `Pulled`부터다. 스케줄러가 매 파드마다 하는 마지막 동작이 정확히 이 호출이다. 원문의 `curl` 예시는 `kubectl proxy`를 8001 포트에 띄운 뒤 같은 경로로 POST하는 것이고, 위 명령은 kubectl이 인증을 대신 처리해 준다.
 
 ---
 
@@ -143,7 +143,7 @@ kubectl get pods --show-labels
 kubectl get nodes -L size,disk
 ```
 
-이 PC에서 `env` 라벨이 다른 파드 넷에 위 질의를 던지면 정확히 그 집합만 돌아왔다. `env in (prod,staging)`은 세 개, `env!=dev,app=demo`도 세 개, `!tier`는 tier가 없는 셋. 등호 조건은 AND로 묶이고 집합 조건은 괄호 안에서 OR다. 노드에도 같은 문법을 쓴다는 것이 이 장의 핵심이다. `kubectl get nodes -L size,disk`가 이 PC의 두 노드에 붙인 `size=large`, `disk=ssd`를 열로 보여 줬다.
+`env` 라벨이 다른 파드들에 위 질의를 던지면 정확히 그 집합만 돌아온다. 등호 조건은 AND로 묶이고 집합 조건은 괄호 안에서 OR다. 노드에도 같은 문법을 쓴다는 것이 이 장의 핵심이다. `kubectl get nodes -L size,disk`는 노드에 붙인 `size`, `disk` 라벨의 값을 열로 보여 준다.
 
 ### 2.3 ReplicaSet Selector
 
@@ -226,7 +226,7 @@ taint 있음 + toleration 없음     → 제외
 ```
 
 {{< callout type="warning" >}}
-**Toleration은 허락이지 배정이 아니다.** 이 PC에서 에이전트 노드에 `team=blue:NoSchedule`을 걸고 두 Deployment를 4개씩 띄웠다. toleration이 없는 쪽은 4개가 전부 서버 노드로 갔고, toleration이 있는 쪽은 **2개씩 두 노드에 나뉘었다.** 견딜 수 있게 됐을 뿐 blue 노드로 가야 할 이유는 없어서다. 특정 노드로 **보내려면** 5절의 affinity나 `nodeSelector`를 함께 쓴다(6.1).
+**Toleration은 허락이지 배정이 아니다.** 노드 둘 중 하나에 `team=blue:NoSchedule`을 걸고 두 Deployment를 4개씩 띄우면, toleration이 없는 쪽은 4개가 전부 다른 노드로 가고 toleration이 있는 쪽은 **두 노드에 나뉜다.** 견딜 수 있게 됐을 뿐 blue 노드로 가야 할 이유는 없어서다. 특정 노드로 **보내려면** 5절의 affinity나 `nodeSelector`를 함께 쓴다(6.1).
 {{< /callout >}}
 
 ### 3.2 Taint 관리
@@ -252,7 +252,7 @@ kubectl describe node node1 | grep Taint
 | PreferNoSchedule | 되면 피한다 | 영향 없음 | Filtering이 아니라 Scoring에서 감점. 갈 곳이 없으면 온다 |
 | NoExecute | 제외 | toleration 없으면 **퇴거** | 노드 점검이나 장애 때 파드를 비우는 장치. 노드 컨트롤러가 쓴다 |
 
-이 PC에서 `maint=true:NoExecute`를 에이전트에 걸자 1초 안에 그 노드의 toleration 없는 파드들에 `TaintManagerEviction: Marking for deletion` 이벤트가 붙고 대체 파드가 서버 노드에 생겼다. `tolerationSeconds: 15`를 단 파드는 남아 있다가 46초 뒤 사라졌다. 15초를 견딘 뒤 삭제가 시작되고, 기본 종료 유예 30초가 지나야 객체가 없어지기 때문이다. 퇴거는 삭제이고, 삭제는 유예 기간을 지킨다.
+노드에 `maint=true:NoExecute`를 걸면 곧바로 그 노드의 toleration 없는 파드들에 `TaintManagerEviction: Marking for deletion` 이벤트가 붙고 대체 파드가 다른 노드에 생긴다. `tolerationSeconds: 15`를 단 파드는 남아 있다가 45초쯤 뒤 사라진다. 15초를 견딘 뒤 삭제가 시작되고, 기본 종료 유예 30초가 지나야 객체가 없어지기 때문이다. 퇴거는 삭제이고, 삭제는 유예 기간을 지킨다.
 
 ### 3.4 Toleration 설정
 
@@ -297,7 +297,7 @@ spec:
 
 ### 3.5 자동으로 붙는 Taint와 Toleration
 
-taint는 사람만 거는 것이 아니다. 노드 컨트롤러가 노드 상태에 따라 `node.kubernetes.io/not-ready`, `unreachable`, `memory-pressure`, `disk-pressure`, `pid-pressure`, `network-unavailable`, `unschedulable`을 자동으로 건다. 그리고 admission 단계의 DefaultTolerationSeconds가 모든 파드에 `not-ready`와 `unreachable`을 **300초** 견디는 toleration을 넣어 준다. 이 PC의 아무 제약 없는 파드에서 그것을 봤다.
+taint는 사람만 거는 것이 아니다. 노드 컨트롤러가 노드 상태에 따라 `node.kubernetes.io/not-ready`, `unreachable`, `memory-pressure`, `disk-pressure`, `pid-pressure`, `network-unavailable`, `unschedulable`을 자동으로 건다. 그리고 admission 단계의 DefaultTolerationSeconds가 모든 파드에 `not-ready`와 `unreachable`을 **300초** 견디는 toleration을 넣어 준다. 아무 제약 없는 파드의 `tolerations`를 보면 이 둘이 들어 있다.
 
 ```text
 node.kubernetes.io/not-ready
@@ -308,7 +308,7 @@ node.kubernetes.io/unreachable
 
 02장과 03장에서 "노드가 죽으면 5분 뒤 파드가 옮겨진다"고 한 것이 이 두 줄이다. 노드가 NotReady가 되면 컨트롤러가 `not-ready:NoExecute`를 걸고, 파드는 300초를 견딘 뒤 퇴거된다. 값을 줄이면 빨리 옮기고, 늘리면 잠깐의 네트워크 끊김에 파드가 쫓겨나지 않는다.
 
-컨트롤 플레인 노드의 taint도 같은 장치다. kubeadm은 `node-role.kubernetes.io/control-plane:NoSchedule`을 걸어 일반 파드를 막고([03](../03-cluster-setup)장 8절), k3s는 걸지 않아 이 PC의 서버 노드 taint는 비어 있었다.
+컨트롤 플레인 노드의 taint도 같은 장치다. kubeadm은 `node-role.kubernetes.io/control-plane:NoSchedule`을 걸어 일반 파드를 막고([03](../03-cluster-setup)장 8절), k3s는 기본으로 걸지 않아 서버 노드에도 일반 파드가 뜬다.
 
 ```bash
 kubectl describe node cp1 | grep Taint
@@ -325,8 +325,8 @@ kubectl describe node cp1 | grep Taint
 ### 4.1 사용법
 
 ```bash
-kubectl label nodes k3s-agent size=large
-kubectl label nodes k3s-lab disk=ssd
+kubectl label nodes node-2 size=large
+kubectl label nodes node-1 disk=ssd
 ```
 
 ```yaml
@@ -342,7 +342,7 @@ spec:
     image: data-processor:v1.0
 ```
 
-이 PC에서 `size: large`인 파드는 그 라벨이 있는 에이전트 노드로 갔고, `size: xlarge`인 파드는 Pending에 남으며 이유를 남겼다.
+`size: large`인 파드는 그 라벨이 있는 노드로 가고, 어느 노드에도 없는 `size: xlarge`를 적은 파드는 Pending에 남으며 이유를 남긴다.
 
 ```text
 0/2 nodes are available:
@@ -417,7 +417,7 @@ spec:
   operator: DoesNotExist
 ```
 
-이 PC에서 두 노드에 `cores=16`과 `cores=4`를 붙이고 `cores Gt 8`인 파드를 만들자 16인 노드로 갔다. 값은 문자열로 적지만 비교는 정수로 한다.
+두 노드에 `cores=16`과 `cores=4`를 붙이고 `cores Gt 8`인 파드를 만들면 16인 노드로 간다. 값은 문자열로 적지만 비교는 정수로 한다.
 
 ### 5.4 OR 조건 (nodeSelectorTerms 배열)
 
@@ -460,7 +460,7 @@ spec:
             values: ["ap-northeast-2b"]
 ```
 
-가중치는 1~100이고, 노드가 만족하는 항목의 가중치를 더한 값이 그 노드의 이 플러그인 점수가 된다. 다른 플러그인의 점수(자원 여유, 이미지 유무, 분산)와 합쳐지므로 "선호"는 말 그대로 선호다. 이 PC에서 `disk=ssd`를 100으로 선호하는 파드 4개는 전부 ssd 노드로 갔다. 두 노드가 거의 비어 있어 다른 점수가 비슷했기 때문이고, ssd 노드가 꽉 차 있었다면 다른 노드로 갔을 것이다.
+가중치는 1~100이고, 노드가 만족하는 항목의 가중치를 더한 값이 그 노드의 이 플러그인 점수가 된다. 다른 플러그인의 점수(자원 여유, 이미지 유무, 분산)와 합쳐지므로 "선호"는 말 그대로 선호다. `disk=ssd`를 100으로 선호하는 파드는 두 노드가 비슷하게 비어 있으면 전부 ssd 노드로 간다. 다른 점수가 비슷해서이고, ssd 노드가 꽉 차 있으면 다른 노드로 간다.
 
 ### 5.6 Pod Affinity와 Anti-Affinity
 
@@ -478,7 +478,7 @@ spec:
           kubernetes.io/hostname
 ```
 
-이 PC에서 위와 같은 필수 안티 어피니티를 건 Deployment를 3개로 띄우자 두 노드에 하나씩 가고 **세 번째는 Pending**에 남았다.
+노드 둘인 클러스터에서 위와 같은 필수 안티 어피니티를 건 Deployment를 3개로 띄우면 두 노드에 하나씩 가고 **세 번째는 Pending**에 남는다.
 
 ```text
 0/2 nodes are available:
@@ -488,7 +488,7 @@ preemption: ... No preemption victims
 found for incoming pod.
 ```
 
-같은 규칙을 `preferred…Execution`으로 바꾸자 2개와 1개로 나뉘어 셋 다 떴다. 필수는 "노드당 최대 하나"이므로 노드 수보다 많은 복제본은 절대 뜨지 않고, 선호는 될 수 있는 한 나눈다. 복제본을 여러 노드에 흩어 놓아 노드 장애를 견디려는 것이 목적이면 대개 선호가 맞고, 정확한 개수 조절은 다음의 topology spread가 낫다. 문서는 파드 어피니티 계산이 무거워 수백 노드가 넘는 클러스터에서는 권하지 않는다고 적는다. 노드마다 다른 파드들을 다 살펴야 하기 때문이다.
+같은 규칙을 `preferred…Execution`으로 바꾸면 2개와 1개로 나뉘어 셋 다 뜬다. 필수는 "노드당 최대 하나"이므로 노드 수보다 많은 복제본은 절대 뜨지 않고, 선호는 될 수 있는 한 나눈다. 복제본을 여러 노드에 흩어 놓아 노드 장애를 견디려는 것이 목적이면 대개 선호가 맞고, 정확한 개수 조절은 다음의 topology spread가 낫다. 문서는 파드 어피니티 계산이 무거워 수백 노드가 넘는 클러스터에서는 권하지 않는다고 적는다. 노드마다 다른 파드들을 다 살펴야 하기 때문이다.
 
 ### 5.7 Topology Spread Constraints
 
@@ -505,7 +505,7 @@ spec:
         app: web
 ```
 
-이 PC에서 4개는 2와 2로, 5개로 늘리자 3과 2로 갔다. 차이가 1을 넘지 않는다. `DoNotSchedule`은 지킬 수 없으면 Pending이고, `ScheduleAnyway`는 차이를 줄이는 노드를 우선하되 어디든 띄운다. 사실 아무 제약을 걸지 않은 04장의 파드들이 두 노드에 고르게 나뉜 것도 이 장치다. 스케줄러에는 호스트 사이 `maxSkew 3`, 존 사이 `maxSkew 5`의 `ScheduleAnyway` 기본 제약이 들어 있다. 명시적으로 쓰는 것은 그 기본값을 더 조이거나 필수로 바꾸는 일이다. 가용 영역 사이에 나누려면 `topologyKey`를 `topology.kubernetes.io/zone`으로 둔다(14절).
+노드 둘에서 4개는 2와 2로, 5개로 늘리면 3과 2로 간다. 차이가 1을 넘지 않는다. `DoNotSchedule`은 지킬 수 없으면 Pending이고, `ScheduleAnyway`는 차이를 줄이는 노드를 우선하되 어디든 띄운다. 사실 아무 제약을 걸지 않은 파드들이 노드에 고르게 나뉘는 것도 이 장치다. 스케줄러에는 호스트 사이 `maxSkew 3`, 존 사이 `maxSkew 5`의 `ScheduleAnyway` 기본 제약이 들어 있다. 명시적으로 쓰는 것은 그 기본값을 더 조이거나 필수로 바꾸는 일이다. 가용 영역 사이에 나누려면 `topologyKey`를 `topology.kubernetes.io/zone`으로 둔다(14절).
 
 ---
 
@@ -522,7 +522,7 @@ spec:
 
 ### 6.1 완전한 노드 전용화
 
-taint만 걸면 다른 파드는 못 오지만 내 파드가 다른 노드로 갈 수 있고(3.1의 실측), affinity만 걸면 내 파드는 오지만 다른 파드도 온다. 둘을 **함께** 써야 "그 노드에는 그 파드만, 그 파드는 그 노드에만"이 된다.
+taint만 걸면 다른 파드는 못 오지만 내 파드가 다른 노드로 갈 수 있고(3.1절), affinity만 걸면 내 파드는 오지만 다른 파드도 온다. 둘을 **함께** 써야 "그 노드에는 그 파드만, 그 파드는 그 노드에만"이 된다.
 
 ```bash
 kubectl taint nodes blue-node \
@@ -582,7 +582,7 @@ spec:
         memory: "1Gi"
 ```
 
-스케줄러가 보는 것은 노드의 allocatable에서 그 노드에 있는 파드들의 requests 합을 뺀 값이다. 실제 사용량이 아니다. 이 PC의 서버 노드는 CPU 12개 중 requests 합이 `200m (1%)`, 메모리 `140Mi (0%)`였고, `kubectl describe node`의 `Allocated resources`가 그 표다. 02장에서 CPU 100개를 요청한 파드가 `Insufficient cpu`로 Pending이 된 것도 이 계산이다.
+스케줄러가 보는 것은 노드의 allocatable에서 그 노드에 있는 파드들의 requests 합을 뺀 값이다. 실제 사용량이 아니다. `kubectl describe node`의 `Allocated resources`가 그 합계의 표이고, 거의 빈 노드라면 CPU requests `200m (1%)`처럼 나온다. 02장에서 CPU 100개를 요청한 파드가 `Insufficient cpu`로 Pending이 된 것도 이 계산이다.
 
 | 값 | 누가 보나 | 무엇에 쓰나 | 왜 둘로 나눴나 |
 |:---|:---------|:-----------|:-------------|
@@ -604,18 +604,18 @@ Memory (이진 접두어 권장)
   (십진: K / M / G = 1,000 배)
 ```
 
-`64Mi`는 04장의 Downward API에서 `67108864` 바이트로 나왔다. `64M`이라고 적으면 64,000,000이라 6% 적다.
+`64Mi`는 04장의 Downward API에서 `67108864` 바이트로 나온다. `64M`이라고 적으면 64,000,000이라 6% 적다.
 
 ### 7.3 Limits 초과 시 동작
 
-| 리소스 | 넘으면 | 왜 다른가 | 이 PC 실측 |
+| 리소스 | 넘으면 | 왜 다른가 | 예 |
 |:------|:------|:---------|:----------|
-| CPU | **스로틀링**. 느려지지만 죽지 않는다 | CPU는 시간을 나누는 자원이라 기다리게 할 수 있다 | limit 100m인 무한 루프: `kubectl top` 101m, cgroup `cpu.max` = `10000 100000`(100ms마다 10ms), 25초 동안 302번 스로틀, 합 16.2초 |
-| Memory | **OOM Kill**. 컨테이너가 죽고 재시작 | 메모리는 이미 쓴 것을 돌려받을 수 없다 | limit 32Mi에 100MB를 쥐자 `OOMKilled`, exit 137, RESTARTS 1, 곧 `CrashLoopBackOff` |
+| CPU | **스로틀링**. 느려지지만 죽지 않는다 | CPU는 시간을 나누는 자원이라 기다리게 할 수 있다 | limit 100m인 무한 루프: `kubectl top`은 100m 근처, cgroup `cpu.max`는 `10000 100000`(100ms마다 10ms). `cpu.stat`의 스로틀 횟수와 시간이 계속 오른다 |
+| Memory | **OOM Kill**. 컨테이너가 죽고 재시작 | 메모리는 이미 쓴 것을 돌려받을 수 없다 | limit 32Mi인 컨테이너가 100MB를 쥐면 `OOMKilled`, exit 137, RESTARTS가 오르고 곧 `CrashLoopBackOff` |
 
-`cpu.max`의 두 숫자가 스로틀링의 실체다. 100ms 주기에 10ms만 쓸 수 있고, 다 쓰면 다음 주기까지 멈춘다. 25초 중 16초를 멈춰 있었으니 무한 루프가 실제로 얻은 CPU는 딱 100m다. exit 137은 128 + 9(SIGKILL)로, 커널의 OOM 킬러가 보낸 신호다.
+`cpu.max`의 두 숫자가 스로틀링의 실체다. 100ms 주기에 10ms만 쓸 수 있고, 다 쓰면 다음 주기까지 멈춘다. 코어 하나를 다 쓰려는 무한 루프는 시간의 대부분을 멈춰 있게 되고, 실제로 얻는 CPU는 딱 100m다. exit 137은 128 + 9(SIGKILL)로, 커널의 OOM 킬러가 보낸 신호다.
 
-파드가 뜬 뒤에도 값을 바꿀 수 있게 됐다. In-place resize는 1.33에서 베타(기본 켜짐), 1.35에서 GA다. 이 PC에서 돌고 있는 위 파드의 CPU limit을 300m으로 올렸다.
+파드가 뜬 뒤에도 값을 바꿀 수 있게 됐다. In-place resize는 1.33에서 베타(기본 켜짐), 1.35에서 GA다. 돌고 있는 위 파드의 CPU limit을 300m으로 올리면 이렇다.
 
 ```bash
 kubectl patch pod cpuhog \
@@ -626,11 +626,11 @@ kubectl patch pod cpuhog \
       "requests":{"cpu":"300m"}}}]}}'
 ```
 
-RESTARTS는 0 그대로였고 `cpu.max`가 `30000 100000`으로, `kubectl top`이 294m으로 바뀌었다. 04장의 "파드는 고치지 않는다"의 예외가 자원 필드다. 메모리를 줄이는 것은 컨테이너 재시작이 필요할 수 있어 `resizePolicy`로 정한다.
+RESTARTS는 0 그대로이고 `cpu.max`가 `30000 100000`으로, `kubectl top`이 300m 근처로 바뀐다. 04장의 "파드는 고치지 않는다"의 예외가 자원 필드다. 메모리를 줄이는 것은 컨테이너 재시작이 필요할 수 있어 `resizePolicy`로 정한다([09](../09-observability)장 2.4절).
 
 ### 7.4 QoS 클래스
 
-requests와 limits의 조합이 파드의 QoS 클래스를 정하고, 노드가 메모리 압박을 받을 때 kubelet이 누구를 먼저 내보낼지의 순서가 된다. 이 PC에서 세 파드의 `.status.qosClass`를 읽었다.
+requests와 limits의 조합이 파드의 QoS 클래스를 정하고, 노드가 메모리 압박을 받을 때 kubelet이 누구를 먼저 내보낼지의 순서가 된다. 파드의 `.status.qosClass`에 그 클래스가 적힌다. kubelet이 실제로 고르는 기준(사용량이 requests를 넘는가, 우선순위)은 [09](../09-observability)장 2.3절이다.
 
 | 클래스 | 조건 | 압박 때 | 왜 |
 |:------|:-----|:-------|:---|
@@ -665,7 +665,7 @@ spec:
       memory: "64Mi"
 ```
 
-이 PC에서 위 LimitRange가 있는 네임스페이스에 자원을 안 적은 파드를 만들자 `requests cpu 100m, memory 128Mi / limits cpu 500m, memory 256Mi`가 채워져 있었고, CPU limit 3을 적은 파드는 거절됐다.
+위 LimitRange가 있는 네임스페이스에 자원을 안 적은 파드를 만들면 `requests cpu 100m, memory 128Mi / limits cpu 500m, memory 256Mi`가 채워지고, CPU limit 3을 적은 파드는 거절된다.
 
 ```text
 pods "lr-toobig" is forbidden:
@@ -696,7 +696,7 @@ spec:
     pods: "50"
 ```
 
-이 PC에서 `requests.cpu: "1"`, `pods: "5"`의 quota를 둔 네임스페이스에 파드 셋을 넣었다.
+`requests.cpu: "1"`, `pods: "5"`의 quota를 둔 네임스페이스에 파드 셋을 차례로 넣으면 이렇게 된다.
 
 | 파드 | requests | 결과 |
 |:-----|:--------|:-----|
@@ -750,16 +750,16 @@ spec:
 
 ### 8.4 노드마다 하나가 되는 방법
 
-DaemonSet 컨트롤러는 스케줄러를 우회하지 않는다. 노드마다 파드를 하나 만들면서 그 파드에 **그 노드만 허용하는 node affinity**를 심어 두고, 배치는 기본 스케줄러가 한다. 이 PC의 DaemonSet 파드 하나를 열어 보니 이렇게 들어 있었다.
+DaemonSet 컨트롤러는 스케줄러를 우회하지 않는다. 노드마다 파드를 하나 만들면서 그 파드에 **그 노드만 허용하는 node affinity**를 심어 두고, 배치는 기본 스케줄러가 한다. DaemonSet이 만든 파드 하나를 열어 보면 이렇게 들어 있다.
 
 ```text
 nodeAffinity.required…Execution
   .nodeSelectorTerms[0].matchFields[0]
   = {key: metadata.name, operator: In,
-     values: [k3s-agent]}
+     values: [node-2]}
 ```
 
-`matchFields`는 라벨이 아니라 노드 객체의 필드(`metadata.name`)를 보는 조건이다. 그리고 컨트롤러는 3.5의 자동 taint들을 견디는 toleration도 함께 넣는다. 이 PC의 파드에 `not-ready`, `unreachable`(NoExecute), `disk-pressure`, `memory-pressure`, `pid-pressure`, `unschedulable`(NoSchedule)이 들어 있었다. 노드가 아파도 로그 수집기는 남아 있어야 하기 때문이다. `nodeSelector: {size: large}`를 준 DaemonSet은 그 라벨의 노드 한 대에만 떴다.
+`matchFields`는 라벨이 아니라 노드 객체의 필드(`metadata.name`)를 보는 조건이다. 그리고 컨트롤러는 3.5의 자동 taint들을 견디는 toleration도 함께 넣는다. 파드에는 `not-ready`, `unreachable`(NoExecute), `disk-pressure`, `memory-pressure`, `pid-pressure`, `unschedulable`(NoSchedule)이 들어 있다. 노드가 아파도 로그 수집기는 남아 있어야 하기 때문이다. `nodeSelector: {size: large}`를 준 DaemonSet은 그 라벨이 있는 노드에만 뜬다.
 
 {{< callout type="warning" >}}
 DaemonSet과 Deployment는 **배치 모델이 다르다.** DaemonSet에는 `replicas`가 없고 "노드 수 = 파드 수"다. "모든 노드에 안 뜨네?"는 대개 컨트롤 플레인 taint나 라벨 조건 때문이다. 02장에서 컨트롤 플레인 taint를 견디는 toleration을 따로 준 이유가 그것이다. 자동으로 들어가는 toleration은 노드 **상태** taint들뿐이고, 사람이 건 taint는 직접 견뎌야 한다.
@@ -789,27 +789,27 @@ kubelet 설정 파일의 `staticPodPath`가 그 디렉터리다. 옛 플래그 `
 staticPodPath: /etc/kubernetes/manifests
 ```
 
-이 PC의 k3s는 `/var/lib/rancher/k3s/agent/pod-manifests`였다. 그 디렉터리에 nginx 파드 매니페스트를 넣자 **1초 뒤** API 서버에 `static-web-k3s-lab`이 나타났다.
+k3s는 `/var/lib/rancher/k3s/agent/pod-manifests`다. 그 디렉터리에 `static-web`이라는 파드의 매니페스트를 넣으면 곧 API 서버에 `static-web-node-1`이 나타난다.
 
 ### 9.3 동작
 
 ```text
 디렉터리 감시 (inotify + 주기 20초)
-  파일 추가 → 파드 생성 (실측 1초)
+  파일 추가 → 파드 생성
   파일 수정 → 파드 재생성
-  파일 삭제 → 파드 삭제 (실측 3초)
+  파일 삭제 → 파드 삭제
 ```
 
 ### 9.4 Mirror Pod
 
-kubelet은 자기가 띄운 정적 파드를 API 서버에 **미러 파드**로 올려 `kubectl get`에 보이게 한다. 이 PC의 미러 파드는 이름이 `<파드>-<노드>` 규칙대로 `static-web-k3s-lab`이었고, `ownerReferences`가 `Node/k3s-lab`, 어노테이션에 `kubernetes.io/config.mirror` 해시가 있었다.
+kubelet은 자기가 띄운 정적 파드를 API 서버에 **미러 파드**로 올려 `kubectl get`에 보이게 한다. 미러 파드는 이름이 `<파드>-<노드>` 규칙대로 `static-web-node-1`이 되고, `ownerReferences`가 `Node/node-1`, 어노테이션에 `kubernetes.io/config.mirror` 해시가 있다.
 
 | 항목 | 설명 | 왜 |
 |:-----|:-----|:---|
 | 미러 객체 | API 서버의 읽기 전용 사본 | 정적 파드도 `kubectl get`, `logs`로 보고 싶다 |
 | 이름 | `<파드>-<노드>` | 같은 파일을 여러 노드에 두면 이름이 겹친다 |
-| kubectl delete | 미러만 지워지고 kubelet이 다시 만든다 | 진실은 파일이다. 이 PC에서 지운 뒤 6초가 지나도 Terminating인 채 남아 있었다 |
-| 수정·삭제 | 파일을 고치고 지운다 | 파일이 없어지자 3초 뒤 미러도 사라졌다 |
+| kubectl delete | 미러만 지워지고 kubelet이 다시 만든다 | 진실은 파일이다. 컨테이너는 그대로 돈다 |
+| 수정·삭제 | 파일을 고치고 지운다 | 파일이 없어지면 곧 미러도 사라진다 |
 
 ### 9.5 Static Pod vs DaemonSet
 
@@ -852,7 +852,7 @@ ls /etc/kubernetes/manifests/
 | `system-node-critical` | 2,000,001,000 | kube-proxy, CNI처럼 노드에 꼭 필요한 것. 클러스터용보다 높다 |
 | 미지정 | `globalDefault: true`인 클래스가 있으면 그 값, 없으면 0 | |
 
-이 PC의 `kubectl get priorityclass`에 시스템 클래스 둘이 그 값으로 있었다.
+`kubectl get priorityclass`를 치면 시스템 클래스 둘이 그 값으로 이미 있다.
 
 ### 10.3 PriorityClass 정의
 
@@ -881,23 +881,23 @@ spec:
     image: critical-app:v1.0
 ```
 
-### 10.5 이 PC에서 본 선점
+### 10.5 선점이 일어나는 순서
 
-CPU 12개인 노드 둘에 CPU 11개를 요청하는 낮은 우선순위(100) 파드를 하나씩 두어 두 노드를 채운 뒤, 같은 11개를 요청하는 높은 우선순위(1000) 파드를 만들었다.
+노드 둘을 낮은 우선순위(100) 파드로 가득 채운 뒤, 같은 크기를 요청하는 높은 우선순위(1000) 파드를 만들면 이벤트가 이렇게 남는다.
 
 ```text
 FailedScheduling  0/2 nodes are
   available: 2 Insufficient cpu.
 Preempted  low-...-z6w7l by pod high
-  on node k3s-agent
+  on node node-2
 FailedScheduling  ... preemption: not
   eligible due to a terminating pod on
   the nominated node.
 Scheduled  assigned default/high
-  to k3s-agent           (34초 뒤)
+  to node-2              (30초쯤 뒤)
 ```
 
-첫 시도는 자원 부족으로 실패했고, 스케줄러가 에이전트의 낮은 파드를 희생자로 골라 삭제하며 높은 파드에 `nominatedNodeName`을 적어 두었다. 희생자가 30초 유예를 다 쓰고 사라진 뒤 높은 파드가 그 자리에 떴다. 34초는 그 유예다. 낮은 파드의 Deployment는 대체 파드를 만들었지만 갈 곳이 없어 Pending에 남았다. 선점은 자리를 **바꾸는** 것이지 만드는 것이 아니다.
+첫 시도는 자원 부족으로 실패하고, 스케줄러가 한 노드의 낮은 파드를 희생자로 골라 삭제하며 높은 파드에 `nominatedNodeName`을 적어 둔다. 희생자가 종료 유예를 다 쓰고 사라진 뒤 높은 파드가 그 자리에 뜬다. 기본 유예가 30초라 그만큼 걸린다. 낮은 파드의 Deployment는 대체 파드를 만들지만 갈 곳이 없어 Pending에 남는다. 선점은 자리를 **바꾸는** 것이지 만드는 것이 아니다.
 
 ### 10.6 Preemption Policy
 
@@ -906,13 +906,13 @@ Scheduled  assigned default/high
 | `PreemptLowerPriority`(기본) | 낮은 파드를 내보내고 들어간다 | 중요한 것이 먼저 돌아야 한다 |
 | `Never` | 내보내지 않고 자원이 나기를 기다린다. 대기열에서는 앞에 선다 | 중요하지만 남을 죽일 만큼은 아닌 배치 작업 |
 
-이 PC에서 `preemptionPolicy: Never`인 1000짜리 파드는 같은 상황에서 Pending에 남았고 메시지가 그 이유를 적었다. `preemption: not eligible due to preemptionPolicy=Never`. 선점된 파드에 PodDisruptionBudget이 있어도 선점은 그것을 최선으로만 존중한다는 점도 기억한다.
+`preemptionPolicy: Never`인 1000짜리 파드는 같은 상황에서 Pending에 남고 메시지가 그 이유를 적는다. `preemption: not eligible due to preemptionPolicy=Never`. 선점된 파드에 PodDisruptionBudget이 있어도 선점은 그것을 최선으로만 존중한다는 점도 기억한다.
 
 ---
 
 ## 11. Multiple Schedulers
 
-`spec.schedulerName`은 "이 파드는 누가 배치하나"다. 기본값 `default-scheduler`가 아닌 이름을 적으면 기본 스케줄러는 그 파드를 건드리지 않는다. 이 PC에서 `schedulerName: nobody`인 파드가 이벤트 하나 없이 Pending에 남아 있던 것이 그 증거다(1.2). 그 이름의 스케줄러를 띄우면 그때 배치된다.
+`spec.schedulerName`은 "이 파드는 누가 배치하나"다. 기본값 `default-scheduler`가 아닌 이름을 적으면 기본 스케줄러는 그 파드를 건드리지 않는다. 1.2절의 `schedulerName: nobody`인 파드가 이벤트 하나 없이 Pending에 남는 것이 그래서다. 그 이름의 스케줄러를 띄우면 그때 배치된다.
 
 ### 11.1 두 번째 스케줄러 배포
 
@@ -966,7 +966,7 @@ spec:
           name: my-scheduler-config
 ```
 
-이미지 이름의 `\`는 YAML 큰따옴표 문자열의 줄 이음이다. ServiceAccount `my-scheduler`에는 ClusterRole `system:kube-scheduler`와 `system:volume-scheduler`를 ClusterRoleBinding으로, `kube-system`의 Role `extension-apiserver-authentication-reader`를 RoleBinding으로 묶는다. 이 PC에서 이 구성이 뜬 뒤 `schedulerName: my-scheduler`인 파드가 곧 Running이 됐다. 03장 10절의 리더 선출을 끄는 이유는 인스턴스가 하나라 선출할 상대가 없기 때문이고, 둘 이상 띄우면 켜서 한 대만 일하게 한다.
+이미지 이름의 `\`는 YAML 큰따옴표 문자열의 줄 이음이다. ServiceAccount `my-scheduler`에는 ClusterRole `system:kube-scheduler`와 `system:volume-scheduler`를 ClusterRoleBinding으로, `kube-system`의 Role `extension-apiserver-authentication-reader`를 RoleBinding으로 묶는다. 이 구성이 뜨면 `schedulerName: my-scheduler`인 파드가 곧 Running이 된다. 03장 10절의 리더 선출을 끄는 이유는 인스턴스가 하나라 선출할 상대가 없기 때문이고, 둘 이상 띄우면 켜서 한 대만 일하게 한다.
 
 ### 11.2 파드에서 지정
 
@@ -1135,7 +1135,7 @@ Validating (나중, 최종 검사)
 | NamespaceLifecycle | Validating | 삭제 중인 네임스페이스에 생성 금지 | |
 | ValidatingAdmissionPolicy | Validating | CEL 규칙, 웹훅 없는 정책 | 13.6 |
 
-원문 표의 `NamespaceExists`는 deprecated고 `NamespaceLifecycle`이 그 일을 한다. 1.37 문서의 기본 활성 목록은 위 표 대부분에 `CertificateApproval`, `CertificateSigning`, `CertificateSubjectRestriction`, `DefaultIngressClass`, `PersistentVolumeClaimResize`, `RuntimeClass`, `StorageObjectInUseProtection`, `MutatingAdmissionPolicy`, 웹훅 둘을 더한 것이다. 이 PC의 k3s는 여기에 `--enable-admission-plugins=NodeRestriction`을 명시해 뜨고 있었다.
+원문 표의 `NamespaceExists`는 deprecated고 `NamespaceLifecycle`이 그 일을 한다. 1.37 문서의 기본 활성 목록은 위 표 대부분에 `CertificateApproval`, `CertificateSigning`, `CertificateSubjectRestriction`, `DefaultIngressClass`, `PersistentVolumeClaimResize`, `RuntimeClass`, `StorageObjectInUseProtection`, `MutatingAdmissionPolicy`, 웹훅 둘을 더한 것이다. kubeadm과 k3s는 여기에 `--enable-admission-plugins=NodeRestriction`을 명시해 API 서버를 띄운다.
 
 ### 13.4 활성화/비활성화
 
@@ -1180,7 +1180,7 @@ webhooks:
 
 ### 13.6 ValidatingAdmissionPolicy (CEL)
 
-1.30에서 GA가 된 방식이다. 규칙을 CEL 표현식으로 API 서버 안에서 평가하고, 바인딩으로 적용 범위를 정한다. 이 PC에서 "파드에 `team` 라벨이 있어야 한다"를 특정 네임스페이스에 걸었다.
+1.30에서 GA가 된 방식이다. 규칙을 CEL 표현식으로 API 서버 안에서 평가하고, 바인딩으로 적용 범위를 정한다. "파드에 `team` 라벨이 있어야 한다"를 특정 네임스페이스에 거는 예다.
 
 ```yaml
 apiVersion:
@@ -1216,14 +1216,14 @@ spec:
         policy: team-label
 ```
 
-라벨 없는 파드는 이렇게 거절됐고, 라벨이 있는 파드는 만들어졌다.
+라벨 없는 파드는 이렇게 거절되고, 라벨이 있는 파드는 만들어진다.
 
 ```text
 The pods "no-team" is invalid:
 ValidatingAdmissionPolicy
 'require-team-label' with binding
 'require-team-label' denied request:
-pods must carry a team label
+team label required
 ```
 
 수정 쪽의 짝인 MutatingAdmissionPolicy는 1.34에서 베타(기본 꺼짐), 1.36에서 GA다. 정책 엔진(Kyverno, Gatekeeper)이 웹훅으로 하던 일의 상당 부분이 이 둘로 내장되고 있다.
@@ -1356,7 +1356,7 @@ kubectl get events \
 kubectl get pods -o wide
 ```
 
-이 PC의 `kubectl top nodes`는 서버 노드 `211m 1% / 576Mi 3%`, 에이전트 `68m 0% / 153Mi 0%`였다. 실제 사용량이고, 스케줄러가 보는 requests 합계(7.1의 `200m`)와는 다른 숫자다. Pending의 원인은 `FailedScheduling` 이벤트 메시지가 4절과 5절의 형식으로 알려 준다. `kubectl get pods -o wide`의 `NOMINATED NODE` 열은 10절의 선점이 진행 중인 파드에 채워진다.
+`kubectl top nodes`가 보여 주는 것은 실제 사용량이고, 스케줄러가 보는 requests 합계(7.1절)와는 다른 숫자다. Pending의 원인은 `FailedScheduling` 이벤트 메시지가 4절과 5절의 형식으로 알려 준다. `kubectl get pods -o wide`의 `NOMINATED NODE` 열은 10절의 선점이 진행 중인 파드에 채워진다.
 
 ---
 
@@ -1370,7 +1370,7 @@ kubectl get pods -o wide
 | Node Affinity | 복합 조건, 선호 | 파드 → 노드 | OR, Gt/Lt, 가중치 1~100 |
 | Taints/Tolerations | 노드 보호, 비우기 | 노드 → 파드 | toleration은 허락. NoExecute는 퇴거(유예 30초) |
 | Pod Anti-Affinity, Topology Spread | 흩기, 모으기 | 파드 ↔ 파드 | 필수 안티 어피니티는 노드 수를 넘지 못한다 |
-| Priority | 자리 양보 | 파드 간 | 선점은 삭제라 유예를 기다린다. 이 PC에서 34초 |
+| Priority | 자리 양보 | 파드 간 | 선점은 삭제라 유예를 기다린다. 기본 30초 |
 | Admission | 요청 고치고 검사 | API 서버 | LimitRange, Quota, toleration 주입, CEL 정책 |
 
 | 워크로드 유형 | 권장 리소스 | 왜 |
@@ -1386,15 +1386,6 @@ kubectl get pods -o wide
 | 컨테이너 | requests / limits | 배치 기준 / 런타임 상한 |
 | 네임스페이스 기본값과 상하한 | LimitRange | 값이 없는 파드에 채우고 큰 파드를 막는다 |
 | 네임스페이스 총량 | ResourceQuota | 팀 단위 예산. LimitRange와 함께 |
-
-{{< callout type="warning" >}}
-**검증하지 못한 것**
-- 모든 실측은 노드 둘, CPU 12개짜리 k3s에서 했다. 노드가 수백 대일 때의 어피니티 계산 비용, `percentageOfNodesToScore`의 효과, 존 단위 topology spread는 노드 라벨이 없어 확인하지 못했다.
-- `PreferNoSchedule`의 감점 크기, preferred affinity의 가중치가 다른 점수와 합쳐지는 비율은 문서 서술에 따랐다.
-- 정적 파드의 `kubectl delete` 뒤 재생성은 6초 안에 관찰되지 않았고(Terminating으로 남아 있었다), 문서의 "kubelet이 다시 만든다"는 서술로 대신했다.
-- Spot 회수, Karpenter, Descheduler, GPU 디바이스 플러그인은 이 PC에서 돌릴 수 없어 문서 기준이다.
-- In-place resize는 1.34 베타(기본 켜짐)에서 CPU만 확인했고 메모리 축소와 `resizePolicy`는 시험하지 않았다.
-{{< /callout >}}
 
 {{< callout type="info" >}}
 **용어 정리**
