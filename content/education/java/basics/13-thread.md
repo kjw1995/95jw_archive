@@ -4,7 +4,7 @@ date: 2026-01-08
 weight: 13
 ---
 
-앞 장들이 이 장으로 미뤄 둔 것이 유난히 많다. `StringBuffer`의 동기화가 왜 비용인가([Chapter 09](../09-java-lang-package)), `SimpleDateFormat`은 왜 공유하면 안 되는가([Chapter 10](../10-date-time-formatting)), `synchronizedList()`는 왜 반쪽짜리이고 왜 `ConcurrentHashMap`을 쓰라는가([Chapter 11](../11-collections-framework)), 그리고 `Object`에 왜 `wait()`와 `notify()`가 있는가(9장). 전부 스레드 이야기다. 이 장의 규칙들은 세 원리에서 나온다. 첫째, **스레드는 스택만 따로 갖고 힙은 함께 쓴다.** 그래서 문제도 해법도 전부 공유된 힙 위의 객체에 있다. 둘째, **"동시에"가 만드는 문제는 원자성, 가시성, 순서 셋으로 나뉜다.** `synchronized`가 무엇을 해결하고 `volatile`이 무엇을 못 하는지는 이 구분에서 결정된다. 셋째, **스레드를 만들지 말고 작업을 넘겨라.** `Runnable`을 권하는 이유, `ExecutorService`가 표준이 된 이유, Java 21의 가상 스레드가 나온 이유가 한 줄로 이어진다. 스레드 실행은 비결정적이라 이 장의 실측 수치는 필자의 PC(JDK 25, 12코어)에서 나온 경향으로만 읽으면 된다.
+앞 장들이 이 장으로 미뤄 둔 것이 유난히 많다. `StringBuffer`의 동기화가 왜 비용인가([Chapter 09](../09-java-lang-package)), `SimpleDateFormat`은 왜 공유하면 안 되는가([Chapter 10](../10-date-time-formatting)), `synchronizedList()`는 왜 반쪽짜리이고 왜 `ConcurrentHashMap`을 쓰라는가([Chapter 11](../11-collections-framework)), 그리고 `Object`에 왜 `wait()`와 `notify()`가 있는가(9장). 전부 스레드 이야기다. 이 장의 규칙들은 세 원리에서 나온다. 첫째, **스레드는 스택만 따로 갖고 힙은 함께 쓴다.** 그래서 문제도 해법도 전부 공유된 힙 위의 객체에 있다. 둘째, **"동시에"가 만드는 문제는 원자성, 가시성, 순서 셋으로 나뉜다.** `synchronized`가 무엇을 해결하고 `volatile`이 무엇을 못 하는지는 이 구분에서 결정된다. 셋째, **스레드를 만들지 말고 작업을 넘겨라.** `Runnable`을 권하는 이유, `ExecutorService`가 표준이 된 이유, Java 21의 가상 스레드가 나온 이유가 한 줄로 이어진다. 스레드 실행은 비결정적이라 이 장의 예제 결과는 실행할 때마다 달라질 수 있다.
 
 ---
 
@@ -25,22 +25,22 @@ weight: 13
 └──────────────────────────────┘
 ```
 
-[Chapter 06](../06-oop-basics)에서 메서드는 호출 스택의 프레임 위에서 산다고 했다. 스레드마다 그 스택이 하나씩 있다. 지역 변수와 매개변수는 스레드가 각자 갖고, 힙의 객체와 `static` 변수는 같은 프로세스의 모든 스레드가 함께 본다. 이 한 문장이 이 장의 절반이다. 지역 변수만 쓰는 메서드는 스레드가 몇 개든 안전하고, 힙의 객체를 여러 스레드가 바꾸는 순간부터 4절의 문제가 시작된다.
+[Chapter 06](../06-oop-basics)에서 메서드는 호출 스택의 프레임 위에서 산다고 했다. 스레드마다 그 스택이 하나씩 있다. 지역 변수와 매개변수는 스레드가 각자 갖고, 힙의 객체와 `static` 변수는 같은 프로세스의 모든 스레드가 함께 본다. 이 한 문장이 이 장의 절반이자 첫째 원리다. 지역 변수만 쓰는 메서드는 스레드가 몇 개든 안전하고, 힙의 객체를 여러 스레드가 바꾸는 순간부터 4절의 문제가 시작된다.
 
-스레드가 "가벼운 프로세스"로 불리는 이유도 여기 있다. 프로세스를 새로 만들면 메모리 공간을 통째로 준비해야 하지만, 스레드는 스택 하나(64비트 JVM에서 기본 1MB 안팎, `-Xss`로 조정)와 레지스터 상태만 있으면 된다. 전환할 때 교체하는 것도 프로그램 카운터, 레지스터, 스택 포인터 정도라 프로세스 전환보다 훨씬 싸다. 다만 싸다는 것이 공짜라는 뜻은 아니다. 스레드 만 개면 스택만 수 GB이고, 이 비용이 8절의 가상 스레드를 낳았다.
+스레드가 "가벼운 프로세스"로 불리는 이유도 여기 있다. 프로세스를 새로 만들면 메모리 공간을 통째로 준비해야 하지만, 스레드는 스택 하나(64비트 JVM에서 운영체제에 따라 기본 1~2MB, `-Xss`로 조정)와 레지스터 상태만 있으면 된다. 전환할 때 교체하는 것도 프로그램 카운터, 레지스터, 스택 포인터 정도라 프로세스 전환보다 훨씬 싸다. 다만 싸다는 것이 공짜라는 뜻은 아니다. 스레드 만 개면 스택만 수 GB이고, 이 비용이 8절의 가상 스레드를 낳았다.
 
 ### 1.2 병행과 병렬, 언제 이득인가
 
 코어가 하나면 스레드가 여럿이어도 한 순간에 하나만 실행된다. 운영체제가 아주 짧은 시간 단위로 스레드를 번갈아 실행해서 동시에 도는 것처럼 보일 뿐이고, 이것이 **병행**(concurrent)이다. 코어가 여럿이면 정말 동시에 실행되는 **병렬**(parallel)이 된다. 둘의 구분이 중요한 이유는 멀티스레드가 언제 이득인지가 여기서 갈리기 때문이다.
 
-| 작업의 성격 | 코어 | 멀티스레드 효과 |
-|:------------|:-----|:----------------|
-| CPU 계산만 | 1개 | 없다. 전환 비용만 든다 |
-| CPU 계산만 | 여러 개 | 코어 수만큼 빨라진다 |
-| 파일, 네트워크, DB 대기 | 상관없음 | 크다. 기다리는 동안 다른 일을 한다 |
-| 사용자 입력 대기 | 상관없음 | 크다. 화면이 멈추지 않는다 |
+| 작업의 성격 | 코어 | 멀티스레드 효과 | 왜 |
+|:------------|:-----|:----------------|:---|
+| CPU 계산만 | 1개 | 없다. 전환 비용만 든다 | 한 순간에 하나만 돌고, 바꿔 끼우는 데 비용이 든다 |
+| CPU 계산만 | 여러 개 | 코어 수까지 빨라진다 | 정말 동시에 돈다. 나누고 합치는 비용만큼은 못 미친다 |
+| 파일, 네트워크, DB 대기 | 상관없음 | 크다. 기다리는 동안 다른 일을 한다 | 기다리는 스레드는 CPU를 쓰지 않는다 |
+| 사용자 입력 대기 | 상관없음 | 크다. 화면이 멈추지 않는다 | 입력을 기다리는 스레드와 화면을 그리는 스레드가 따로다 |
 
-CPU 계산은 코어가 여럿일 때만 이득이고, 그마저 스레드 수만큼 정비례하지는 않는다. 2억 번의 나머지 연산을 한 스레드로 돌리면 약 230ms, 12코어 PC에서 네 스레드로 나누면 약 76ms였다. 세 배쯤이지 네 배가 아닌 것은 스레드 생성과 합치는 비용, 메모리 대역폭 때문이다. 반면 대기가 대부분인 작업은 코어가 하나여도 이득이 크다. 네트워크 응답을 기다리는 동안 CPU는 놀고 있으므로 다른 스레드가 그 시간을 쓸 수 있다. 서버가 요청마다 스레드를 하나씩 쓰는 이유가 이것이다.
+CPU 계산은 코어가 여럿일 때만 이득이고, 그마저 스레드 수만큼 정비례하지는 않는다. 같은 계산을 네 스레드로 나누면 네 배가 아니라 그보다 덜 빨라지는 것이 보통인데, 스레드를 만들고 결과를 합치는 비용과 메모리 대역폭을 네 스레드가 나눠 쓰기 때문이다. 반면 대기가 대부분인 작업은 코어가 하나여도 이득이 크다. 네트워크 응답을 기다리는 동안 CPU는 놀고 있으므로 다른 스레드가 그 시간을 쓸 수 있다. 서버가 요청마다 스레드를 하나씩 쓰는 이유가 이것이다.
 
 이득의 대가는 세 가지다. 공유하는 것을 맞춰야 하고(동기화), 서로 기다리다 영원히 멈출 수 있고(교착), 실행 순서가 매번 달라 재현되지 않는 버그가 생긴다.
 
@@ -51,18 +51,27 @@ CPU 계산은 코어가 여럿일 때만 이득이고, 그마저 스레드 수�
 ### 2.1 Thread를 상속할까, Runnable을 구현할까
 
 ```java
-class MyThread extends Thread {                 // 방법 1
-    @Override public void run() { System.out.println(getName()); }
-}
-class MyTask implements Runnable {              // 방법 2
+// 방법 1. Thread 상속
+class MyThread extends Thread {
     @Override public void run() {
-        System.out.println(Thread.currentThread().getName());
+        System.out.println(getName());
+    }
+}
+// 방법 2. Runnable 구현
+class MyTask implements Runnable {
+    @Override public void run() {
+        Thread me =
+            Thread.currentThread();
+        String n = me.getName();
+        System.out.println(n);
     }
 }
 
 new MyThread().start();
 new Thread(new MyTask()).start();
-new Thread(() -> System.out.println("lambda")).start();   // 14장의 람다
+Runnable r =
+    () -> System.out.println("lambda");
+new Thread(r).start();   // 14장의 람다
 ```
 
 둘 다 되지만 `Runnable`이 답이다. 이유는 둘이다. 자바는 단일 상속이라 `Thread`를 상속하면 다른 조상을 둘 수 없고([Chapter 07](../07-oop-advanced)), 더 근본적으로 **"할 일"과 "그것을 실행하는 스레드"는 다른 것**이기 때문이다. `Runnable`은 할 일만 담은 객체라서 `Thread`에 넘길 수도, 7절의 `ExecutorService`에 넘길 수도, 8절의 가상 스레드에 넘길 수도 있다. `Thread`를 상속하면 할 일이 스레드 하나에 묶인다. 이 장의 셋째 원리가 여기서 시작된다.
@@ -70,12 +79,19 @@ new Thread(() -> System.out.println("lambda")).start();   // 14장의 람다
 ### 2.2 start()와 run()은 다른 것이다
 
 ```java
-Thread t = new Thread(() ->
-    System.out.println("run by " + Thread.currentThread().getName()), "worker");
+Thread t = new Thread(() -> {
+    Thread me = Thread.currentThread();
+    System.out.println("run by "
+        + me.getName());
+}, "worker");
 
-t.run();      // run by main.   그냥 메서드 호출이다
-t.start();    // run by worker. 새 스레드에서 실행된다
-t.start();    // IllegalThreadStateException. 스레드는 한 번만 시작한다
+t.run();     // run by main
+// 그냥 메서드 호출이다
+t.start();   // run by worker
+// 새 스레드에서 실행된다
+t.start();
+// IllegalThreadStateException
+// 스레드는 한 번만 시작한다
 ```
 
 `run()`을 직접 부르면 `main` 스레드의 스택 위에서 평범한 메서드 호출로 실행된다. 새 스레드는 `start()`가 만든다. JVM에 새 스택을 요구하고, 운영체제 스레드를 얻고, 그 위에서 `run()`을 부르는 것이 `start()`의 일이다. 한 번 끝난 스레드는 스택이 걷혀 다시 시작할 수 없으므로 두 번째 `start()`는 예외다. 같은 일을 다시 하려면 `Runnable`을 새 `Thread`에 다시 넘긴다.
@@ -89,17 +105,20 @@ t.start();    // IllegalThreadStateException. 스레드는 한 번만 시작한�
 ```java
 Thread daemon = new Thread(() -> {
     while (true) {
-        try { Thread.sleep(1000); } catch (InterruptedException e) { break; }
+        try { Thread.sleep(1000); }
+        catch (InterruptedException e) {
+            break;
+        }
         // 자동 저장 같은 배경 작업
     }
 });
-daemon.setDaemon(true);      // start() 전에. 이후에 부르면 IllegalThreadStateException
+daemon.setDaemon(true);  // start() 전에
 daemon.start();
 ```
 
-데몬은 사용자 스레드가 끝나는 순간 하던 일 중간에 끊긴다. 파일 쓰기처럼 중간에 끊기면 안 되는 일을 데몬에 맡기면 안 되는 이유다.
+`setDaemon()`은 `start()` 전에만 부를 수 있고, 이후에 부르면 `IllegalThreadStateException`이다. 데몬은 사용자 스레드가 끝나는 순간 하던 일 중간에 끊긴다. 파일 쓰기처럼 중간에 끊기면 안 되는 일을 데몬에 맡기면 안 되는 이유다.
 
-우선순위는 1부터 10까지이고 기본이 5다. `setPriority()`는 언제든 부를 수 있지만 **운영체제에 주는 힌트**일 뿐이라 무시될 수 있고, 리눅스는 기본 설정에서 아예 반영하지 않는다. 실행 순서를 정해야 한다면 우선순위가 아니라 `join()`, `CountDownLatch`, `CompletableFuture` 같은 조정 도구를 쓴다. 스레드 그룹은 JDK 1.0의 장치인데 핵심 메서드 대부분이 Java 16과 17에서 제거 예정으로 표시됐다. 스레드 묶음의 관리는 7절의 `ExecutorService`가 대신한다.
+우선순위는 1부터 10까지이고 기본이 5다. `setPriority()`는 언제든 부를 수 있지만 **운영체제에 주는 힌트**일 뿐이라 무시될 수 있고, 리눅스는 기본 설정에서 아예 반영하지 않는다. 실행 순서를 정해야 한다면 우선순위가 아니라 `join()`, `CountDownLatch`, `CompletableFuture` 같은 조정 도구를 쓴다. 스레드 그룹은 JDK 1.0의 장치인데 핵심 메서드가 Java 16과 17에서 제거 예정으로 표시됐고 `stop()`, `suspend()`, `resume()`은 Java 23에서 삭제됐다. 스레드 묶음의 관리는 7절의 `ExecutorService`가 대신한다.
 
 ---
 
@@ -124,63 +143,68 @@ NEW ───────────▶ RUNNABLE ◀──────┐
                TERMINATED
 ```
 
-| 상태 | 언제 | 확인한 경우 |
-|:-----|:-----|:------------|
-| `NEW` | 만들었지만 `start()` 전 | |
-| `RUNNABLE` | 실행 중이거나 CPU를 기다리는 중 | JVM은 둘을 구분하지 않는다 |
-| `BLOCKED` | 다른 스레드가 쥔 `synchronized` 락을 기다림 | 락 든 채로 다른 스레드가 진입 시도 |
-| `WAITING` | `wait()`, `join()`으로 기한 없이 대기 | |
-| `TIMED_WAITING` | `sleep(ms)`, `wait(ms)`, `join(ms)` | |
-| `TERMINATED` | `run()`이 끝남 | 예외로 끝나도 같다 |
+| 상태 | 언제 | 왜 따로 있나 |
+|:-----|:-----|:-------------|
+| `NEW` | 만들었지만 `start()` 전 | 스택이 아직 없다 |
+| `RUNNABLE` | 실행 중이거나 CPU를 기다리는 중 | 둘의 구분은 운영체제 스케줄러의 몫이라 JVM은 합쳐 본다 |
+| `BLOCKED` | 다른 스레드가 쥔 `synchronized` 락을 기다림 | 락이 풀리면 JVM이 깨운다. 기한이 없다 |
+| `WAITING` | `wait()`, `join()`으로 기한 없이 대기 | 누군가 `notify()`하거나 상대가 끝나야 깬다 |
+| `TIMED_WAITING` | `sleep(ms)`, `wait(ms)`, `join(ms)` | 시간이 지나면 스스로 깬다 |
+| `TERMINATED` | `run()`이 끝남 | 예외로 끝나도 같다. 스택이 걷혀 다시 시작하지 못한다 |
 
 `RUNNABLE`이 "실행 중"과 "실행 대기"를 합친 상태인 것은 그 구분이 JVM이 아니라 운영체제 스케줄러의 몫이기 때문이다. `getState()`로 상태를 읽을 수 있지만 읽는 순간 이미 바뀌었을 수 있으므로 디버깅용이지 제어용이 아니다.
 
 ### 3.2 sleep, join, yield
 
 ```java
-Thread.sleep(1000);          // 현재 스레드가 1초 대기. static이다
-worker.join();               // worker가 끝날 때까지 현재 스레드가 대기
-worker.join(3000);           // 최대 3초만
-Thread.yield();              // CPU를 양보하겠다는 힌트. 무시될 수 있다
+Thread.sleep(1000);   // 나를 1초 재운다
+worker.join();      // worker를 기다린다
+worker.join(3000);  // 최대 3초만
+Thread.yield();       // CPU 양보 힌트
 ```
 
-`sleep()`이 `static`이라는 점이 자주 오해를 낳는다. `worker.sleep(1000)`이라고 써도 잠드는 것은 `worker`가 아니라 **그 코드를 실행 중인 스레드**다. 다른 스레드를 재우는 방법은 없다. 스레드는 자기만 재울 수 있고, 남에게는 부탁만 할 수 있다는 것이 3.3절의 원칙이다.
+`sleep()`이 `static`이라는 점이 자주 오해를 낳는다. `worker.sleep(1000)`이라고 써도 잠드는 것은 `worker`가 아니라 **그 코드를 실행 중인 스레드**다. 다른 스레드를 재우는 방법은 없다. `yield()`는 CPU를 양보하겠다는 힌트일 뿐 무시될 수 있다. 스레드는 자기만 재울 수 있고, 남에게는 부탁만 할 수 있다는 것이 3.3절의 원칙이다.
 
 ### 3.3 interrupt: 멈추라고 부탁하기
 
 ```java
-Thread download = new Thread(() -> {
-    try {
-        for (int i = 0; i < 100; i++) {
-            if (Thread.currentThread().isInterrupted()) {   // 부탁이 왔는지 확인
-                System.out.println("취소됨");
-                return;
-            }
-            Thread.sleep(100);         // 자는 중이면 여기서 InterruptedException
+static boolean cancelled() {
+    return Thread.currentThread()
+                 .isInterrupted();
+}
+static void download() {
+    for (int i = 0; i < 100; i++) {
+        if (cancelled()) return;
+        // 부탁이 왔으면 스스로 멈춘다
+        try { Thread.sleep(100); }
+        catch (InterruptedException e) {
+            return;   // 자다가 깨워졌다
         }
-    } catch (InterruptedException e) {
-        System.out.println("대기 중 취소됨");
     }
-});
-download.start();
+}
+
+Thread t = new Thread(() -> download());
+t.start();
 Thread.sleep(500);
-download.interrupt();                  // 멈추라는 부탁
+t.interrupt();   // 멈추라는 부탁
 ```
 
 `interrupt()`는 스레드를 멈추지 않는다. 그 스레드의 **인터럽트 플래그**를 켤 뿐이고, 멈출지는 그 스레드가 플래그를 보고 스스로 정한다. 잠들어 있거나(`sleep`, `wait`, `join`) 기다리는 중이면 `InterruptedException`으로 깨워 주는데, 이때 플래그는 지워진 채로 깨어난다. 실행 중인 스레드는 `isInterrupted()`로 직접 확인해야 하며, `Thread.interrupted()`는 확인과 동시에 플래그를 지운다. 예외를 잡고 아무것도 안 하면 부탁이 사라지므로, 처리할 수 없는 자리에서는 `Thread.currentThread().interrupt()`로 플래그를 다시 켜서 위로 전달한다.
 
-왜 이렇게 번거로운가. JDK 1.0에는 `stop()`이 있었다. 밖에서 스레드를 즉시 죽이는 메서드인데, 그 스레드가 락을 쥔 채 객체를 반쯤 고치던 중이면 락은 풀리고 객체는 깨진 채로 남는다. 다른 스레드는 깨진 객체를 보게 되고 그것을 막을 방법이 없다. 그래서 `stop()`은 JDK 1.2에 사용 금지가 됐고, Java 20부터는 부르면 `UnsupportedOperationException`을 던지며, `suspend()`와 `resume()`은 삭제되어 Java 25에서는 컴파일조차 되지 않는다. 남은 방법은 협력뿐이다. 멈춰야 하는 스레드가 스스로 안전한 지점에서 멈춘다.
+왜 이렇게 번거로운가. JDK 1.0에는 `stop()`이 있었다. 밖에서 스레드를 즉시 죽이는 메서드인데, 그 스레드가 락을 쥔 채 객체를 반쯤 고치던 중이면 락은 풀리고 객체는 깨진 채로 남는다. 다른 스레드는 깨진 객체를 보게 되고 그것을 막을 방법이 없다. 그래서 `stop()`은 JDK 1.2에 사용 금지가 됐고, Java 20부터는 부르면 `UnsupportedOperationException`을 던지며, `suspend()`와 `resume()`은 Java 23에서 삭제되어 이제는 컴파일조차 되지 않는다. 남은 방법은 협력뿐이다. 멈춰야 하는 스레드가 스스로 안전한 지점에서 멈춘다.
 
 ```java
 class Worker implements Runnable {
-    private volatile boolean running = true;   // volatile인 이유는 4.2절
+    // volatile인 이유는 4.2절
+    volatile boolean running = true;
 
     public void run() {
-        while (running && !Thread.currentThread().isInterrupted()) {
+        while (running) {
+            if (cancelled()) break;
             // 한 단위의 작업
         }
     }
-    public void stop() { running = false; }
+    void stop() { running = false; }
 }
 ```
 
@@ -197,13 +221,20 @@ class Counter {
 }
 
 Counter c = new Counter();
-Runnable job = () -> { for (int i = 0; i < 100_000; i++) c.increment(); };
-Thread a = new Thread(job), b = new Thread(job);
-a.start(); b.start(); a.join(); b.join();
-System.out.println(c.count);   // 200000이 아니다. 199367, 199985, 199998 ...
+Runnable job = () -> {
+    for (int i = 0; i < 100_000; i++) {
+        c.increment();
+    }
+};
+Thread a = new Thread(job);
+Thread b = new Thread(job);
+a.start(); b.start();
+a.join(); b.join();
+System.out.println(c.count);
+// 200000이 아니다. 실행마다 다른 값
 ```
 
-세 번 돌려 세 번 다른 값이 나왔고 한 번도 20만이 아니었다. `count++`가 바이트코드에서 세 명령이기 때문이다.
+돌릴 때마다 값이 다르고 20만이 나오는 일은 드물다. `count++`가 바이트코드에서 세 명령이기 때문이다.
 
 ```
 count++  →  getfield count    읽기
@@ -231,34 +262,37 @@ count = 0
 static boolean stop = false;
 
 Thread reader = new Thread(() -> {
-    while (!stop) { }              // stop이 true가 되면 끝날 것 같지만
+    while (!stop) { }
+    // stop이 true가 되면 끝날 것 같지만
     System.out.println("멈춤");
 });
 reader.start();
 Thread.sleep(200);
-stop = true;                       // main이 바꿨는데 reader는 영원히 돈다
+stop = true;
+// main이 바꿨는데 reader는 계속 돈다
 ```
 
-이 코드는 필자의 PC에서 끝나지 않았다. `main`이 `stop`을 `true`로 바꿨는데 `reader`는 계속 `false`를 본다. 두 가지 이유가 겹친다. 각 코어는 자기 캐시에 값을 두고 일하므로 다른 코어가 바꾼 값이 곧바로 보이지 않을 수 있고, 더 결정적으로 JIT 컴파일러가 "이 변수는 루프 안에서 바뀌지 않는다"고 판단해 읽기를 루프 밖으로 끌어내 버린다. 한 스레드만 있다면 완전히 올바른 최적화다. 컴파일러는 다른 스레드가 이 변수를 바꿀 것이라는 사실을 **알려 주지 않으면 모른다.**
+이 코드는 대개 끝나지 않는다. `main`이 `stop`을 `true`로 바꿨는데 `reader`는 계속 `false`를 본다. 두 가지 이유가 겹친다. 각 코어는 자기 캐시에 값을 두고 일하므로 다른 코어가 바꾼 값이 곧바로 보이지 않을 수 있고, 더 결정적으로 JIT 컴파일러가 "이 변수는 루프 안에서 바뀌지 않는다"고 판단해 읽기를 루프 밖으로 끌어내 버린다. 한 스레드만 있다면 완전히 올바른 최적화다. 컴파일러는 다른 스레드가 이 변수를 바꿀 것이라는 사실을 **알려 주지 않으면 모른다.**
 
 알려 주는 방법이 `volatile`이다. `volatile`이 붙은 변수는 항상 메모리에서 읽고 메모리에 쓰며 JIT이 최적화로 치워 버리지 않는다. 같은 코드에 `volatile`만 붙이면 `reader`는 바로 멈춘다. 3.3절의 `running` 플래그가 `volatile`이어야 하는 이유다.
 
 ```java
 static volatile int count = 0;
-// 두 스레드가 10만 번씩 count++ → 198734. 여전히 손실
+// 두 스레드가 10만 번씩 count++
+// 여전히 손실이 난다
 ```
 
 그러나 `volatile`은 원자성을 주지 않는다. 읽기와 쓰기 각각이 메모리에서 일어날 뿐, 읽고 더하고 쓰는 세 단계 사이에 끼어드는 것은 막지 못한다. `volatile`은 **"한 스레드가 쓰고 여러 스레드가 읽는 플래그"**에 맞고, 여러 스레드가 갱신하는 값에는 맞지 않는다.
 
 ### 4.3 순서: 재배치
 
-컴파일러와 CPU는 결과가 같다면 명령 순서를 바꿔 실행한다. 한 스레드 안에서는 결과가 같다는 것이 보장되지만 다른 스레드가 보는 순서는 보장되지 않는다. 객체를 만들고 참조를 공유 변수에 넣는 두 단계가 뒤바뀌면 다른 스레드가 초기화되지 않은 객체를 볼 수 있다. 자바 메모리 모델(JMM)은 이 문제를 **happens-before** 관계로 정리한다. `synchronized` 블록의 해제는 다음 획득보다 먼저 일어나고, `volatile` 쓰기는 그 뒤의 읽기보다 먼저 일어나며, `start()`는 그 스레드의 모든 동작보다, 스레드의 모든 동작은 `join()`의 반환보다 먼저 일어난다. 이 관계로 이어진 두 동작 사이에서만 앞의 결과가 뒤에 보인다고 약속된다. 동시성 시리즈의 [객체 공유](../../concurrency/03-object-sharing)가 이 주제를 깊이 다룬다.
+컴파일러와 CPU는 결과가 같다면 명령 순서를 바꿔 실행한다. 한 스레드 안에서는 결과가 같다는 것이 보장되지만 다른 스레드가 보는 순서는 보장되지 않는다. 객체를 만들고 참조를 공유 변수에 넣는 두 단계가 뒤바뀌면 다른 스레드가 초기화되지 않은 객체를 볼 수 있다. 자바 메모리 모델(JMM)은 이 문제를 **happens-before** 관계로 정리한다. `synchronized` 블록의 해제는 다음 획득보다 먼저 일어나고, `volatile` 쓰기는 그 뒤의 읽기보다 먼저 일어나며, `start()`는 그 스레드의 모든 동작보다, 스레드의 모든 동작은 `join()`의 반환보다 먼저 일어난다. 이 관계로 이어진 두 동작 사이에서만 앞의 결과가 뒤에 보인다고 약속된다. 동시성 시리즈의 [객체 공유](../../concurrency/03-object-sharing)가 이 주제를 깊이 다룬다. 둘째 원리를 표로 정리하면 이렇다.
 
-| 도구 | 원자성 | 가시성 | 순서 |
-|:-----|:-------|:-------|:-----|
-| `synchronized` | O | O | O |
-| `volatile` | X | O | O |
-| `AtomicInteger` 등 | O (CAS) | O | O |
+| 도구 | 원자성 | 가시성 | 순서 | 왜 |
+|:-----|:-------|:-------|:-----|:---|
+| `synchronized` | O | O | O | 한 번에 한 스레드만 들어가고, 해제와 다음 획득 사이에 happens-before가 생긴다 |
+| `volatile` | X | O | O | 읽기와 쓰기 각각만 메모리로 간다. 그 사이는 못 막는다 |
+| `AtomicInteger` 등 | O (CAS) | O | O | 비교와 교체를 하드웨어가 한 번에 한다 |
 
 ---
 
@@ -269,12 +303,17 @@ static volatile int count = 0;
 ```java
 class Counter {
     private int count = 0;
-    private final Object lock = new Object();
+    private final Object lock =
+        new Object();
 
-    public synchronized void increment() { count++; }   // this의 락
+    // this의 락
+    synchronized void increment() {
+        count++;
+    }
 
-    public void incrementWithLock() {
-        synchronized (lock) {                          // lock 객체의 락
+    // lock 객체의 락
+    void incrementWithLock() {
+        synchronized (lock) {
             count++;
         }
     }
@@ -302,17 +341,23 @@ class SharedBuffer {
     private int data;
     private boolean hasData = false;
 
-    public synchronized void produce(int value) throws InterruptedException {
-        while (hasData) wait();          // 자리가 날 때까지
+    synchronized void produce(int value)
+        throws InterruptedException {
+        while (hasData) wait();
+        // 자리가 날 때까지
         data = value;
         hasData = true;
-        notifyAll();                     // 소비자를 깨운다
+        // 소비자를 깨운다
+        notifyAll();
     }
 
-    public synchronized int consume() throws InterruptedException {
-        while (!hasData) wait();         // 데이터가 올 때까지
+    synchronized int consume()
+        throws InterruptedException {
+        while (!hasData) wait();
+        // 데이터가 올 때까지
         hasData = false;
-        notifyAll();                     // 생산자를 깨운다
+        // 생산자를 깨운다
+        notifyAll();
         return data;
     }
 }
@@ -344,12 +389,23 @@ T2: B 획득 ─▶ A 기다림
 ```
 
 ```java
-Thread t1 = new Thread(() -> { synchronized (A) { sleep(100); synchronized (B) { } } });
-Thread t2 = new Thread(() -> { synchronized (B) { sleep(100); synchronized (A) { } } });
-// 잠시 후 둘 다 BLOCKED. ThreadMXBean.findDeadlockedThreads()가 2를 돌려준다
+Thread t1 = new Thread(() -> {
+    synchronized (A) {
+        pause(100);   // sleep 래퍼
+        synchronized (B) { }
+    }
+});
+Thread t2 = new Thread(() -> {
+    synchronized (B) {
+        pause(100);
+        synchronized (A) { }
+    }
+});
+// 잠시 후 둘 다 BLOCKED
+// findDeadlockedThreads()가 둘을 찾는다
 ```
 
-두 스레드가 서로가 쥔 락을 기다리면 둘 다 영원히 `BLOCKED`다. JVM은 이 상태를 감지할 수는 있어도(`jstack`이 "Found one Java-level deadlock"이라고 보고한다) 풀지는 못한다. 어느 쪽 락을 강제로 빼앗아도 5.1절의 `stop()`과 같은 문제가 생기기 때문이다. 그래서 교착은 예방만 가능하고, 원칙은 넷이다. 락을 여러 개 잡을 때는 **모든 스레드가 같은 순서로** 잡고, 락을 쥔 시간을 줄이고, 6절의 `tryLock(timeout)`으로 못 얻으면 물러나고, `synchronized`를 중첩하지 않는다.
+두 스레드가 서로가 쥔 락을 기다리면 둘 다 영원히 `BLOCKED`다. JVM은 이 상태를 감지할 수는 있어도(`ThreadMXBean`의 `findDeadlockedThreads()`가 두 스레드를 돌려주고, `jstack`은 "Found one Java-level deadlock"이라고 보고한다) 풀지는 못한다. 어느 쪽 락을 강제로 빼앗아도 3.3절의 `stop()`과 같은 문제가 생기기 때문이다. 그래서 교착은 예방만 가능하고, 원칙은 넷이다. 락을 여러 개 잡을 때는 **모든 스레드가 같은 순서로** 잡고, 락을 쥔 시간을 줄이고, 6절의 `tryLock(timeout)`으로 못 얻으면 물러나고, `synchronized`를 중첩하지 않는다.
 
 ---
 
@@ -358,54 +414,66 @@ Thread t2 = new Thread(() -> { synchronized (B) { sleep(100); synchronized (A) {
 `synchronized`는 블록을 벗어나면 자동으로 풀리고 문법이 간단하지만, 락을 얻으려다 포기할 수도 없고 대기 조건을 나눌 수도 없다. Java 5의 `java.util.concurrent.locks`가 그 자리를 채운다.
 
 ```java
-private final ReentrantLock lock = new ReentrantLock();
+private final ReentrantLock lock =
+    new ReentrantLock();
 
 public void increment() {
     lock.lock();
     try {
         count++;
     } finally {
-        lock.unlock();             // 예외가 나도 반드시. 8장의 finally
+        lock.unlock();   // 반드시 푼다
     }
 }
 
-if (lock.tryLock(1, TimeUnit.SECONDS)) {   // 1초 안에 못 얻으면 false
-    try { /* 임계 영역 */ } finally { lock.unlock(); }
+if (lock.tryLock(1, TimeUnit.SECONDS)) {
+    // 1초 안에 못 얻으면 false
+    try { /* 임계 영역 */ }
+    finally { lock.unlock(); }
 } else {
     // 다른 길로. 교착에 빠지지 않는다
 }
 ```
 
-`ReentrantLock`은 `synchronized`와 같은 재진입 락인데 `tryLock()`으로 기다림에 기한을 둘 수 있고, 기다리는 중에 인터럽트를 받을 수 있으며, 오래 기다린 스레드에게 먼저 주는 공정 모드가 있다. 대신 풀어 주는 것이 프로그래머 책임이라 `finally`가 필수다. `Condition`은 하나의 락에 여러 대기 집합을 만든다.
+`ReentrantLock`은 `synchronized`와 같은 재진입 락인데 `tryLock()`으로 기다림에 기한을 둘 수 있고, 기다리는 중에 인터럽트를 받을 수 있으며, 오래 기다린 스레드에게 먼저 주는 공정 모드가 있다. 대신 풀어 주는 것이 프로그래머 책임이라 예외가 나도 풀리도록 8장의 `finally`가 필수다. `Condition`은 하나의 락에 여러 대기 집합을 만든다.
 
 ```java
-private final Lock lock = new ReentrantLock();
-private final Condition notFull  = lock.newCondition();
-private final Condition notEmpty = lock.newCondition();
+private final Lock lock =
+    new ReentrantLock();
+private final Condition notFull =
+    lock.newCondition();
+private final Condition notEmpty =
+    lock.newCondition();
 
-public void put(T item) throws InterruptedException {
+public void put(T item)
+        throws InterruptedException {
     lock.lock();
     try {
-        while (queue.size() == capacity) notFull.await();
+        while (queue.size() == cap) {
+            notFull.await();
+        }
         queue.add(item);
-        notEmpty.signal();             // 소비자만 깨운다
-    } finally { lock.unlock(); }
+        notEmpty.signal();   // 소비자만
+    } finally {
+        lock.unlock();
+    }
 }
 ```
 
 5.2절에서 `notifyAll()`로 모두를 깨우던 것을 조건별로 나눠, 생산자는 `notFull`에서, 소비자는 `notEmpty`에서 기다린다. 엉뚱한 쪽이 깨어나 다시 잠드는 낭비가 없다.
 
-| 도구 | 언제 |
-|:-----|:-----|
-| `synchronized` | 기본. 간단하고 자동으로 풀린다 |
-| `ReentrantLock` | 기한, 인터럽트, 공정성이 필요할 때 |
-| `ReentrantReadWriteLock` | 읽기는 여럿이 동시에, 쓰기만 배타로 |
-| `StampedLock` (Java 8) | 읽기가 압도적으로 많을 때의 낙관적 읽기 |
-| `AtomicInteger`, `AtomicLong`, `AtomicReference` | 값 하나를 락 없이 원자적으로 |
+| 도구 | 언제 | 왜 |
+|:-----|:-----|:---|
+| `synchronized` | 기본. 간단하고 자동으로 풀린다 | 블록을 벗어나면 JVM이 푼다. 잊을 수 없다 |
+| `ReentrantLock` | 기한, 인터럽트, 공정성이 필요할 때 | 락 획득이 메서드 호출이라 조건을 붙일 수 있다 |
+| `ReentrantReadWriteLock` | 읽기는 여럿이 동시에, 쓰기만 배타로 | 읽기끼리는 서로를 깨뜨리지 않는다 |
+| `StampedLock` (Java 8) | 읽기가 압도적으로 많을 때의 낙관적 읽기 | 락 없이 읽고 그 사이 바뀌었는지만 확인한다 |
+| `AtomicInteger`, `AtomicLong`, `AtomicReference` | 값 하나를 락 없이 원자적으로 | CAS 한 번이 스레드를 재우고 깨우는 것보다 싸다 |
 
 ```java
-AtomicInteger count = new AtomicInteger();
-count.incrementAndGet();       // 두 스레드 10만 번씩 → 정확히 200000
+AtomicInteger n = new AtomicInteger();
+n.incrementAndGet();
+// 두 스레드 10만 번씩 → 정확히 200000
 ```
 
 `AtomicInteger`는 락 없이 원자성을 얻는다. CPU의 **CAS**(compare-and-swap) 명령을 쓰는데, "지금 값이 내가 읽은 값과 같으면 새 값으로 바꿔라"를 하드웨어가 한 번에 처리하고, 그 사이 누가 바꿨으면 실패해서 다시 읽어 시도한다. 스레드를 재우고 깨우는 락보다 경쟁이 적을 때 훨씬 싸다. 11장의 `ConcurrentHashMap`이 빠른 것도 같은 기법 덕분이다.
@@ -416,7 +484,7 @@ count.incrementAndGet();       // 두 스레드 10만 번씩 → 정확히 20000
 
 ### 7.1 왜 풀인가
 
-요청마다 `new Thread()`를 만들면 세 가지가 문제다. 스레드 생성은 운영체제 호출이라 비싸고, 요청이 몰리면 스레드 수가 무한히 늘어 메모리가 바닥나며, 예외 처리와 종료를 매번 손으로 해야 한다. `ExecutorService`는 정해진 수의 스레드를 미리 만들어 두고, 작업을 큐에 넣으면 놀고 있는 스레드가 꺼내 실행한다.
+요청마다 `new Thread()`를 만들면 세 가지가 문제다. 스레드 생성은 운영체제 호출이라 비싸고, 요청이 몰리면 스레드 수가 무한히 늘어 메모리가 바닥나며, 예외 처리와 종료를 매번 손으로 해야 한다. `ExecutorService`는 정해진 수의 스레드를 미리 만들어 두고, 작업을 큐에 넣으면 놀고 있는 스레드가 꺼내 실행한다. 셋째 원리의 표준 도구다.
 
 ```
 submit() ─▶ [t5][t4][t3] ─▶ T1: t1 실행
@@ -425,17 +493,26 @@ submit() ─▶ [t5][t4][t3] ─▶ T1: t1 실행
 ```
 
 ```java
-ExecutorService pool = Executors.newFixedThreadPool(4);
+ExecutorService pool =
+    Executors.newFixedThreadPool(4);
 for (int i = 0; i < 10; i++) {
     final int id = i;
-    pool.submit(() -> System.out.println("Task " + id));
+    pool.submit(() -> {
+        System.out.println("Task" + id);
+    });
 }
-pool.shutdown();                                  // 새 작업은 거부, 남은 것은 실행
-pool.awaitTermination(60, TimeUnit.SECONDS);     // 끝날 때까지 대기
+pool.shutdown();
+// 새 작업은 거부, 남은 것은 실행
+pool.awaitTermination(
+    60, TimeUnit.SECONDS);
+// 끝날 때까지 대기
 
-try (ExecutorService ex = Executors.newFixedThreadPool(4)) {   // Java 19+
-    ex.submit(task);
-}   // close()가 shutdown()과 awaitTermination()을 한다
+try (ExecutorService ex =
+    Executors.newFixedThreadPool(4)) {
+    ex.submit(task);   // Java 19+
+}
+// close()가 shutdown()과
+// awaitTermination()을 한다
 ```
 
 `newFixedThreadPool(4)`의 정체는 스레드 4개와 **크기 제한 없는** `LinkedBlockingQueue`를 가진 `ThreadPoolExecutor`다. 스레드는 늘지 않지만 큐는 무한히 자라므로 작업이 처리 속도보다 빨리 들어오면 메모리가 큐에서 바닥난다. 실무에서는 큐 크기와 거부 정책을 직접 정한 `ThreadPoolExecutor`를 쓰는 이유다. 종료도 명시적이다. `shutdown()`을 부르지 않으면 워커 스레드가 사용자 스레드로 남아 2.2절의 규칙에 따라 프로그램이 끝나지 않고, 반대로 종료 절차 없이 프로세스가 죽으면 진행 중이던 작업이 사라진다. 스프링에서 그 일을 겪은 기록이 [@Async 비동기 작업의 Graceful Shutdown 문제](../../../../blog/troubleshooting/async-graceful-shutdown)에 있다.
@@ -444,15 +521,21 @@ try (ExecutorService ex = Executors.newFixedThreadPool(4)) {   // Java 19+
 
 ```java
 Callable<Integer> task = () -> {
+    // 값도 돌려주고 예외도 던진다
     Thread.sleep(100);
-    return 42;                                   // 값을 돌려주고 예외도 던질 수 있다
+    return 42;
 };
-Future<Integer> future = pool.submit(task);
-Integer result = future.get();                   // 끝날 때까지 기다렸다가 42
+Future<Integer> f = pool.submit(task);
+Integer result = f.get();
+// 끝날 때까지 기다렸다가 42
 
-Future<?> bad = pool.submit(() -> { throw new IllegalStateException("실패"); });
+Future<?> bad = pool.submit(() -> {
+    throw new IllegalStateException();
+});
 // 아무것도 출력되지 않는다
-bad.get();   // ExecutionException: java.lang.IllegalStateException: 실패
+bad.get();
+// ExecutionException:
+//   java.lang.IllegalStateException
 ```
 
 `Runnable`은 돌려줄 값이 없고 검사 예외를 던질 수 없다. `Callable<V>`는 둘 다 된다. `submit()`이 돌려주는 `Future`는 "나중에 나올 결과"의 손잡이이고, `get()`은 결과가 나올 때까지 현재 스레드를 세운다. 알아 둬야 할 것은 작업에서 난 **예외가 `Future` 안에 보관된다**는 점이다. `get()`을 부르지 않으면 예외는 어디에도 찍히지 않고 조용히 사라진다. 결과가 필요 없어 `get()`을 안 부르는 작업이라면 `execute()`로 넘기거나 작업 안에서 예외를 잡아 기록해야 한다. `execute()`로 넘긴 작업의 예외는 2.2절의 규칙대로 스레드의 처리기가 출력한다.
@@ -461,10 +544,13 @@ bad.get();   // ExecutionException: java.lang.IllegalStateException: 실패
 
 ```java
 CompletableFuture
-    .supplyAsync(() -> "Hello")            // 다른 스레드에서
-    .thenApply(s -> s + " World")          // 결과가 나오면 이어서
+    .supplyAsync(() -> "Hello")
+    // 다른 스레드에서
+    .thenApply(s -> s + " World")
+    // 결과가 나오면 이어서
     .thenApply(String::toUpperCase)
-    .thenAccept(System.out::println)       // HELLO WORLD
+    .thenAccept(System.out::println)
+    // HELLO WORLD
     .join();
 ```
 
@@ -473,75 +559,100 @@ CompletableFuture
 ### 7.4 Fork/Join: 나눠서 풀고 합친다
 
 ```java
-class SumTask extends RecursiveTask<Long> {
-    private static final int THRESHOLD = 10_000;
-    private final long[] array;
-    private final int start, end;
+class SumTask
+        extends RecursiveTask<Long> {
+    static final int THRESHOLD = 10_000;
+    final long[] arr;
+    final int lo, hi;
 
-    SumTask(long[] array, int start, int end) {
-        this.array = array; this.start = start; this.end = end;
+    SumTask(long[] a, int lo, int hi) {
+        this.arr = a;
+        this.lo = lo;
+        this.hi = hi;
+    }
+
+    long sumDirect() {
+        long sum = 0;
+        for (int i = lo; i < hi; i++) {
+            sum += arr[i];
+        }
+        return sum;
     }
 
     @Override
     protected Long compute() {
-        if (end - start <= THRESHOLD) {                 // 충분히 작으면 직접
-            long sum = 0;
-            for (int i = start; i < end; i++) sum += array[i];
-            return sum;
+        if (hi - lo <= THRESHOLD) {
+            // 충분히 작으면 직접
+            return sumDirect();
         }
-        int mid = (start + end) / 2;
-        SumTask left = new SumTask(array, start, mid);
-        SumTask right = new SumTask(array, mid, end);
-        left.fork();                                     // 왼쪽은 다른 스레드에
-        return right.compute() + left.join();            // 오른쪽은 직접, 합친다
+        int mid = (lo + hi) / 2;
+        SumTask left =
+            new SumTask(arr, lo, mid);
+        SumTask right =
+            new SumTask(arr, mid, hi);
+        left.fork();   // 다른 스레드에
+        long r = right.compute();
+        // 오른쪽은 직접 풀고
+        return r + left.join();
+        // 왼쪽 결과와 합친다
     }
 }
-long sum = ForkJoinPool.commonPool().invoke(new SumTask(array, 0, array.length));
+int n = arr.length;
+SumTask all = new SumTask(arr, 0, n);
+long sum = ForkJoinPool.commonPool()
+    .invoke(all);
 ```
 
 Java 7의 `ForkJoinPool`은 큰 작업을 재귀적으로 쪼개 코어들에 나눠 준다. 워커마다 자기 작업 큐가 있고 자기 것이 떨어지면 남의 큐에서 **훔쳐 오므로**(work stealing) 코어가 놀지 않는다. `commonPool()`의 스레드 수는 코어 수 빼기 하나다. 하나는 그것을 부른 스레드 몫이다. [Chapter 14](../14-lambda-stream)의 병렬 스트림이 이 풀 위에서 돈다.
 
 ### 7.5 조정 도구와 병렬 컬렉션
 
-| 도구 | 하는 일 |
-|:-----|:--------|
-| `CountDownLatch` | N개의 신호가 올 때까지 대기. 한 번만 쓴다 |
-| `CyclicBarrier` | N개의 스레드가 모두 도착할 때까지 서로 대기. 재사용 |
-| `Semaphore` | 동시에 들어갈 수 있는 수를 제한 |
-| `BlockingQueue` | 비면 꺼내는 쪽이, 차면 넣는 쪽이 기다리는 큐. 생산자-소비자의 표준 |
-| `ConcurrentHashMap` | 구간별 락과 CAS로 동시 갱신을 견디는 맵 |
-| `CopyOnWriteArrayList` | 쓸 때 복사. 읽기가 압도적일 때 |
+| 도구 | 하는 일 | 왜 |
+|:-----|:--------|:---|
+| `CountDownLatch` | N개의 신호가 올 때까지 대기. 한 번만 쓴다 | "준비가 다 됐을 때 시작"이 자주 필요하다 |
+| `CyclicBarrier` | N개의 스레드가 모두 도착할 때까지 서로 대기. 재사용 | 단계별 계산은 모두가 한 단계를 끝내야 다음으로 간다 |
+| `Semaphore` | 동시에 들어갈 수 있는 수를 제한 | 연결 풀처럼 자원이 N개뿐인 곳이 있다 |
+| `BlockingQueue` | 비면 꺼내는 쪽이, 차면 넣는 쪽이 기다리는 큐. 생산자-소비자의 표준 | 5.2절을 손으로 짤 필요가 없다 |
+| `ConcurrentHashMap` | 구간별 락과 CAS로 동시 갱신을 견디는 맵 | 맵 전체를 잠그면 모두가 줄을 선다 |
+| `CopyOnWriteArrayList` | 쓸 때 복사. 읽기가 압도적일 때 | 읽는 쪽은 락 없이 옛 배열을 본다 |
 
-11장에서 `HashMap`을 여러 스레드가 갱신하면 안 된다고 했는데, 실제로 두 스레드가 `merge()`를 20만 번 하면 `ConcurrentModificationException`이 나거나 갱신이 사라진다. `ConcurrentHashMap`은 같은 코드로 정확히 센다. 이 도구들의 안쪽은 동시성 시리즈의 [구성 단위](../../concurrency/05-building-blocks)에서 본다.
+11장에서 `HashMap`을 여러 스레드가 갱신하면 안 된다고 했는데, 두 스레드가 같은 `HashMap`에 `merge()`를 반복하면 `ConcurrentModificationException`이 나거나 갱신이 사라진다. `ConcurrentHashMap`은 같은 코드로 정확히 센다. 이 도구들의 안쪽은 동시성 시리즈의 [구성 단위](../../concurrency/05-building-blocks)에서 본다.
 
 ---
 
 ## 8. 가상 스레드: 스레드가 싸지면 설계가 바뀐다
 
 ```java
-Thread vt = Thread.ofVirtual().start(() -> { /* 작업 */ });   // Java 21
+// Java 21
+Thread vt = Thread.ofVirtual()
+    .start(() -> { /* 작업 */ });
 
-try (ExecutorService ex = Executors.newVirtualThreadPerTaskExecutor()) {
+ExecutorService ex = Executors
+    .newVirtualThreadPerTaskExecutor();
+try (ex) {
     for (int i = 0; i < 10_000; i++) {
-        ex.submit(() -> { Thread.sleep(100); return null; });   // 작업마다 스레드 하나
+        ex.submit(() -> {
+            Thread.sleep(100);
+            return null;
+        });
     }
-}
+}   // 작업마다 가상 스레드 하나
 ```
 
-지금까지의 스레드(플랫폼 스레드)는 운영체제 스레드와 1:1이다. 1.1절에서 본 대로 스택이 1MB쯤이고 만드는 데 운영체제 호출이 든다. 그래서 서버는 스레드 풀로 수를 제한했고, 스레드 하나가 DB 응답을 기다리는 동안 그 비싼 스레드는 아무것도 못 했다. Java 21의 **가상 스레드**(JEP 444)는 이 전제를 바꾼다. 스택을 힙에 작은 조각으로 두고, JVM이 직접 스케줄링하며, 운영체제 스레드(캐리어) 위에 올렸다 내렸다 한다.
+지금까지의 스레드(플랫폼 스레드)는 운영체제 스레드와 1:1이다. 1.1절에서 본 대로 스택이 1~2MB쯤이고 만드는 데 운영체제 호출이 든다. 그래서 서버는 스레드 풀로 수를 제한했고, 스레드 하나가 DB 응답을 기다리는 동안 그 비싼 스레드는 아무것도 못 했다. Java 21의 **가상 스레드**(JEP 444)는 이 전제를 바꾼다. 스택을 힙에 작은 조각으로 두고, JVM이 직접 스케줄링하며, 운영체제 스레드(캐리어) 위에 올렸다 내렸다 한다.
 
 ```
 가상 스레드  V1  V2  V3  V4 ... V10000
              │   │
       마운트 ▼   ▼
-캐리어 스레드 C1  C2  ... C12 (코어 수)
+캐리어 스레드 C1  C2  ... Cn (코어 수)
              │   │
-OS 스레드    OS1 OS2 ... OS12
+OS 스레드    OS1 OS2 ... OSn
  블로킹하면 캐리어에서 내려오고
  다른 가상 스레드가 올라간다
 ```
 
-가상 스레드가 `sleep()`이나 I/O로 막히면 캐리어에서 내려오고 다른 가상 스레드가 올라간다. 캐리어는 코어 수만큼만 있으면 되므로 가상 스레드는 수십만 개를 만들어도 된다. 100ms씩 자는 스레드 만 개를 만들고 기다리는 데 플랫폼 스레드는 약 1.5초, 가상 스레드는 약 0.15초였다. 만 개를 한꺼번에 재울 수 있으니 전체가 100ms 남짓에 끝난 것이다.
+가상 스레드가 `sleep()`이나 I/O로 막히면 캐리어에서 내려오고 다른 가상 스레드가 올라간다. 캐리어는 코어 수만큼만 있으면 되므로 가상 스레드는 수십만 개를 만들어도 된다. 위 코드처럼 100ms씩 자는 작업 만 개를 던지면, 플랫폼 스레드로는 만 개를 만드는 비용부터 들지만 가상 스레드는 만 개가 한꺼번에 잠들어 전체가 100ms 남짓에 끝난다.
 
 성질도 다르다. 가상 스레드는 항상 데몬이라 `setDaemon(false)`가 예외이고, 우선순위는 5로 고정이며, 이름이 없다. 그리고 **풀에 넣지 않는다.** 싸게 만들고 버리는 것이 목적이라 작업마다 하나씩 만드는 것이 맞고, `newVirtualThreadPerTaskExecutor()`가 그 방식이다. 이득은 대기가 많은 작업에서만 난다. CPU 계산은 어차피 코어 수만큼만 병렬이라 가상 스레드로 빨라지지 않는다. Java 24(JEP 491)부터는 `synchronized` 안에서 블로킹해도 캐리어를 붙잡지 않으므로, 기존 코드를 고치지 않고도 대부분 그대로 쓸 수 있다.
 
@@ -549,7 +660,7 @@ OS 스레드    OS1 OS2 ... OS12
 
 ---
 
-## 9. 요약
+## 핵심 정리
 
 | 항목 | 핵심 | 왜 |
 |:-----|:-----|:---|
@@ -575,11 +686,36 @@ OS 스레드    OS1 OS2 ... OS12
 | `CompletableFuture` | 결과에 다음 일을 잇는다 | 기다리는 스레드가 없다. 풀은 데몬 |
 | 가상 스레드 | 싸서 작업마다 하나 | 스택을 힙에, 스케줄링을 JVM이. 대기 작업용 |
 
-| 필요한 것 | 도구 |
-|:----------|:-----|
-| 스레드 여럿이 읽고 쓰는 값 하나 | `AtomicInteger`, `AtomicReference` |
-| 여러 필드를 함께 바꾸는 임계 영역 | `synchronized`, 필요하면 `ReentrantLock` |
-| 한 스레드가 쓰고 여럿이 읽는 플래그 | `volatile` |
-| 조건이 될 때까지 대기 | `wait`/`notifyAll`, `Condition`, `BlockingQueue` |
-| 작업 실행 | `ExecutorService`. 대기가 많으면 가상 스레드 |
-| 여러 스레드가 쓰는 컬렉션 | `ConcurrentHashMap`, `CopyOnWriteArrayList` |
+상황별로 고르면 이렇다.
+
+| 필요한 것 | 도구 | 왜 |
+|:----------|:-----|:---|
+| 스레드 여럿이 읽고 쓰는 값 하나 | `AtomicInteger`, `AtomicReference` | CAS가 락보다 싸다 |
+| 여러 필드를 함께 바꾸는 임계 영역 | `synchronized`, 필요하면 `ReentrantLock` | 여러 값을 바꾸는 사이에 끼어들면 안 된다 |
+| 한 스레드가 쓰고 여럿이 읽는 플래그 | `volatile` | 쓰는 쪽이 하나면 원자성이 필요 없다 |
+| 조건이 될 때까지 대기 | `wait`/`notifyAll`, `Condition`, `BlockingQueue` | 락을 놓고 자야 조건을 바꿀 스레드가 들어온다 |
+| 작업 실행 | `ExecutorService`. 대기가 많으면 가상 스레드 | 스레드는 만들지 말고 작업을 넘긴다 |
+| 여러 스레드가 쓰는 컬렉션 | `ConcurrentHashMap`, `CopyOnWriteArrayList` | 동기화 래퍼는 메서드 사이의 틈을 못 막는다 |
+
+{{< callout type="info" >}}
+**용어 정리**
+- **프로세스 / 스레드**: 운영체제가 메모리를 떼어 준 실행 단위 / 그 안에서 명령을 실행하는 흐름. 스택은 따로, 힙은 함께
+- **병행 / 병렬**: 번갈아 실행해 동시처럼 보이는 것 / 코어 여럿에서 정말 동시에 실행되는 것
+- **사용자 스레드 / 데몬 스레드**: JVM이 종료를 기다리는 스레드 / 배경 작업이라 기다리지 않는 스레드
+- **인터럽트**: 스레드에 멈추라고 부탁하는 플래그. 멈출지는 그 스레드가 정한다
+- **경쟁 상태**: 결과가 스레드의 실행 순서에 따라 달라지는 상태
+- **원자성 / 가시성 / 순서**: 중간에 끼어들 수 없는가 / 바꾼 값이 다른 스레드에 보이는가 / 명령 순서가 보이는 대로인가
+- **happens-before**: 자바 메모리 모델이 "앞의 결과가 뒤에 보인다"고 약속하는 두 동작의 관계
+- **모니터**: 모든 자바 객체가 하나씩 가진 락과 대기 집합. `synchronized`와 `wait()`의 바탕
+- **재진입**: 같은 스레드가 이미 쥔 락을 다시 요구하면 그냥 들어가는 것
+- **임계 영역**: 한 번에 한 스레드만 들어가야 하는 코드 구간
+- **대기 집합**: `wait()`로 잠든 스레드들이 모이는 곳. `notify()`가 여기서 깨운다
+- **가짜 깨어남**: `notify()` 없이 깨어나는 것. 조건을 `while`로 다시 검사하는 이유
+- **교착상태**: 둘 이상의 스레드가 서로가 쥔 락을 기다려 영원히 멈춘 상태
+- **CAS**: compare-and-swap. 비교와 교체를 하드웨어가 한 번에 하는 명령. `Atomic*`의 바탕
+- **스레드 풀 / 작업 큐**: 미리 만든 워커 스레드들 / 그들이 꺼내 가는 작업의 줄
+- **`Future`**: 나중에 나올 결과의 손잡이. 작업의 예외도 여기에 보관된다
+- **work stealing**: 자기 큐가 비면 다른 워커의 큐에서 작업을 가져가는 것. `ForkJoinPool`
+- **플랫폼 스레드 / 가상 스레드**: 운영체제 스레드와 1:1인 스레드 / JVM이 스케줄링하는 싼 스레드 (Java 21)
+- **캐리어 스레드**: 가상 스레드를 실제로 실행하는 운영체제 스레드. 코어 수만큼만 있으면 된다
+{{< /callout >}}
