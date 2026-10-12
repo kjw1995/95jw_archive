@@ -17,3 +17,4 @@ Java 8 이후의 핵심 기능들을 다룹니다.
 | [스트림 소개](03-stream-introduction) | 스트림 개념, 외부/내부 반복 |
 | [스트림 활용](04-stream-utilization) | 필터링, 매핑, 리듀싱, 실전 활용 |
 | [스트림으로 데이터 수집](05-collecting-data-with-streams) | Collectors, 그룹화, 분할, 커스텀 컬렉터 |
+| [병렬 데이터 처리와 성능](06-parallel-data-processing) | 병렬 스트림, JMH, 포크/조인, Spliterator |
