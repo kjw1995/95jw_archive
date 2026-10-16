@@ -4,7 +4,7 @@ date: 2025-12-17
 weight: 1
 ---
 
-JPA를 처음 접하면 "SQL을 안 써도 된다"는 말부터 듣는다. 반은 맞고 반은 틀린 말이다. JPA가 정말로 풀려는 문제는 SQL 타이핑의 번거로움이 아니라, **객체와 관계형 데이터베이스가 애초에 다른 세계라는 사실**이다. 이 장에서는 JDBC로 직접 개발할 때 무엇이 힘든지, 그 어려움이 왜 생길 수밖에 없는지, 그리고 JPA가 어떤 원리로 그 문제를 풀어내는지 정리한다.
+JPA를 처음 접하면 "SQL을 안 써도 된다"는 말부터 듣는다. 반은 맞고 반은 틀린 말이다. JPA가 정말로 풀려는 문제는 SQL 타이핑의 번거로움이 아니라, **객체와 관계형 데이터베이스가 애초에 다른 세계라는 사실**이다. 이 장에서는 JDBC로 직접 개발할 때 무엇이 힘든지, 그 어려움이 왜 생길 수밖에 없는지, 그리고 JPA가 어떤 원리로 그 문제를 풀어내는지 본다. 원리는 셋이다. 첫째, **객체와 테이블은 다른 세계이고, 그 사이의 번역을 사람이 하는 것이 비용이다.** 상속, 연관관계, 객체 그래프 탐색, 비교 네 자리에서 둘이 어긋나고, 그때마다 개발자가 SQL과 매핑 코드로 번역해 왔다. 둘째, **JPA는 SQL을 없애는 것이 아니라 매핑 정보에서 생성한다.** 그래서 필드 하나를 더하면 SQL이 따라 바뀌고, DB가 바뀌면 방언이 문법을 바꾸며, 구현체가 바뀌어도 코드는 그대로다. 셋째, **애플리케이션과 DB 사이에 낀 계층은 네 가지 약속으로 최적화의 기회를 얻는다.** 같은 기본키면 같은 인스턴스를 돌려주고, INSERT는 모았다가 한 번에 보내고, 바뀐 엔티티만 UPDATE하고, 연관 객체는 실제로 쓰는 순간 가져온다. 이 약속 위에서 일하려면 JPA가 언제 어떤 SQL을 만드는지 알아야 하고, 그것이 이 시리즈 전체의 주제다.
 
 ---
 
@@ -16,15 +16,21 @@ JPA를 처음 접하면 "SQL을 안 써도 된다"는 말부터 듣는다. 반�
 
 ```java
 // 저장: 객체 → SQL 파라미터
-String sql = "INSERT INTO MEMBER (ID, NAME) VALUES (?, ?)";
-PreparedStatement pstmt = conn.prepareStatement(sql);
+String sql = "INSERT INTO MEMBER"
+           + " (ID, NAME)"
+           + " VALUES (?, ?)";
+PreparedStatement pstmt =
+    conn.prepareStatement(sql);
 pstmt.setLong(1, member.getId());
 pstmt.setString(2, member.getName());
 pstmt.executeUpdate();
 
 // 조회: SQL 결과 → 객체
-String sql = "SELECT ID, NAME FROM MEMBER WHERE ID = ?";
-PreparedStatement pstmt = conn.prepareStatement(sql);
+String sql = "SELECT ID, NAME"
+           + " FROM MEMBER"
+           + " WHERE ID = ?";
+PreparedStatement pstmt =
+    conn.prepareStatement(sql);
 pstmt.setLong(1, id);
 ResultSet rs = pstmt.executeQuery();
 rs.next();
@@ -33,7 +39,7 @@ member.setId(rs.getLong("ID"));
 member.setName(rs.getString("NAME"));
 ```
 
-객체를 자바 컬렉션에 넣을 때는 `list.add(member)` 한 줄이면 된다. 그런데 데이터베이스에 넣으려면 객체를 SQL로 풀어 쓰고, 꺼낼 때는 SQL 결과를 다시 객체로 조립해야 한다. 이 **번역 작업**이 매번 개발자 몫이고, 테이블이 100개면 100번 반복된다. 등록·조회·수정·삭제까지 합치면 테이블 하나에 SQL 네 벌과 매핑 코드가 따라붙는다.
+객체를 자바 컬렉션에 넣을 때는 `list.add(member)` 한 줄이면 된다. 그런데 데이터베이스에 넣으려면 객체를 SQL로 풀어 쓰고, 꺼낼 때는 SQL 결과를 다시 객체로 조립해야 한다. 이 **번역 작업**이 매번 개발자 몫이고, 테이블이 100개면 100번 반복된다. 등록·조회·수정·삭제까지 합치면 테이블 하나에 SQL 네 벌과 매핑 코드가 따라붙는다. 첫째 원리의 비용이 가장 먼저 눈에 보이는 자리다.
 
 ### 1.2 SQL에 의존적인 개발
 
@@ -49,21 +55,21 @@ class Member {
 
 필드는 한 줄 늘었지만, 손대야 할 곳은 한 곳이 아니다.
 
-| 고쳐야 할 것 | 이유 |
-|:-------------|:-----|
+| 고쳐야 할 것 | 왜 |
+|:-------------|:---|
 | INSERT SQL | `TEL` 컬럼과 `?`를 추가해야 한다 |
 | SELECT SQL | `TEL`을 조회 목록에 넣어야 한다 |
 | UPDATE SQL | `TEL = ?`를 추가해야 한다 |
-| 파라미터 바인딩 코드 | `pstmt.setString(3, member.getTel())` |
-| 결과 매핑 코드 | `member.setTel(rs.getString("TEL"))` |
+| 파라미터 바인딩 코드 | `pstmt.setString(3, member.getTel())`이 필요하다 |
+| 결과 매핑 코드 | `member.setTel(rs.getString("TEL"))`이 필요하다 |
 
 왜 이렇게 되는가. SQL은 컬럼을 하나하나 이름으로 나열하는 언어라서, 객체의 모양이 바뀌면 그 객체를 다루는 모든 SQL이 함께 바뀌어야 한다. 객체가 SQL에 종속된 셈이다. 계층을 아무리 잘 나눠도 DAO 안에 SQL이 있는 한 이 의존은 사라지지 않는다.
 
 **엔티티를 믿을 수 없다는 문제**도 여기서 나온다.
 
 ```java
-Member member = memberDAO.find(memberId);
-member.getTeam();     // Team이 들어 있을까?
+Member member = memberDAO.find(id);
+member.getTeam();     // Team이 있을까?
 member.getOrders();   // 주문 목록은?
 ```
 
@@ -97,15 +103,15 @@ member.getOrders();   // 주문 목록은?
 
 객체지향은 다른 곳을 본다. 데이터와 그 데이터를 다루는 행동을 하나로 묶고, 상속·다형성·참조로 현실 세계를 프로그램 구조에 옮긴다. 목적은 변경에 유연한 프로그램이다.
 
-둘 다 각자의 목적에는 충실하다. 문제는 객체로 만든 것을 결국 관계형 데이터베이스에 저장해야 한다는 데 있다. 그 사이에서 **번역가 노릇을 사람이 한다**는 것, 그것이 패러다임 불일치의 실체다. 번역에 드는 시간과 코드가 곧 비용이다.
+둘 다 각자의 목적에는 충실하다. 문제는 객체로 만든 것을 결국 관계형 데이터베이스에 저장해야 한다는 데 있다. 그 사이에서 **번역가 노릇을 사람이 한다**는 것, 그것이 패러다임 불일치의 실체이자 첫째 원리다. 번역에 드는 시간과 코드가 곧 비용이다.
 
-| 구분 | 객체 | 관계형 데이터베이스 |
-|:-----|:-----|:--------------------|
-| 목적 | 행동과 데이터를 묶어 현실을 모델링 | 데이터를 중복 없이 저장하고 집합으로 조회 |
-| 상속 | 있다 | 없다 (슈퍼/서브 타입으로 흉내) |
-| 관계 | 참조 (한 방향) | 외래키 (조인은 양방향) |
-| 탐색 | 참조를 따라 어디든 | 실행한 SQL 범위 안에서만 |
-| 식별 | 참조 주소 (`==`), 값 (`equals()`) | 기본키 |
+| 구분 | 객체 | 관계형 데이터베이스 | 왜 다른가 |
+|:-----|:-----|:--------------------|:----------|
+| 목적 | 행동과 데이터를 묶어 현실을 모델링 | 데이터를 중복 없이 저장하고 집합으로 조회 | 출발점이 다르다. 변경에 유연한 프로그램 / 여러 프로그램이 공유하는 저장소 |
+| 상속 | 있다 | 없다 (슈퍼/서브 타입으로 흉내) | 행 하나는 정확히 한 테이블에 속한다 |
+| 관계 | 참조 (한 방향) | 외래키 (조인은 양방향) | 참조는 객체 안의 필드이고 외래키는 컬럼의 값이다 |
+| 탐색 | 참조를 따라 어디든 | 실행한 SQL 범위 안에서만 | 참조는 메모리에 있고 SQL 결과는 실행 순간 고정된다 |
+| 식별 | 참조 주소 (`==`), 값 (`equals()`) | 기본키 | 자바는 주소와 값 두 기준을 갖지만 행은 기본키뿐이다 |
 
 네 가지 차이를 하나씩 뜯어 본다.
 
@@ -127,12 +133,15 @@ member.getOrders();   // 주문 목록은?
 
 ```sql
 -- 저장: 부모·자식 테이블에 나눠서
-INSERT INTO ITEM (ID, NAME, PRICE) VALUES (?, ?, ?);
-INSERT INTO ALBUM (ID, ARTIST) VALUES (?, ?);
+INSERT INTO ITEM (ID, NAME, PRICE)
+VALUES (?, ?, ?);
+INSERT INTO ALBUM (ID, ARTIST)
+VALUES (?, ?);
 
 -- 조회: 조인하고 결과를 직접 조립
 SELECT I.*, A.*
-  FROM ITEM I JOIN ALBUM A ON I.ID = A.ID
+  FROM ITEM I
+  JOIN ALBUM A ON I.ID = A.ID
  WHERE I.ID = ?;
 ```
 
@@ -141,8 +150,10 @@ SELECT I.*, A.*
 JPA는 상속 구조와 테이블 구조 사이의 대응 규칙을 미리 알고 있으므로, 개발자는 컬렉션을 다루듯 한 줄만 쓰면 된다.
 
 ```java
-em.persist(album);                       // ITEM, ALBUM 두 테이블에 INSERT
-Album album = em.find(Album.class, id);  // ITEM과 ALBUM을 조인해 SELECT
+em.persist(album);
+// ITEM, ALBUM 두 테이블에 INSERT
+Album album = em.find(Album.class, id);
+// ITEM과 ALBUM을 조인해 SELECT
 ```
 
 여기서 `em`은 JPA의 핵심 API인 `EntityManager`로, 만드는 방법은 [Chapter 02. JPA 시작](../02-jpa-start)에서 다룬다. 상속을 테이블에 옮기는 방법은 조인 전략 외에도 몇 가지가 더 있는데, [Chapter 09. 고급 매핑](../09-advanced-mapping)에서 비교한다.
@@ -151,34 +162,37 @@ Album album = em.find(Album.class, id);  // ITEM과 ALBUM을 조인해 SELECT
 
 객체는 **참조**로 다른 객체와 연결되고, 테이블은 **외래키**로 다른 테이블과 연결된다. 둘 다 "연결"이라는 말을 쓰지만 성질이 다르다.
 
-| 구분 | 객체 | 테이블 |
-|:-----|:-----|:-------|
-| 연결 수단 | 참조 (`Team team`) | 외래키 (`TEAM_ID`) |
-| 방향 | 한 방향 | 방향 없음 (조인은 어느 쪽에서든) |
-| `Member → Team` | `member.getTeam()` | `JOIN TEAM T ON M.TEAM_ID = T.ID` |
-| `Team → Member` | 필드를 따로 추가해야 가능 | 같은 조인으로 가능 |
+| 구분 | 객체 | 테이블 | 왜 |
+|:-----|:-----|:-------|:---|
+| 연결 수단 | 참조 (`Team team`) | 외래키 (`TEAM_ID`) | 참조는 메모리 주소이고 외래키는 다른 행의 기본키 값이다 |
+| 방향 | 한 방향 | 방향 없음 (조인은 어느 쪽에서든) | 참조는 필드에 속하고 조인은 값을 비교하는 집합 연산이다 |
+| `Member → Team` | `member.getTeam()` | `JOIN TEAM T ON M.TEAM_ID = T.ID` | 둘 다 외래키 쪽에서 출발하니 자연스럽다 |
+| `Team → Member` | 필드를 따로 추가해야 가능 | 같은 조인으로 가능 | 객체는 반대 방향 필드가 없으면 갈 수 없다 |
 
 방향이 다른 이유는 이렇다. 참조는 객체 안의 필드라서, `Member`가 `Team`을 가리키는 것과 `Team`이 `Member`를 가리키는 것은 별개의 필드다. 반면 외래키는 컬럼에 저장된 값일 뿐이고, 조인은 그 값을 비교하는 집합 연산이므로 어느 테이블에서 출발하든 상관없다.
 
 이 차이 때문에 객체를 설계할 때 두 갈래 길이 생기는데, 어느 쪽을 택해도 불편하다.
 
 ```java
-// (a) 테이블에 맞춘 객체 — 외래키 값을 그대로 들고 있다
+// (a) 테이블에 맞춘 객체
+// 외래키 값을 그대로 들고 있다
 class Member {
     Long id;
-    Long teamId;   // TEAM_ID 컬럼 그대로
+    Long teamId;   // TEAM_ID 그대로
 }
-// 저장은 쉽다. 하지만 member.getTeam()이 불가능하다.
-// 참조로 탐색한다는 객체지향의 장점을 버린 설계다.
+// 저장은 쉽다. 하지만 getTeam()이
+// 불가능하다. 참조로 탐색한다는
+// 객체지향의 장점을 버린 설계다.
 
-// (b) 객체다운 객체 — 참조를 들고 있다
+// (b) 객체다운 객체. 참조를 들고 있다
 class Member {
     Long id;
     Team team;     // 참조
 }
-// 저장할 때는 team.getId()를 꺼내 TEAM_ID에 넣어야 하고,
-// 조회할 때는 MEMBER·TEAM을 조인해 Team을 만든 뒤
-// member.setTeam(team)으로 다시 이어 줘야 한다.
+// 저장할 때는 team.getId()를 꺼내
+// TEAM_ID에 넣어야 하고, 조회할 때는
+// MEMBER와 TEAM을 조인해 Team을 만든 뒤
+// member.setTeam(team)으로 이어 준다.
 ```
 
 (b)의 변환 작업을 JPA가 대신한다. 참조와 외래키가 어떻게 대응하는지만 어노테이션으로 알려 주면 된다.
@@ -189,15 +203,17 @@ class Member {
     @Id Long id;
 
     @ManyToOne
-    @JoinColumn(name = "TEAM_ID")   // 참조 ↔ 외래키 대응 규칙
-    Team team;
+    @JoinColumn(name = "TEAM_ID")
+    Team team;   // 참조와 외래키의 대응
 }
 
 member.setTeam(team);   // 참조로 연결
-em.persist(member);     // TEAM_ID에 team.getId()가 자동으로 들어간다
+em.persist(member);
+// TEAM_ID에 team.getId()가 들어간다
 
 Member m = em.find(Member.class, id);
-m.getTeam();            // 외래키를 다시 참조로 되돌려 준다
+m.getTeam();
+// 외래키를 다시 참조로 되돌려 준다
 ```
 
 다대일·일대다·양방향처럼 관계의 모양별 매핑은 [Chapter 08. 연관관계](../08-various-relationships)에서 다룬다.
@@ -208,7 +224,8 @@ m.getTeam();            // 외래키를 다시 참조로 되돌려 준다
 
 ```java
 member.getTeam().getName();
-member.getOrder().getOrderItem().getItem().getName();
+member.getOrder().getOrderItem()
+      .getItem().getName();
 ```
 
 그런데 SQL로 객체를 만들면 **탐색 범위가 그 SQL이 조회한 범위로 고정**된다. SQL은 실행하는 순간 어떤 테이블을 조인할지가 확정되고, 그 결과로 조립된 객체 그래프는 그 이상 커질 수 없기 때문이다. 이미 만들어진 객체에 나중에 다른 객체를 붙이려면 새 SQL을 실행하는 수밖에 없다.
@@ -227,12 +244,15 @@ member.getOrder().getOrderItem().getItem().getName();
 JPA는 **지연 로딩**으로 이 문제를 푼다. `em.find(Member.class, 1L)`은 `MEMBER`만 조회하고, `team` 자리에는 진짜 `Team` 대신 **프록시**를 넣어 둔다. 프록시는 `Team`을 상속한 빈 껍데기 객체로, 실제 값이 필요한 메서드가 처음 호출될 때 그 시점에 SELECT를 실행해 자신을 채운다.
 
 ```java
-Member member = em.find(Member.class, 1L);  // SELECT ... FROM MEMBER
-Team team = member.getTeam();               // SQL 없음, 프록시 반환
-team.getName();                             // 여기서 SELECT ... FROM TEAM
+Member m = em.find(Member.class, 1L);
+// SELECT ... FROM MEMBER
+Team team = m.getTeam();
+// SQL 없음. 프록시 반환
+team.getName();
+// 여기서 SELECT ... FROM TEAM
 ```
 
-왜 굳이 프록시인가. `getTeam()`을 호출한 시점에는 아직 DB를 읽지 않았으니 돌려줄 진짜 `Team`이 없다. 그렇다고 `null`을 주면 다시 신뢰 문제로 돌아간다. 그래서 "진짜인 척하는 객체"를 먼저 주고, 필요해지는 순간 진짜로 바꿔치기하는 것이다. 덕분에 개발자는 DAO의 SQL이 아니라 **"탐색하는 시점에 JPA가 가져온다"는 약속**에 기대어 엔티티를 믿을 수 있다.
+왜 굳이 프록시인가. `getTeam()`을 호출한 시점에는 아직 DB를 읽지 않았으니 돌려줄 진짜 `Team`이 없다. 그렇다고 `null`을 주면 다시 신뢰 문제로 돌아간다. 그래서 "진짜인 척하는 객체"를 먼저 주고, 필요해지는 순간 진짜로 바꿔치기하는 것이다. 덕분에 개발자는 DAO의 SQL이 아니라 **"연관 객체는 실제로 쓰는 순간 JPA가 가져온다"는 약속**에 기대어 엔티티를 믿을 수 있다. 셋째 원리의 네 약속 중 하나다.
 
 {{< callout type="warning" >}}
 지연 로딩이 언제나 정답은 아니다. `Member`와 `Team`을 거의 항상 함께 쓴다면 처음부터 조인해서 한 번에 가져오는 편이 낫다. 회원 100명을 조회한 뒤 각각 `getTeam()`을 호출하면 SELECT가 최대 101번 나가는 **N+1 문제**가 대표적인 부작용이다. 프록시와 페치 전략은 [Chapter 10. 프록시](../10-proxy-loading), 페치 조인은 [Chapter 12. 객체지향 쿼리](../12-object-oriented-query)에서 다룬다.
@@ -240,10 +260,10 @@ team.getName();                             // 여기서 SELECT ... FROM TEAM
 
 ### 2.5 비교
 
-| 비교 | 연산자 | 의미 |
-|:-----|:-------|:-----|
-| 동일성 (identity) | `==` | 같은 인스턴스인가 (참조 주소 비교) |
-| 동등성 (equality) | `equals()` | 같은 값인가 |
+| 비교 | 연산자 | 의미 | 왜 둘인가 |
+|:-----|:-------|:-----|:----------|
+| 동일성 (identity) | `==` | 같은 인스턴스인가 (참조 주소 비교) | 참조는 메모리 주소라 같은 객체인지만 물을 수 있다 |
+| 동등성 (equality) | `equals()` | 같은 값인가 | 값으로 같은지는 클래스가 `equals()`로 정한다 |
 
 데이터베이스는 행을 기본키 하나로 식별한다. 자바는 동일성과 동등성 두 가지 기준을 갖는다. 이 차이는 같은 행을 두 번 조회할 때 드러난다.
 
@@ -260,8 +280,10 @@ m1 == m2;   // false
 JPA는 같은 영속성 컨텍스트 안에서 같은 기본키를 조회하면 **같은 인스턴스**를 돌려준다. 한 번 조회한 엔티티를 기본키를 키로 하는 맵, 즉 **1차 캐시**에 보관해 두었다가 같은 요청이 오면 그대로 꺼내 주기 때문이다.
 
 ```java
-Member m1 = em.find(Member.class, 1L);   // SELECT 실행
-Member m2 = em.find(Member.class, 1L);   // 1차 캐시에서 반환, SQL 없음
+Member m1 = em.find(Member.class, 1L);
+// SELECT 실행
+Member m2 = em.find(Member.class, 1L);
+// 1차 캐시에서 반환. SQL 없음
 m1 == m2;   // true
 ```
 
@@ -298,22 +320,24 @@ ORM(Object-Relational Mapping)은 객체와 관계형 데이터베이스를 매�
 └──────────────────────┘
 ```
 
-JPA는 JDBC를 대체하지 않는다. 애플리케이션이 JPA API를 호출하면 JPA가 SQL을 만들어 **JDBC로 실행**하고, 결과를 다시 객체로 돌려준다. JDBC를 없애는 것이 아니라 JDBC를 대신 호출해 주는 번역 계층이 하나 끼어드는 것이다.
+JPA는 JDBC를 대체하지 않는다. 애플리케이션이 JPA API를 호출하면 JPA가 SQL을 만들어 **JDBC로 실행**하고, 결과를 다시 객체로 돌려준다. JDBC를 없애는 것이 아니라 JDBC를 대신 호출해 주는 번역 계층이 하나 끼어드는 것이다. 둘째 원리가 말하는 "SQL은 사라지지 않고 매핑 정보에서 생성된다"의 자리가 바로 이 계층이다.
 
 ### 3.2 CRUD는 이렇게 바뀐다
 
 ```java
-// 저장 — INSERT를 만들어 실행
+// 저장. INSERT를 만들어 실행
 em.persist(member);
 
-// 조회 — SELECT를 만들어 실행하고 결과를 객체로 매핑
-Member member = em.find(Member.class, id);
+// 조회. SELECT를 만들어 실행하고
+// 결과를 객체로 매핑
+Member m = em.find(Member.class, id);
 
-// 수정 — 따로 호출할 메서드가 없다. 변경을 감지해 UPDATE를 만든다
-member.setName("newName");
+// 수정. 따로 부를 메서드가 없다
+// 변경을 감지해 UPDATE를 만든다
+m.setName("newName");
 
-// 삭제 — DELETE를 만들어 실행
-em.remove(member);
+// 삭제. DELETE를 만들어 실행
+em.remove(m);
 ```
 
 수정에 `update()` 같은 메서드가 없다는 점이 낯설 수 있다. 컬렉션에서 꺼낸 객체를 바꾸면 그것이 곧 컬렉션 안의 객체가 바뀐 것이듯, JPA도 같은 감각을 목표로 한다. 조회 시점의 상태를 스냅샷으로 기억해 두었다가 트랜잭션을 커밋할 때 달라진 것이 있으면 그 엔티티에 대해서만 UPDATE를 실행한다. 이것이 **변경 감지**이고, 역시 [Chapter 05](../05-persistence-features)에서 자세히 본다.
@@ -378,14 +402,14 @@ JPA는 "이런 API가 있어야 하고 이렇게 동작해야 한다"는 **명�
 Hibernate   EclipseLink   DataNucleus
 ```
 
-| 구분 | JPA | Hibernate |
-|:-----|:----|:----------|
-| 정체 | 표준 명세 (인터페이스) | 구현체 (실제 동작하는 코드) |
-| 패키지 | `jakarta.persistence` (구 `javax.persistence`) | `org.hibernate` |
-| 대표 타입 | `EntityManager`, `@Entity` | `Session`, `SessionFactory` |
-| 대안 | – | EclipseLink, DataNucleus, OpenJPA |
+| 구분 | JPA | Hibernate | 왜 나뉘나 |
+|:-----|:----|:----------|:----------|
+| 정체 | 표준 명세 (인터페이스) | 구현체 (실제 동작하는 코드) | 약속과 실행을 분리해야 구현체를 바꿀 수 있다 |
+| 패키지 | `jakarta.persistence` (구 `javax.persistence`) | `org.hibernate` | 애플리케이션은 표준 패키지만 import해야 표준 위에서 코딩하는 것이다 |
+| 대표 타입 | `EntityManager`, `@Entity` | `Session`, `SessionFactory` | 같은 일을 하는 Hibernate 고유 타입이 표준 타입 뒤에 있다 |
+| 대안 | – | EclipseLink, DataNucleus, OpenJPA | 명세가 인터페이스라 다른 구현도 가능하다 |
 
-인터페이스로 표준을 만든 이유는 분명하다. 구현체를 바꿔도 애플리케이션 코드는 그대로이고, 한 번 배우면 어느 구현체에서든 통한다. 다만 솔직히 말하면 실무에서는 거의 전부 Hibernate를 쓰고, `@BatchSize`나 `@DynamicUpdate` 같은 Hibernate 고유 기능에 기대는 경우도 흔하다. "구현체 교체"는 실제로 누리는 이점이라기보다 표준이 주는 안전장치에 가깝다.
+인터페이스로 표준을 만든 이유는 분명하다. 구현체를 바꿔도 애플리케이션 코드는 그대로이고, 한 번 배우면 어느 구현체에서든 통한다. 그래서 애플리케이션 코드는 `jakarta.persistence` 패키지만 import하고 Hibernate 클래스는 직접 건드리지 않는 것, 즉 **표준 위에서 코딩하는 것**이 원칙이다. 다만 솔직히 말하면 실무에서는 거의 전부 Hibernate를 쓰고, `@BatchSize`나 `@DynamicUpdate` 같은 Hibernate 고유 기능에 기대는 경우도 흔하다. "구현체 교체"는 실제로 누리는 이점이라기보다 표준이 주는 안전장치에 가깝다.
 
 {{< callout type="info" >}}
 **스프링 데이터 JPA는 JPA 구현체가 아니다.** JPA 위에서 `Repository` 인터페이스만 선언하면 구현을 자동으로 만들어 주는 라이브러리다. 실제 스택은 스프링 데이터 JPA → JPA → Hibernate → JDBC 순으로 쌓인다. 스프링 데이터 JPA가 편하다고 느낀다면 그 편안함의 대부분은 아래층인 JPA와 Hibernate가 만드는 것이다.
@@ -399,7 +423,9 @@ Hibernate   EclipseLink   DataNucleus
 
 ```java
 // JDBC: SQL 작성, 파라미터 바인딩, 실행
-String sql = "INSERT INTO MEMBER (ID, NAME) VALUES (?, ?)";
+String sql = "INSERT INTO MEMBER"
+           + " (ID, NAME)"
+           + " VALUES (?, ?)";
 pstmt.setLong(1, member.getId());
 pstmt.setString(2, member.getName());
 pstmt.executeUpdate();
@@ -419,18 +445,19 @@ em.persist(member);
 class Member {
     @Id Long id;
     String name;
-    String tel;   // 이 한 줄이면 INSERT·SELECT·UPDATE 모두 반영된다
+    String tel;   // 이 한 줄이면 끝
 }
+// INSERT, SELECT, UPDATE가 따라 바뀐다
 ```
 
-SQL이 코드에 없으니 고칠 SQL도 없다. JPA는 SQL을 매핑 정보에서 **생성**하기 때문에, 매핑이 바뀌면 SQL도 자동으로 따라 바뀐다. 1.2절에서 "객체가 SQL에 종속된다"고 했던 문제가 방향을 뒤집어 해결된 것이다.
+SQL이 코드에 없으니 고칠 SQL도 없다. JPA는 SQL을 매핑 정보에서 **생성**하기 때문에, 매핑이 바뀌면 SQL도 자동으로 따라 바뀐다. 필드 하나를 추가하면 SQL이 자동으로 따라 바뀌는 것이고, 1.2절에서 "객체가 SQL에 종속된다"고 했던 문제가 방향을 뒤집어 해결된 것이다. 둘째 원리다.
 
 ### 5.3 패러다임 불일치 해결
 
 2절의 네 문제를 JPA가 어떻게 처리하는지 한 표로 모으면 이렇다.
 
-| 문제 | 원인 | JPA의 해결 |
-|:-----|:-----|:-----------|
+| 문제 | 왜 어긋나나 | JPA의 해결 |
+|:-----|:------------|:-----------|
 | 상속 | 테이블에는 상속이 없다 | 여러 테이블에 나눠 저장하고 조인해서 조회 |
 | 연관관계 | 참조 ↔ 외래키 | 매핑 규칙에 따라 자동 변환 |
 | 그래프 탐색 | SQL 범위에 갇힌다 | 지연 로딩 (프록시) |
@@ -438,23 +465,25 @@ SQL이 코드에 없으니 고칠 SQL도 없다. JPA는 SQL을 매핑 정보에�
 
 ### 5.4 성능
 
-"한 계층이 더 끼면 느려지지 않을까"라는 걱정이 자연스럽다. 그런데 애플리케이션과 DB 사이에 계층이 하나 있다는 것은, 그 계층에서 **최적화를 시도할 기회가 한 번 더 있다**는 뜻이기도 하다. JPA는 그 기회를 세 가지 방식으로 쓴다.
+"한 계층이 더 끼면 느려지지 않을까"라는 걱정이 자연스럽다. 그런데 애플리케이션과 DB 사이에 계층이 하나 있다는 것은, 그 계층에서 **최적화를 시도할 기회가 한 번 더 있다**는 뜻이기도 하다. 셋째 원리이고, JPA는 그 기회를 세 가지 방식으로 쓴다.
 
 **1차 캐시.** 같은 트랜잭션에서 같은 엔티티를 두 번 조회하면 SQL은 한 번만 나간다.
 
 ```java
-Member m1 = em.find(Member.class, 1L);  // SELECT
-Member m2 = em.find(Member.class, 1L);  // 캐시에서 반환
+Member m1 = em.find(Member.class, 1L);
+// SELECT
+Member m2 = em.find(Member.class, 1L);
+// 캐시에서 반환
 ```
 
 **쓰기 지연.** `persist()`를 호출해도 INSERT를 바로 보내지 않고 모아 두었다가 커밋 시점에 한 번에 보낸다. 트랜잭션 안에서는 커밋 전까지 DB에 반영되지 않아도 결과가 같기 때문에 가능한 최적화다. SQL을 모아 보내면 JDBC 배치로 네트워크 왕복을 줄일 수 있다.
 
 ```java
 tx.begin();
-em.persist(memberA);   // SQL 저장소에 보관
-em.persist(memberB);   // SQL 저장소에 보관
-em.persist(memberC);   // SQL 저장소에 보관
-tx.commit();           // 이때 INSERT 3개를 한 번에 전송
+em.persist(memberA);   // 저장소에 보관
+em.persist(memberB);
+em.persist(memberC);
+tx.commit();   // INSERT 셋을 한 번에
 ```
 
 **지연 로딩과 변경 감지.** 필요한 시점에만 조회하니 안 쓰는 데이터는 읽지 않고, 바뀐 엔티티에 대해서만 UPDATE를 만든다.
@@ -467,29 +496,34 @@ tx.commit();           // 이때 INSERT 3개를 한 번에 전송
 
 SQL에는 표준이 있지만 벤더마다 조금씩 다르다. 페이징 문법만 봐도 그렇다.
 
-| DB | 페이징 문법 |
-|:---|:-----------|
-| MySQL, PostgreSQL, H2 | `LIMIT 10 OFFSET 20` |
-| Oracle 12c 이후 | `OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY` |
-| Oracle 11g 이전 | `ROWNUM`을 이용한 서브쿼리 |
-| SQL Server 2012 이후 | `OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY` |
+| DB | 페이징 문법 | 왜 다른가 |
+|:---|:-----------|:----------|
+| MySQL, PostgreSQL, H2 | `LIMIT 10 OFFSET 20` | 표준이 생기기 전에 퍼진 문법이다 |
+| Oracle 12c 이후 | `OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY` | SQL:2008 표준 문법을 뒤늦게 받아들였다 |
+| Oracle 11g 이전 | `ROWNUM`을 이용한 서브쿼리 | 표준 이전의 의사 컬럼으로 흉내 냈다 |
+| SQL Server 2012 이후 | `OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY` | 역시 SQL:2008 표준 문법이다 |
 
 SQL을 직접 쓰면 이 차이가 애플리케이션 코드에 그대로 박힌다. JPA는 **방언(Dialect)** 계층을 두어 DB별 차이를 흡수한다. 애플리케이션은 JPA API로 의도만 말하고, 실제 문법은 방언이 결정한다.
 
 ```java
-em.createQuery("select m from Member m", Member.class)
+em.createQuery("select m from Member m",
+               Member.class)
   .setFirstResult(20)
   .setMaxResults(10)
   .getResultList();
 
 // MySQL 방언  → ... LIMIT ?, ?
-// Oracle 방언 → ... OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+// Oracle 방언 → ... OFFSET ? ROWS
+//   FETCH NEXT ? ROWS ONLY
 ```
 
+위의 `select m from Member m`은 SQL이 아니라 **JPQL**이다. 테이블 이름과 컬럼 이름이 아니라 엔티티 이름과 필드 이름을 쓰고, 매핑 정보를 거쳐 SQL로 번역된다. 그래서 테이블 이름이 바뀌어도 쿼리는 그대로이고, DB가 바뀌면 방언이 번역의 마지막 단계를 바꾼다.
+
 ```properties
-# Hibernate 6부터는 JDBC 메타데이터로 방언을 자동 감지한다.
-# 직접 지정해야 할 때만 아래처럼 쓴다.
-spring.jpa.database-platform=org.hibernate.dialect.MySQLDialect
+# Hibernate 6부터는 JDBC 메타데이터로
+# 방언을 자동 감지한다. 직접 지정할 때만
+spring.jpa.database-platform=\
+  org.hibernate.dialect.MySQLDialect
 ```
 
 덕분에 개발은 H2, 운영은 MySQL처럼 환경마다 다른 DB를 쓰는 것이 가능해진다. 다만 네이티브 SQL, DB 고유 함수, 시퀀스 지원 여부처럼 방언이 흡수하지 못하는 지점은 남는다. "설정 한 줄로 DB를 갈아 끼운다"기보다 "매핑과 기본 CRUD, JPQL은 DB가 바뀌어도 살아남는다"로 이해하는 편이 정확하다. 방언 설정은 [Chapter 02. JPA 시작](../02-jpa-start)에서 다시 나온다.
@@ -512,34 +546,42 @@ JPA는 만능이 아니다. 어디에 강하고 어디에 약한지 미리 알�
 
 ---
 
-## 요약
+## 핵심 정리
 
-| 항목 | 핵심 |
-|:-----|:-----|
-| SQL 중심 개발의 문제 | 반복 코드, SQL 의존, 엔티티를 믿을 수 없음 |
-| 패러다임 불일치 | 객체와 테이블의 번역을 사람이 하는 데서 오는 비용 |
-| 상속 | 테이블에는 없다 → 슈퍼/서브 타입 매핑을 JPA가 대신 |
-| 연관관계 | 참조 ↔ 외래키 변환을 JPA가 대신 |
-| 그래프 탐색 | SQL 범위에 갇힘 → 지연 로딩(프록시) |
-| 비교 | 조회마다 새 인스턴스 → 1차 캐시로 동일성 보장 |
-| JPA | 자바 ORM 표준 명세, 현재 이름은 Jakarta Persistence |
-| Hibernate | JPA의 원형이자 대표 구현체 |
-| `javax` → `jakarta` | 패키지 권리 문제로 이름만 바뀜, 스프링 부트 3부터 적용 |
-| 성능 | 1차 캐시, 쓰기 지연, 지연 로딩, 변경 감지 |
-| 방언 | DB별 SQL 차이를 흡수하는 계층 |
+| 항목 | 핵심 | 왜 |
+|:-----|:-----|:---|
+| SQL 중심 개발의 문제 | 반복 코드, SQL 의존, 엔티티를 믿을 수 없음 | 객체와 테이블 사이의 번역을 매번 사람이 한다 |
+| 패러다임 불일치 | 객체와 테이블의 번역 비용 | 출발점이 다르다. 유연한 프로그램 / 공유하는 저장소 |
+| 상속 | 테이블에는 없다. 슈퍼/서브 타입 매핑을 JPA가 대신 | 행 하나는 정확히 한 테이블에 속한다 |
+| 연관관계 | 참조 ↔ 외래키 변환을 JPA가 대신 | 참조는 한 방향 필드이고 외래키는 조인되는 값이다 |
+| 그래프 탐색 | SQL 범위에 갇힘 → 지연 로딩(프록시) | SQL은 실행 순간 조인 범위가 고정된다 |
+| 비교 | 조회마다 새 인스턴스 → 1차 캐시로 동일성 보장 | JDBC는 행마다 `new`를 한다 |
+| JPA | 자바 ORM 표준 명세. 현재 이름은 Jakarta Persistence | 인터페이스라 구현체가 바뀌어도 코드는 그대로다 |
+| Hibernate | JPA의 원형이자 대표 구현체 | 검증된 설계를 그대로 표준화했다 |
+| `javax` → `jakarta` | 패키지 권리 문제로 이름만 바뀜. 스프링 부트 3부터 | 재단이 `javax` 아래에서 API를 고칠 수 없었다 |
+| SQL 생성 | 매핑 정보에서 만든다 | 필드를 더하면 SQL이 따라 바뀐다. JPQL도 매핑을 거친다 |
+| 성능 | 1차 캐시, 쓰기 지연, 지연 로딩, 변경 감지 | 사이에 낀 계층이 최적화의 기회다 |
+| 방언 | DB별 SQL 차이를 흡수하는 계층 | 페이징 문법부터 DB마다 다르다 |
+| 한계 | 복잡한 조회, N+1, 학습 비용 | 어떤 SQL이 언제 나가는지 알아야 한다 |
 
-### 핵심 코드
-
-```java
-// 저장
-em.persist(entity);
-
-// 조회
-Entity entity = em.find(Entity.class, id);
-
-// 수정 — 변경 감지, 커밋 시 UPDATE
-entity.setName("newName");
-
-// 삭제
-em.remove(entity);
-```
+{{< callout type="info" >}}
+**용어 정리**
+- **ORM**: 객체와 관계형 데이터베이스를 매핑 정보로 잇고 SQL 생성과 결과 조립을 맡는 기술
+- **JPA / Jakarta Persistence**: 자바 ORM의 표준 명세. 인터페이스와 어노테이션으로 이루어진다
+- **구현체**: 명세대로 실제로 SQL을 만들고 실행하는 코드. Hibernate, EclipseLink, DataNucleus
+- **Hibernate**: 2001년에 나온 ORM. JPA의 원형이자 대표 구현체
+- **패러다임 불일치**: 객체 모델과 관계형 모델이 상속, 관계, 탐색, 식별에서 어긋나는 것
+- **슈퍼타입/서브타입**: 상속이 없는 테이블이 공통 컬럼과 고유 컬럼을 나눠 상속을 흉내 내는 구조
+- **참조 / 외래키**: 객체가 다른 객체를 가리키는 필드 / 테이블이 다른 행의 기본키를 담은 컬럼
+- **객체 그래프 탐색**: 참조를 따라 연관 객체로 옮겨 가는 것. SQL로 만든 객체는 조회 범위에 갇힌다
+- **지연 로딩 / 프록시**: 연관 객체를 실제로 쓰는 순간 조회하는 것 / 그때까지 자리를 지키는 가짜 객체
+- **N+1 문제**: 목록 하나를 조회한 뒤 요소마다 연관 객체 SELECT가 하나씩 더 나가는 것
+- **동일성 / 동등성**: 같은 인스턴스인가(`==`) / 같은 값인가(`equals()`)
+- **영속성 컨텍스트**: 엔티티를 보관하고 관리하는 공간. 네 가지 약속이 여기서 나온다
+- **1차 캐시**: 영속성 컨텍스트 안의 기본키를 키로 하는 맵. 같은 기본키면 같은 인스턴스
+- **쓰기 지연**: INSERT를 모아 두었다가 커밋 시점에 한 번에 보내는 것
+- **변경 감지**: 조회 시점의 스냅샷과 비교해 바뀐 엔티티만 UPDATE하는 것
+- **방언(Dialect)**: DB마다 다른 SQL 문법을 흡수하는 계층. Hibernate 6부터 자동 감지
+- **JPQL**: 테이블이 아니라 엔티티를 대상으로 쓰는 쿼리 언어. 매핑 정보를 거쳐 SQL이 된다
+- **스프링 데이터 JPA**: JPA 위에서 `Repository` 구현을 자동으로 만들어 주는 라이브러리. 구현체가 아니다
+{{< /callout >}}
