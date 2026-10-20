@@ -4,21 +4,21 @@ date: 2025-12-25
 weight: 11
 ---
 
-지금까지는 엔티티 이야기였다. 그런데 엔티티 안의 필드들은 무엇인가. 회원의 이름은 회원에 딸린 값이지 추적할 대상이 아니다. 주소는 어떤가. `city`, `street`, `zipcode` 세 필드로 풀어 두는 것이 옳은가, 아니면 `Address`라는 하나의 값으로 묶어야 하는가. 묶는다면 그 `Address`는 엔티티인가. JPA는 이 질문에 **값 타입**이라는 답을 준다. 식별자 없이 엔티티에 딸려 사는 값이다. 이 장은 값 타입이 엔티티와 무엇이 다른지, 어떻게 매핑되는지, 그리고 왜 불변으로 만들어야 하는지를 다룬다. 관통하는 질문은 하나다. "이것은 추적해야 할 대상인가, 그냥 값인가."
+지금까지는 엔티티 이야기였다. 그런데 엔티티 안의 필드들은 무엇인가. 회원의 이름은 회원에 딸린 값이지 추적할 대상이 아니다. 주소는 어떤가. `city`, `street`, `zipcode` 세 필드로 풀어 두는 것이 옳은가, 아니면 `Address`라는 하나의 값으로 묶어야 하는가. 묶는다면 그 `Address`는 엔티티인가. JPA는 이 질문에 **값 타입**이라는 답을 준다. 식별자 없이 엔티티에 딸려 사는 값이다. 이 장은 값 타입이 엔티티와 무엇이 다른지, 어떻게 매핑되는지, 그리고 왜 불변으로 만들어야 하는지를 다룬다. 관통하는 질문은 하나, "이것은 추적해야 할 대상인가, 그냥 값인가"이고, 답은 세 원리로 정리된다. 첫째, **식별자가 있으면 엔티티, 없으면 값이다.** 영속성 컨텍스트는 식별자로 관리하므로 값은 소속 엔티티의 일부로만 추적되고, 생명주기도 엔티티를 따른다. 둘째, **값은 공유하지 않고 교체한다.** 기본값 타입이 안전한 이유는 복사되거나 불변이기 때문인데, 개발자가 만든 값 타입은 그 성질을 저절로 갖지 못하므로 불변으로 만들고, 같음은 식별자가 아니라 값으로 판단한다. 셋째, **식별자가 없는 값은 행을 특정할 수 없다.** 값 타입 컬렉션의 변경이 전체 재작성이 되는 이유, `Set`이 나은 이유, 추적이 필요해지면 엔티티로 올려야 하는 이유가 전부 여기서 나온다.
 
 ---
 
 ## 1. 엔티티 타입과 값 타입
 
-둘을 가르는 기준은 **식별자**다. 엔티티에는 `@Id`가 있어 값이 전부 바뀌어도 같은 것으로 추적된다. 회원의 이름과 나이가 바뀌어도 1번 회원은 1번 회원이다. 값 타입에는 식별자가 없다. 100이라는 숫자와 "서울"이라는 문자열은 값 자체가 전부이고, 값이 같으면 같은 것이며, 어디에 속했느냐로만 의미를 갖는다.
+둘을 가르는 기준은 **식별자**다. 엔티티에는 `@Id`가 있어 값이 전부 바뀌어도 같은 것으로 추적된다. 회원의 이름과 나이가 바뀌어도 1번 회원은 1번 회원이다. 값 타입에는 식별자가 없다. 100이라는 숫자와 "서울"이라는 문자열은 값 자체가 전부이고, 값이 같으면 같은 것이며, 어디에 속했느냐로만 의미를 갖는다. 첫째 원리다.
 
-| 구분 | 엔티티 타입 | 값 타입 |
-|:-----|:------------|:--------|
-| 식별자 | 있다 | 없다 |
-| 같음의 기준 | 식별자 | 값 |
-| 생명주기 | 스스로 갖는다 | 소속된 엔티티를 따른다 |
-| 공유 | 여러 엔티티가 참조해도 된다 | 공유하면 안 된다 (4절) |
-| 변경 | 값을 바꿔도 같은 엔티티 | 바꾸는 대신 교체한다 |
+| 구분 | 엔티티 타입 | 값 타입 | 왜 |
+|:-----|:------------|:--------|:---|
+| 식별자 | 있다 | 없다 | 추적할 대상인가, 그냥 값인가의 차이다 |
+| 같음의 기준 | 식별자 | 값 | 식별자가 없으면 값 말고 비교할 것이 없다 |
+| 생명주기 | 스스로 갖는다 | 소속된 엔티티를 따른다 | 컨텍스트가 식별자로만 관리하므로 값은 독립적으로 들어갈 수 없다 |
+| 공유 | 여러 엔티티가 참조해도 된다 | 공유하면 안 된다 (4절) | 값 하나를 바꾸면 공유한 모두가 바뀐다 |
+| 변경 | 값을 바꿔도 같은 엔티티 | 바꾸는 대신 교체한다 | 바뀐 값은 다른 값이다 |
 
 이 구분이 JPA에서 특별히 중요한 이유는 [Chapter 03](../03-persistence-context)에서 봤듯 영속성 컨텍스트가 **식별자를 열쇠로** 모든 것을 관리하기 때문이다. 식별자가 없는 값은 컨텍스트에 독립적으로 들어갈 수 없다. 값 타입은 언제나 어떤 엔티티의 일부로서, 그 엔티티의 스냅샷 안에서 함께 추적된다.
 
@@ -72,10 +72,12 @@ public class Member {
     private Long id;
     private String name;
 
-    private LocalDate startDate;   // 근무 시작
-    private LocalDate endDate;     // 근무 종료
+    // 근무 기간
+    private LocalDate startDate;
+    private LocalDate endDate;
 
-    private String city;           // 집 주소
+    // 집 주소
+    private String city;
     private String street;
     private String zipcode;
 }
@@ -123,8 +125,11 @@ public class Period {
     private LocalDate startDate;
     private LocalDate endDate;
 
-    public boolean isWorking(LocalDate date) {     // 값 타입에 어울리는 로직
-        return !date.isBefore(startDate) && !date.isAfter(endDate);
+    // 값 타입에 어울리는 로직
+    public boolean isWorking(
+            LocalDate date) {
+        return !date.isBefore(startDate)
+            && !date.isAfter(endDate);
     }
 }
 
@@ -152,8 +157,8 @@ homeAddress ─▶ CITY, STREET, ZIPCODE
 
 ### 3.3 요구사항과 허용 범위
 
-| 항목 | 내용 | 이유 |
-|:-----|:-----|:-----|
+| 항목 | 내용 | 왜 |
+|:-----|:-----|:---|
 | `@Embeddable` | 값 타입 클래스에 붙인다 | 이 클래스가 테이블이 아니라 값이라는 선언 |
 | `@Embedded` | 사용하는 필드에 붙인다 | 둘 중 하나만 있어도 되지만 둘 다 붙이면 의도가 분명하다 |
 | 기본 생성자 | 필요하다 | 엔티티처럼 리플렉션으로 만들어 값을 채운다 |
@@ -167,7 +172,8 @@ public class Address {
     private String street;
 
     @Embedded
-    private Zipcode zipcode;          // 값 안의 값
+    private Zipcode zipcode;
+    // 값 안의 값
 }
 
 @Embeddable
@@ -176,7 +182,8 @@ public class PhoneNumber {
     private String localNumber;
 
     @ManyToOne
-    private PhoneServiceProvider provider;   // 값 안의 엔티티 참조
+    private Provider provider;
+    // 값 안의 엔티티 참조 (통신사)
 }
 ```
 
@@ -188,15 +195,27 @@ public class PhoneNumber {
 @Entity
 public class Member {
     @Embedded
-    private Address homeAddress;          // CITY, STREET, ZIPCODE
+    private Address homeAddress;
+    // CITY, STREET, ZIPCODE
 
     @Embedded
     @AttributeOverrides({
-        @AttributeOverride(name = "city",    column = @Column(name = "COMPANY_CITY")),
-        @AttributeOverride(name = "street",  column = @Column(name = "COMPANY_STREET")),
-        @AttributeOverride(name = "zipcode", column = @Column(name = "COMPANY_ZIPCODE"))
+        @AttributeOverride(
+            name = "city",
+            column = @Column(
+                name = "WORK_CITY")),
+        @AttributeOverride(
+            name = "street",
+            column = @Column(
+                name = "WORK_STREET")),
+        @AttributeOverride(
+            name = "zipcode",
+            column = @Column(
+                name = "WORK_ZIPCODE"))
     })
-    private Address companyAddress;       // COMPANY_CITY, COMPANY_STREET, COMPANY_ZIPCODE
+    private Address workAddress;
+    // WORK_CITY, WORK_STREET,
+    // WORK_ZIPCODE
 }
 ```
 
@@ -205,10 +224,11 @@ public class Member {
 ### 3.5 임베디드 타입과 null
 
 ```java
-member.setHomeAddress(null);   // CITY, STREET, ZIPCODE 모두 NULL
+member.setHomeAddress(null);
+// CITY, STREET, ZIPCODE 모두 NULL
 ```
 
-임베디드 타입이 `null`이면 매핑된 컬럼 전부가 `null`이 된다. 반대 방향도 알아 둘 필요가 있다. 컬럼 전부가 `null`인 행을 조회하면 Hibernate는 `homeAddress`에 빈 `Address`가 아니라 **`null`**을 넣는다. "필드가 전부 비어 있는 주소"와 "주소 없음"을 테이블에서는 구분할 수 없으므로, 둘 중 후자로 해석하는 것이다. 임베디드 타입을 쓸 때는 `null` 검사를 습관처럼 넣는다.
+임베디드 타입이 `null`이면 매핑된 컬럼 전부가 `null`이 된다. 반대 방향도 알아 둘 필요가 있다. 컬럼 전부가 `null`인 행을 조회하면 Hibernate는 `homeAddress`에 빈 `Address`가 아니라 **`null`**을 넣는다. 필드가 전부 `null`인 `Address`를 저장해도 다시 읽으면 `null`이다. "필드가 전부 비어 있는 주소"와 "주소 없음"을 테이블에서는 구분할 수 없으므로, 둘 중 후자로 해석하는 것이다. 임베디드 타입을 쓸 때는 `null` 검사를 습관처럼 넣는다.
 
 ---
 
@@ -217,18 +237,22 @@ member.setHomeAddress(null);   // CITY, STREET, ZIPCODE 모두 NULL
 ### 4.1 공유 참조가 만드는 부작용
 
 ```java
-Address address = new Address("서울", "종로", "11111");
-member1.setHomeAddress(address);
-member2.setHomeAddress(address);         // 같은 인스턴스를 공유
+Address address = new Address(
+    "서울", "종로", "11111");
+m1.setHomeAddress(address);
+m2.setHomeAddress(address);
+// 같은 인스턴스를 공유
 
-member2.getHomeAddress().setCity("부산");   // 회원 2만 바꾸려 했는데
-tx.commit();                                // UPDATE MEMBER ... 두 번. 회원 1도 부산
+m2.getHomeAddress().setCity("부산");
+// 회원 2만 바꾸려 했는데
+tx.commit();
+// UPDATE가 두 번. 회원 1도 부산
 ```
 
 ```
-member1.homeAddress ─┐
-                     ├─▶ Address 하나
-member2.homeAddress ─┘
+m1.homeAddress ─┐
+                ├─▶ Address 하나
+m2.homeAddress ─┘
 → 한쪽을 바꾸면 양쪽이 바뀐다
 ```
 
@@ -237,16 +261,21 @@ member2.homeAddress ─┘
 ### 4.2 복사해서 쓰면 되지 않나
 
 ```java
-Address copied = new Address(address.getCity(), address.getStreet(), address.getZipcode());
-member2.setHomeAddress(copied);          // 별도 인스턴스
-member2.getHomeAddress().setCity("부산");   // 회원 1은 그대로
+Address copied = new Address(
+    address.getCity(),
+    address.getStreet(),
+    address.getZipcode());
+m2.setHomeAddress(copied);
+// 별도 인스턴스
+m2.getHomeAddress().setCity("부산");
+// 회원 1은 그대로
 ```
 
-복사본을 넘기면 문제는 사라진다. 2절에서 본 기본값 타입이 안전한 이유가 바로 "대입하면 복사된다"였다. 그런데 객체 타입은 대입하면 **참조**가 넘어간다. 복사는 개발자가 매번 기억해서 해야 하는 일이고, 잊는 순간 4.1절이 재현된다. 누군가 `member1.getHomeAddress()`로 꺼낸 주소를 그대로 다른 곳에 넘기는 것을 막을 방법이 코드 구조에는 없다.
+복사본을 넘기면 문제는 사라진다. 2절에서 본 기본값 타입이 안전한 이유가 바로 "대입하면 복사된다"였다. 그런데 객체 타입은 대입하면 **참조**가 넘어간다. 복사는 개발자가 매번 기억해서 해야 하는 일이고, 잊는 순간 4.1절이 재현된다. 누군가 `m1.getHomeAddress()`로 꺼낸 주소를 그대로 다른 곳에 넘기는 것을 막을 방법이 코드 구조에는 없다.
 
 ### 4.3 불변 객체로 만든다
 
-근본적인 해결은 **바꿀 수 없게** 만드는 것이다. 공유되더라도 아무도 바꿀 수 없다면 부작용은 원천적으로 불가능하다.
+근본적인 해결은 **바꿀 수 없게** 만드는 것이다. 공유되더라도 아무도 바꿀 수 없다면 부작용은 원천적으로 불가능하다. 둘째 원리다.
 
 ```java
 @Embeddable
@@ -255,27 +284,42 @@ public class Address {
     private String street;
     private String zipcode;
 
-    protected Address() {}                   // JPA용
+    protected Address() {}   // JPA용
 
-    public Address(String city, String street, String zipcode) {
+    public Address(String city,
+                   String street,
+                   String zipcode) {
         this.city = city;
         this.street = street;
         this.zipcode = zipcode;
     }
 
-    public String getCity() { return city; }     // getter만. setter는 없다
-    public String getStreet() { return street; }
-    public String getZipcode() { return zipcode; }
+    // getter만 둔다. setter는 없다
+    public String getCity() {
+        return city;
+    }
+    public String getStreet() {
+        return street;
+    }
+    public String getZipcode() {
+        return zipcode;
+    }
 
-    public Address withCity(String city) {       // 바꾸는 대신 새 값을 만든다
-        return new Address(city, street, zipcode);
+    // 바꾸는 대신 새 값을 만든다
+    public Address withCity(String c) {
+        return new Address(
+            c, street, zipcode);
     }
 }
 ```
 
 ```java
-member2.getHomeAddress().setCity("부산");                 // 컴파일 오류. 방법이 없다
-member2.setHomeAddress(member2.getHomeAddress().withCity("부산"));   // 교체한다
+m2.getHomeAddress().setCity("부산");
+// 컴파일 오류. 방법이 없다
+Address home = m2.getHomeAddress();
+Address changed = home.withCity("부산");
+m2.setHomeAddress(changed);
+// 교체한다
 ```
 
 값을 바꾸는 방법이 사라지고 **교체**만 남는다. 회원 2의 주소를 교체해도 회원 1은 여전히 예전 인스턴스를 가리키므로 영향이 없다. 변경 감지 입장에서도 자연스럽다. 회원 2의 `homeAddress` 필드가 다른 값을 가리키게 됐으니 회원 2만 UPDATE된다. 1절의 표에서 값 타입의 변경을 "바꾸는 대신 교체한다"고 적은 이유가 이것이다. 값 타입은 불변으로 만드는 것이 기본이고, `Integer`나 `String`이 그런 것처럼 그것이 값이 갖춰야 할 성질이다.
@@ -289,34 +333,41 @@ Hibernate 6.2부터는 자바 `record`를 `@Embeddable`로 쓸 수 있다. 레�
 ## 5. 값 타입 비교: 값이 같으면 같다
 
 ```java
-Address a = new Address("서울", "종로", "11111");
-Address b = new Address("서울", "종로", "11111");
+Address a = new Address(
+    "서울", "종로", "11111");
+Address b = new Address(
+    "서울", "종로", "11111");
 
 a == b;        // false. 다른 인스턴스
-a.equals(b);   // 재정의하지 않으면 false. 재정의해야 true
+a.equals(b);
+// 재정의하지 않으면 false
+// 재정의해야 true
 ```
 
 1절에서 값 타입은 "값이 같으면 같은 것"이라고 했다. 자바의 기본 `equals()`는 인스턴스가 같은지를 보므로, 값 타입 클래스에서는 반드시 **모든 필드를 비교하도록** 재정의해야 한다. `hashCode()`도 같은 필드로 함께 재정의한다. 그래야 `Set`이나 `Map`의 키로 썼을 때 같은 값을 같은 것으로 취급한다.
 
 ```java
-@Embeddable
-public class Address {
-    // ...
+// Address 클래스 안
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Address that = (Address) o;
-        return Objects.equals(city, that.city)
-            && Objects.equals(street, that.street)
-            && Objects.equals(zipcode, that.zipcode);
+@Override
+public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null
+        || getClass() != o.getClass()) {
+        return false;
     }
+    Address t = (Address) o;
+    return Objects.equals(city, t.city)
+        && Objects.equals(street,
+                          t.street)
+        && Objects.equals(zipcode,
+                          t.zipcode);
+}
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(city, street, zipcode);
-    }
+@Override
+public int hashCode() {
+    return Objects.hash(city, street,
+                        zipcode);
 }
 ```
 
@@ -346,17 +397,29 @@ public class Member {
     private Long id;
 
     @ElementCollection
-    @CollectionTable(name = "FAVORITE_FOOD", joinColumns = @JoinColumn(name = "MEMBER_ID"))
-    @Column(name = "FOOD_NAME")               // 값이 하나뿐이라 컬럼 이름을 여기서 준다
-    private Set<String> favoriteFoods = new HashSet<>();
+    @CollectionTable(
+        name = "FAVORITE_FOOD",
+        joinColumns = @JoinColumn(
+            name = "MEMBER_ID")
+    )
+    @Column(name = "FOOD_NAME",
+            nullable = false)
+    // 값이 하나라 컬럼 이름은 여기서
+    private Set<String> favoriteFoods =
+        new HashSet<>();
 
     @ElementCollection
-    @CollectionTable(name = "ADDRESS", joinColumns = @JoinColumn(name = "MEMBER_ID"))
-    private List<Address> addressHistory = new ArrayList<>();
+    @CollectionTable(
+        name = "ADDRESS",
+        joinColumns = @JoinColumn(
+            name = "MEMBER_ID")
+    )
+    private List<Address> history =
+        new ArrayList<>();
 }
 ```
 
-`@ElementCollection`은 "이 컬렉션의 요소는 엔티티가 아니라 값"이라는 선언이고, `@CollectionTable`은 그 값을 담을 테이블과 외래 키를 정한다. 이 테이블의 행에는 식별자가 없다. 그래서 행을 구별하려면 **모든 컬럼을 묶어 기본 키**로 삼는 수밖에 없고, 그 결과 어떤 컬럼도 `null`일 수 없고 완전히 같은 값을 두 번 넣을 수도 없다.
+`@ElementCollection`은 "이 컬렉션의 요소는 엔티티가 아니라 값"이라는 선언이고, `@CollectionTable`은 그 값을 담을 테이블과 외래 키를 정한다. 이 테이블의 행에는 식별자가 없다. 그래서 행을 구별하려면 **모든 컬럼을 묶어 기본 키**로 삼는 수밖에 없고, 그 결과 어떤 컬럼도 `null`일 수 없고 완전히 같은 값을 두 번 넣을 수도 없다. Hibernate가 DDL에 이 기본 키를 실제로 넣는 조건은 `Set`이면서 값 컬럼이 전부 `nullable = false`일 때다. 값 컬럼이 `null`을 허용하면 기본 키를 만들 수 없어 제약 없는 테이블이 되고, 중복을 허용하는 `List`(bag)에는 애초에 기본 키를 걸 수 없다. 값 타입 컬렉션의 컬럼에 `nullable = false`를 명시하는 이유다.
 
 ### 6.2 생명주기와 로딩
 
@@ -364,33 +427,41 @@ public class Member {
 Member member = new Member();
 member.getFavoriteFoods().add("치킨");
 member.getFavoriteFoods().add("피자");
-member.getAddressHistory().add(new Address("서울", "종로", "11111"));
+member.getHistory().add(new Address(
+    "서울", "종로", "11111"));
 
-em.persist(member);   // MEMBER 1건, FAVORITE_FOOD 2건, ADDRESS 1건 INSERT
+em.persist(member);
+// MEMBER 1건, FAVORITE_FOOD 2건,
+// ADDRESS 1건 INSERT
 ```
 
-값 타입 컬렉션은 따로 저장하지 않는다. 소속 엔티티가 저장될 때 함께 저장되고, 엔티티에서 빠지면 지워진다. [Chapter 10](../10-proxy-loading)에서 본 영속성 전이와 고아 객체 제거를 항상 켜 둔 것과 같다. 값에는 스스로의 생명주기가 없다는 원칙이 여기서도 그대로다. 로딩은 컬렉션이므로 기본이 지연 로딩이다.
+값 타입 컬렉션은 따로 저장하지 않는다. 소속 엔티티가 저장될 때 함께 저장되고, 엔티티에서 빠지면 지워진다. [Chapter 10](../10-proxy-loading)에서 본 영속성 전이와 고아 객체 제거를 항상 켜 둔 것과 같다. 값에는 스스로의 생명주기가 없다는 원칙이 여기서도 그대로다. 로딩은 컬렉션이므로 기본이 지연 로딩이다. 조회한 회원의 `favoriteFoods`에는 10장에서 본 컬렉션 래퍼가 들어 있고, 내용을 처음 요구할 때 SELECT가 나간다.
 
 ### 6.3 변경의 비용: 어떤 행이 바뀌었는지 모른다
 
 ```java
-Member member = em.find(Member.class, 1L);
-member.getAddressHistory().remove(new Address("서울", "종로", "11111"));   // 하나만 뺐는데
+Member member =
+    em.find(Member.class, 1L);
+member.getHistory().remove(new Address(
+    "서울", "종로", "11111"));
+// 하나만 뺐는데
 tx.commit();
 ```
 
 ```sql
-DELETE FROM ADDRESS WHERE MEMBER_ID = ?    -- 이 회원의 주소를 전부 지우고
-INSERT INTO ADDRESS (...) VALUES (...)     -- 남은 것을 다시 넣는다
-INSERT INTO ADDRESS (...) VALUES (...)
+-- 이 회원의 주소를 전부 지우고
+DELETE FROM ADDRESS WHERE MEMBER_ID = ?;
+-- 남은 것을 다시 넣는다
+INSERT INTO ADDRESS (...) VALUES (...);
+INSERT INTO ADDRESS (...) VALUES (...);
 ```
 
-주소 하나를 뺐을 뿐인데 그 회원의 주소 행 전부가 지워지고 다시 들어간다. 이유는 식별자가 없기 때문이다. 엔티티라면 "3번 행을 지워라"고 할 수 있지만, 값에는 번호가 없다. Hibernate는 `List`(순서 없는 bag)로 선언된 값 타입 컬렉션에 변경이 생기면 어느 행이 어떻게 바뀌었는지 특정하기를 포기하고 전부 지운 뒤 현재 상태를 다시 쓴다.
+주소 하나를 뺐을 뿐인데 그 회원의 주소 행 전부가 지워지고 다시 들어간다. 이유는 식별자가 없기 때문이다. 셋째 원리다. 엔티티라면 "3번 행을 지워라"고 할 수 있지만, 값에는 번호가 없다. Hibernate는 `List`(순서 없는 bag)로 선언된 값 타입 컬렉션에 변경이 생기면 어느 행이 어떻게 바뀌었는지 특정하기를 포기하고 전부 지운 뒤 현재 상태를 다시 쓴다.
 
 컬렉션 타입에 따라 정도가 다르다.
 
-| 선언 | 요소 하나를 바꾸면 | 이유 |
-|:-----|:-------------------|:-----|
+| 선언 | 요소 하나를 바꾸면 | 왜 |
+|:-----|:-------------------|:---|
 | `List` (bag) | 전부 DELETE 후 전부 INSERT | 행을 특정할 방법이 없다 |
 | `Set` | 해당 행만 DELETE 또는 INSERT | 값 전체가 곧 행의 식별자라 `equals()`로 찾을 수 있다 |
 | `List` + `@OrderColumn` | 인덱스로 해당 행만 DELETE·UPDATE | 순서 컬럼이 행의 위치를 알려 준다 |
@@ -403,7 +474,8 @@ INSERT INTO ADDRESS (...) VALUES (...)
 
 ```java
 @Entity
-public class AddressEntity {          // 값을 감싼 엔티티. 식별자가 생긴다
+public class PastAddress {
+    // 값을 감싼 엔티티. 식별자가 생긴다
     @Id @GeneratedValue
     private Long id;
 
@@ -413,24 +485,28 @@ public class AddressEntity {          // 값을 감싼 엔티티. 식별자가 �
 
 @Entity
 public class Member {
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(
+        cascade = CascadeType.ALL,
+        orphanRemoval = true
+    )
     @JoinColumn(name = "MEMBER_ID")
-    private List<AddressEntity> addressHistory = new ArrayList<>();
+    private List<PastAddress> history =
+        new ArrayList<>();
 }
 ```
 
 식별자가 생기면 개별 행을 추적하고 수정할 수 있고, `cascade`와 `orphanRemoval`로 값 타입 컬렉션과 같은 편의성을 그대로 얻는다. 잃는 것은 "이것은 값이다"라는 선언뿐인데, 추적이 필요한 순간 그것은 이미 값이 아니었다.
 
-| 구분 | 값 타입 컬렉션 | 일대다 엔티티 |
-|:-----|:---------------|:--------------|
-| 식별자 | 없다 | 있다 |
-| 요소 수정 | 전체 재작성 (bag) 또는 값 기준 (Set) | 해당 행만 UPDATE |
-| 요소 조회 | 소속 엔티티를 통해서만 | JPQL로 직접 |
-| 어울리는 곳 | 단순하고 작은 값 목록 | 그 외 대부분 |
+| 구분 | 값 타입 컬렉션 | 일대다 엔티티 | 왜 |
+|:-----|:---------------|:--------------|:---|
+| 식별자 | 없다 | 있다 | 값인가, 추적 대상인가 |
+| 요소 수정 | 전체 재작성 (bag) 또는 값 기준 (Set) | 해당 행만 UPDATE | 행을 특정할 수단이 값뿐인가, 식별자인가 |
+| 요소 조회 | 소속 엔티티를 통해서만 | JPQL로 직접 | 값은 FROM에 놓을 엔티티가 아니다 |
+| 어울리는 곳 | 단순하고 작은 값 목록 | 그 외 대부분 | 추적이 필요한 순간 그것은 값이 아니다 |
 
 ---
 
-## 요약
+## 핵심 정리
 
 | 항목 | 핵심 | 왜 |
 |:-----|:-----|:---|
@@ -440,8 +516,21 @@ public class Member {
 | `@AttributeOverride` | 같은 타입을 두 번 쓸 때 컬럼 이름 재정의 | 컬럼 이름은 사용처의 성질이다 |
 | `null` | 전부 `null`이면 객체도 `null` | 빈 값과 없음을 테이블은 구분하지 못한다 |
 | 공유 금지 | 값 타입은 참조를 공유하면 안 된다 | 변경 감지가 양쪽 모두 UPDATE한다 |
-| 불변 객체 | setter 없이 생성자와 교체로 | 바꿀 수 없으면 부작용도 없다 |
+| 불변 객체 | setter 없이 생성자와 교체로. `record`도 된다 | 바꿀 수 없으면 부작용도 없다 |
 | `equals`·`hashCode` | 모든 필드로 재정의 | 값은 값이 같으면 같다 |
 | 값 타입 컬렉션 | 별도 테이블, 모든 컬럼이 기본 키 | 행에 식별자가 없다 |
 | 컬렉션 변경 | bag은 전체 재작성, `Set`은 행 단위 | 행을 특정할 수단이 값뿐이다 |
 | 엔티티로 승격 | 추적이 필요하면 엔티티 + 일대다 | 추적이 필요한 것은 값이 아니다 |
+
+{{< callout type="info" >}}
+**용어 정리**
+- **값 타입**: 식별자 없이 엔티티에 딸려 사는 값. 기본값 타입, 임베디드 타입, 값 타입 컬렉션이 있다
+- **임베디드 타입(`@Embeddable`, `@Embedded`)**: 논리적으로 한 덩어리인 필드들을 묶은 값 타입 클래스
+- **`@AttributeOverride`**: 임베디드 타입의 컬럼 이름을 사용하는 자리에서 바꾸는 어노테이션
+- **부작용(side effect)**: 공유된 참조를 한쪽에서 바꿔 다른 쪽까지 바뀌는 현상
+- **불변 객체**: 생성 뒤 상태를 바꿀 수 없는 객체. setter 대신 새 값을 만들어 교체한다
+- **동일성 / 동등성**: 같은 인스턴스인가(`==`) / 값이 같은가(`equals()`)
+- **값 타입 컬렉션(`@ElementCollection`)**: 값을 여럿 담는 컬렉션. `@CollectionTable`이 정한 별도 테이블에 저장된다
+- **bag**: 인덱스 없는 `List`. 행을 특정할 수 없어 변경 시 전체를 다시 쓴다
+- **`@OrderColumn`**: 리스트의 순서를 저장하는 컬럼. 행의 위치를 특정할 수 있게 한다
+{{< /callout >}}
