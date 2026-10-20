@@ -4,7 +4,7 @@ date: 2026-03-03
 weight: 12
 ---
 
-[Chapter 02](../02-jpa-start)에서 JPQL을 잠깐 봤고, [Chapter 10](../10-proxy-loading)에서는 "연관관계는 전부 지연 로딩으로 두고 필요한 곳에서 페치 조인하라"고 했다. 이 장은 그 페치 조인을 포함해 JPA에서 데이터를 **찾는** 모든 방법을 다룬다. JPQL이 왜 필요하고 SQL과 어디가 다른지, 페치 조인이 왜 성능의 핵심이며 그 한계는 왜 생기는지, JPQL을 코드로 쓰는 도구가 왜 나왔는지, 그리고 쿼리가 영속성 컨텍스트와 어떻게 얽히는지. `find()`로는 기본 키 하나만 찾을 수 있으니, 나머지 모든 조회는 결국 이 장의 이야기다.
+[Chapter 02](../02-jpa-start)에서 JPQL을 잠깐 봤고, [Chapter 10](../10-proxy-loading)에서는 "연관관계는 전부 지연 로딩으로 두고 필요한 곳에서 페치 조인하라"고 했다. 이 장은 그 페치 조인을 포함해 JPA에서 데이터를 **찾는** 모든 방법을 다룬다. JPQL이 왜 필요하고 SQL과 어디가 다른지, 페치 조인이 왜 성능의 핵심이며 그 한계는 왜 생기는지, JPQL을 코드로 쓰는 도구가 왜 나왔는지, 그리고 쿼리가 영속성 컨텍스트와 어떻게 얽히는지. `find()`로는 기본 키 하나만 찾을 수 있으니, 나머지 모든 조회는 결국 이 장의 이야기이고, 원리는 셋이다. 첫째, **JPQL은 테이블이 아니라 엔티티에게 묻고, 매핑이 SQL로 번역한다.** 조인에 `ON`이 없는 이유, 엔티티를 값처럼 쓰면 기본 키가 되는 이유, Criteria와 QueryDSL이 결국 JPQL 생성기인 이유, 네이티브 SQL이 탈출구인 이유가 전부 여기서 나온다. 둘째, **조인은 행을 고르고, 페치 조인은 객체 그래프를 채운다.** 그래서 페치 조인은 걸러내는 데 쓰면 안 되고, 컬렉션 페치 조인은 행을 늘려 페이징과 충돌하며, 전역 전략은 지연 로딩으로 두고 어떤 그래프를 채울지는 쿼리마다 정한다. 셋째, **쿼리는 항상 DB에 묻지만 결과는 영속성 컨텍스트를 거친다.** 식별자가 있는 결과만 영속이 되고, 이미 있는 인스턴스가 우선하며, 실행 직전에 플러시가 일어나고, 컨텍스트를 거치지 않는 벌크 연산 뒤에는 컨텍스트를 비워야 한다.
 
 ---
 
@@ -18,13 +18,13 @@ JPQL (표준, 문자열로 쓴다)
 JDBC · MyBatis (JPA 밖에서 SQL 직접)
 ```
 
-| 기술 | 무엇인가 | 언제 |
-|:-----|:---------|:-----|
-| JPQL | 엔티티를 대상으로 하는 표준 쿼리 언어 | 기본. 대부분의 조회 |
-| Criteria | JPQL을 자바 코드로 만드는 표준 API | 동적 쿼리. 그러나 장황하다 |
-| QueryDSL | JPQL을 자바 코드로 만드는 외부 라이브러리 | 동적 쿼리. 실무의 선택 |
-| 네이티브 SQL | JPA를 통해 SQL을 직접 실행 | DB 고유 기능이 필요할 때 |
-| JDBC, MyBatis | JPA 밖에서 SQL 실행 | JPA로 풀기 어려운 복잡한 조회 |
+| 기술 | 무엇인가 | 언제 | 왜 |
+|:-----|:---------|:-----|:---|
+| JPQL | 엔티티를 대상으로 하는 표준 쿼리 언어 | 기본. 대부분의 조회 | 매핑을 아는 유일한 언어라 DB에 독립적이다 |
+| Criteria | JPQL을 자바 코드로 만드는 표준 API | 동적 쿼리. 그러나 장황하다 | 문자열 조립을 컴파일러가 검사할 수 있게 한다 |
+| QueryDSL | JPQL을 자바 코드로 만드는 외부 라이브러리 | 동적 쿼리. 실무의 선택 | 같은 목적을 읽기 쉬운 코드로 이룬다 |
+| 네이티브 SQL | JPA를 통해 SQL을 직접 실행 | DB 고유 기능이 필요할 때 | JPQL이 모르는 기능은 SQL로만 쓸 수 있다 |
+| JDBC, MyBatis | JPA 밖에서 SQL 실행 | JPA로 풀기 어려운 복잡한 조회 | 컨텍스트를 거치지 않으니 플러시를 직접 챙겨야 한다 |
 
 가운데 있는 것은 JPQL이다. Criteria와 QueryDSL은 결국 **JPQL 문자열을 만들어 주는 도구**이고, 네이티브 SQL은 JPQL로 안 될 때의 탈출구다. JPQL을 모르면 나머지도 쓸 수 없다.
 
@@ -36,18 +36,20 @@ JDBC · MyBatis (JPA 밖에서 SQL 직접)
 
 ```sql
 -- SQL: 테이블과 컬럼에게 묻는다
-SELECT * FROM MEMBER WHERE NAME = 'kim'
+SELECT * FROM MEMBER
+ WHERE NAME = 'kim'
 ```
 
 ```java
 // JPQL: 엔티티와 필드에게 묻는다
-select m from Member m where m.username = 'kim'
+select m from Member m
+ where m.username = 'kim'
 ```
 
-문법은 SQL과 거의 같다. 다른 것은 **대상**이다. [Chapter 01](../01-jpa-intro)에서 봤듯 JPQL은 테이블 이름과 컬럼 이름을 모른다. 엔티티 이름과 필드 이름만 알고, 매핑 정보를 통해 SQL로 번역된다. 그래서 테이블 이름이 바뀌어도 JPQL은 그대로다.
+문법은 SQL과 거의 같다. 다른 것은 **대상**이다. [Chapter 01](../01-jpa-intro)에서 봤듯 JPQL은 테이블 이름과 컬럼 이름을 모른다. 엔티티 이름과 필드 이름만 알고, 매핑 정보를 통해 SQL로 번역된다. 그래서 테이블 이름이 바뀌어도 JPQL은 그대로다. 첫째 원리다.
 
-| 규칙 | 내용 | 이유 |
-|:-----|:-----|:-----|
+| 규칙 | 내용 | 왜 |
+|:-----|:-----|:---|
 | 대소문자 | `Member`, `m.username`은 구분. `select`, `from`은 구분하지 않음 | 엔티티와 필드는 자바 식별자고, 키워드는 SQL 관례를 따른다 |
 | 엔티티 이름 | `@Entity(name = ...)`, 기본은 클래스 이름 | 테이블 이름이 아니다. 7장의 이름 분리 |
 | 별칭 | `Member m`처럼 반드시 붙인다 | 엔티티를 변수처럼 다루어 `m.username`으로 필드에 접근한다 |
@@ -57,34 +59,46 @@ select m from Member m where m.username = 'kim'
 
 ```java
 // 반환 타입이 분명하면 TypedQuery
-TypedQuery<Member> query = em.createQuery("select m from Member m", Member.class);
-List<Member> members = query.getResultList();
+TypedQuery<Member> q = em.createQuery(
+    "select m from Member m",
+    Member.class);
+List<Member> members =
+    q.getResultList();
 
-// 여러 값을 섞어 조회하면 Query. 결과는 Object[]
-Query query2 = em.createQuery("select m.username, m.age from Member m");
-for (Object row : query2.getResultList()) {
+// 여러 값을 섞어 조회하면 Query
+// 결과는 Object[]
+Query q2 = em.createQuery(
+    "select m.username, m.age"
+    + " from Member m");
+for (Object row : q2.getResultList()) {
     Object[] cols = (Object[]) row;
     String username = (String) cols[0];
     Integer age = (Integer) cols[1];
 }
 ```
 
-| 메서드 | 결과 | 0건이면 | 2건 이상이면 |
-|:-------|:-----|:--------|:-------------|
-| `getResultList()` | 목록 | 빈 목록 | 목록 |
-| `getSingleResult()` | 한 건 | `NoResultException` | `NonUniqueResultException` |
-| `getSingleResultOrNull()` | 한 건 또는 `null` | `null` | `NonUniqueResultException` |
+| 메서드 | 결과 | 0건이면 | 2건 이상이면 | 왜 |
+|:-------|:-----|:--------|:-------------|:---|
+| `getResultList()` | 목록 | 빈 목록 | 목록 | 몇 건이든 목록은 답이 된다 |
+| `getSingleResult()` | 한 건 | `NoResultException` | `NonUniqueResultException` | "정확히 한 건"을 강제한다 |
+| `getSingleResultOrNull()` | 한 건 또는 `null` | `null` | `NonUniqueResultException` | 없을 수도 있는 한 건이 실무에는 더 흔하다 |
 
-`getSingleResult()`가 0건에 예외를 던지는 것은 "정확히 한 건이 있어야 한다"는 뜻을 강제하기 위해서인데, 실무에서는 없을 수도 있는 한 건을 찾는 경우가 더 많아 늘 불편했다. Jakarta Persistence 3.2가 `getSingleResultOrNull()`을 추가해 이 불편을 해소했다. 스프링 데이터 JPA의 `Optional` 반환도 같은 문제에 대한 답이다.
+`getSingleResult()`가 0건에 예외를 던지는 것은 "정확히 한 건이 있어야 한다"는 뜻을 강제하기 위해서인데, 실무에서는 없을 수도 있는 한 건을 찾는 경우가 더 많아 늘 불편했다. Hibernate가 먼저 자기 쿼리 API에 `getSingleResultOrNull()`을 넣었고, Jakarta Persistence 3.2가 표준으로 받아들였다. 스프링 데이터 JPA의 `Optional` 반환도 같은 문제에 대한 답이다.
 
 ```java
 // 이름 기준 바인딩. 이쪽을 쓴다
-em.createQuery("select m from Member m where m.username = :name", Member.class)
+em.createQuery(
+      "select m from Member m"
+      + " where m.username = :name",
+      Member.class)
   .setParameter("name", "kim")
   .getResultList();
 
 // 위치 기준 바인딩
-em.createQuery("select m from Member m where m.username = ?1", Member.class)
+em.createQuery(
+      "select m from Member m"
+      + " where m.username = ?1",
+      Member.class)
   .setParameter(1, "kim")
   .getResultList();
 ```
@@ -95,19 +109,21 @@ em.createQuery("select m from Member m where m.username = ?1", Member.class)
 
 SELECT 절에 무엇을 적느냐를 **프로젝션**이라 한다.
 
-| 프로젝션 | 예 | 결과의 상태 |
-|:---------|:---|:------------|
-| 엔티티 | `select m from Member m` | 영속. 컨텍스트가 관리한다 |
-| 임베디드 타입 | `select m.address from Member m` | 값. 관리되지 않는다 |
-| 스칼라 | `select m.username from Member m` | 값. 관리되지 않는다 |
+| 프로젝션 | 예 | 결과의 상태 | 왜 |
+|:---------|:---|:------------|:---|
+| 엔티티 | `select m from Member m` | 영속. 컨텍스트가 관리한다 | 식별자가 있어 컨텍스트에 들어갈 수 있다 |
+| 임베디드 타입 | `select m.address from Member m` | 값. 관리되지 않는다 | 식별자가 없다 |
+| 스칼라 | `select m.username from Member m` | 값. 관리되지 않는다 | 식별자가 없다 |
 
-엔티티만 영속 상태로 돌아온다. 이유는 [Chapter 11](../11-value-types)에서 본 그대로다. 식별자가 있는 것만 영속성 컨텍스트에 들어갈 수 있고, 임베디드 타입과 스칼라 값에는 식별자가 없다. 조회한 주소 객체의 값을 바꿔도 UPDATE가 나가지 않는 이유가 이것이다.
+엔티티만 영속 상태로 돌아온다. 이유는 [Chapter 11](../11-value-types)에서 본 그대로다. 식별자가 있는 것만 영속성 컨텍스트에 들어갈 수 있고, 임베디드 타입과 스칼라 값에는 식별자가 없다. 조회한 주소 객체의 값을 바꿔도 UPDATE가 나가지 않는 이유가 이것이다. 셋째 원리의 첫 조각이다.
 
 여러 값을 조회할 때 `Object[]`를 캐스팅하는 대신 DTO로 바로 받을 수 있다.
 
 ```java
 List<MemberDTO> result = em.createQuery(
-        "select new jpabook.dto.MemberDTO(m.username, m.age) from Member m",
+        "select new dto.MemberDTO("
+        + "m.username, m.age)"
+        + " from Member m",
         MemberDTO.class)
     .getResultList();
 ```
@@ -117,20 +133,23 @@ List<MemberDTO> result = em.createQuery(
 ### 2.4 페이징, 정렬, 집합
 
 ```java
-em.createQuery("select m from Member m order by m.age desc", Member.class)
-  .setFirstResult(10)    // 0부터 센다
+em.createQuery(
+      "select m from Member m"
+      + " order by m.age desc",
+      Member.class)
+  .setFirstResult(10)   // 0부터 센다
   .setMaxResults(20)
   .getResultList();
 ```
 
 페이징 SQL은 DB마다 다르다는 것을 [Chapter 01](../01-jpa-intro)에서 봤다. JPQL에서는 두 메서드로 의도만 말하고, 방언이 `LIMIT`이든 `OFFSET ... FETCH`든 알아서 만든다.
 
-| 함수 | 반환 | 비고 |
-|:-----|:-----|:-----|
-| `count(m)` | `Long` | 결과 수 |
-| `max(m.age)`, `min(m.age)` | 필드 타입 | |
-| `avg(m.age)` | `Double` | 숫자만 |
-| `sum(m.age)` | 정수면 `Long`, 실수면 `Double` | 숫자만 |
+| 함수 | 반환 | 왜 |
+|:-----|:-----|:---|
+| `count(m)` | `Long` | 건수는 정수다 |
+| `max(m.age)`, `min(m.age)` | 필드 타입 | 필드 값 가운데 하나다 |
+| `avg(m.age)` | `Double` | 평균은 실수가 된다. 숫자 필드만 |
+| `sum(m.age)` | 정수면 `Long`, 실수면 `Double` | 합은 자릿수가 커질 수 있어 넓은 타입을 쓴다. 숫자 필드만 |
 
 ---
 
@@ -140,13 +159,18 @@ em.createQuery("select m from Member m order by m.age desc", Member.class)
 
 ```java
 // 내부 조인
-select m from Member m join m.team t where t.name = '팀A'
+select m from Member m
+  join m.team t
+ where t.name = '팀A'
 
 // 외부 조인
-select m from Member m left join m.team t
+select m from Member m
+  left join m.team t
 
-// 세타 조인: 연관관계가 없는 엔티티를 WHERE로 묶는다
-select count(m) from Member m, Team t where m.username = t.name
+// 세타 조인: 연관관계가 없는
+// 엔티티를 WHERE로 묶는다
+select count(m) from Member m, Team t
+ where m.username = t.name
 ```
 
 SQL 조인에는 `ON M.TEAM_ID = T.ID`가 필요하지만 JPQL에는 없다. `join m.team`이라고 쓰면 끝이다. JPQL은 `Member.team`이 어떤 외래 키로 매핑되어 있는지 이미 알고 있으므로 조인 조건을 다시 말할 이유가 없다. 이것이 JPQL 조인이 **연관 필드**를 대상으로 하는 이유다. 연관관계가 없는 두 엔티티를 임의의 조건으로 묶어야 할 때만 세타 조인이나 `join Team t on m.username = t.name` 같은 `ON` 절 조인을 쓴다.
@@ -155,18 +179,28 @@ SQL 조인에는 `ON M.TEAM_ID = T.ID`가 필요하지만 JPQL에는 없다. `jo
 
 `.`으로 객체 그래프를 따라가는 것을 **경로 표현식**이라 한다. 어디까지 갈 수 있는지는 필드의 종류가 정한다.
 
-| 종류 | 예 | 더 탐색할 수 있나 | SQL |
-|:-----|:---|:------------------|:----|
-| 상태 필드 | `m.username` | 끝 | 컬럼 |
-| 단일 값 연관 필드 | `m.team` | `m.team.name`처럼 계속 | 묵시적 내부 조인 |
-| 컬렉션 값 연관 필드 | `t.members` | 끝. 별칭을 얻어야 계속 | 묵시적 내부 조인 |
+| 종류 | 예 | 더 탐색할 수 있나 | SQL | 왜 |
+|:-----|:---|:------------------|:----|:---|
+| 상태 필드 | `m.username` | 끝 | 컬럼 | 값 자체라 더 들어갈 곳이 없다 |
+| 단일 값 연관 필드 | `m.team` | `m.team.name`처럼 계속 | 묵시적 내부 조인 | 엔티티 하나를 가리키니 그 필드로 이어진다 |
+| 컬렉션 값 연관 필드 | `t.members` | 끝. 별칭을 얻어야 계속 | 묵시적 내부 조인 | 행 여러 개 중 누구의 필드인지 정할 수 없다 |
 
 ```java
-select m.team.name from Member m          // 묵시적 조인. SQL에는 JOIN TEAM이 숨어 있다
-select t.name from Member m join m.team t // 명시적 조인. 같은 SQL이지만 눈에 보인다
+// 묵시적 조인
+// SQL에는 JOIN TEAM이 숨어 있다
+select m.team.name from Member m
 
-select t.members.username from Team t     // 오류. 컬렉션에서 바로 필드로 못 간다
-select m.username from Team t join t.members m   // 별칭을 얻으면 된다
+// 명시적 조인
+// 같은 SQL이지만 눈에 보인다
+select t.name from Member m
+  join m.team t
+
+// 오류. 컬렉션에서 바로 필드로 못 간다
+select t.members.username from Team t
+
+// 별칭을 얻으면 된다
+select m.username from Team t
+  join t.members m
 ```
 
 `m.team.name`처럼 연관 필드를 지나가면 JPQL은 조인을 **몰래** 만든다. 편해 보이지만 두 가지 이유로 명시적 조인이 낫다. 묵시적 조인은 언제나 내부 조인이라 팀이 없는 회원이 결과에서 조용히 빠지고, JPQL만 봐서는 SQL에 조인이 몇 개 붙는지 알기 어렵다. 컬렉션 경로에서 탐색이 막히는 것도 같은 맥락이다. `t.members`는 행 여러 개인데 그중 누구의 `username`인지 정할 수 없으니, 조인으로 별칭을 얻어 행 하나를 가리키게 해야 한다.
@@ -189,7 +223,7 @@ select m.username from Team t join t.members m   // 별칭을 얻으면 된다
 
 `select m from Member m join m.team t`는 팀과 조인하지만 SELECT 절에는 `m`만 있다. SQL도 `MEMBER` 컬럼만 가져오고, 돌아온 회원의 `team`에는 여전히 프록시가 들어 있다. 조인은 **어느 행을 고를지**에만 관여했을 뿐 **무엇을 채울지**에는 관여하지 않은 것이다.
 
-`join fetch`는 그 두 번째 역할을 추가한다. "조인하고, 조인한 상대도 결과에 채워라." SQL의 SELECT 절에 `TEAM` 컬럼이 함께 들어가고, 돌아온 회원의 `team`은 실제 엔티티다. JPQL에만 있고 SQL에는 없는 기능이며, 10장에서 미뤄 둔 "필요한 곳에서만 즉시 로딩"을 실현하는 도구다.
+`join fetch`는 그 두 번째 역할을 추가한다. "조인하고, 조인한 상대도 결과에 채워라." SQL의 SELECT 절에 `TEAM` 컬럼이 함께 들어가고, 돌아온 회원의 `team`은 실제 엔티티다. JPQL에만 있고 SQL에는 없는 기능이며, 10장에서 미뤄 둔 "필요한 곳에서만 즉시 로딩"을 실현하는 도구다. 둘째 원리가 이 둘의 구분이다.
 
 ### 4.2 N+1을 없앤다
 
@@ -203,19 +237,26 @@ for (Member m : members)
 ```
 
 ```java
-// 지연 로딩만 있을 때: 회원 100명이면 SQL 101개
-List<Member> members = em.createQuery("select m from Member m", Member.class)
-                         .getResultList();
+// 지연 로딩만 있을 때
+// 회원 100명이면 SQL 101개
+List<Member> members = em.createQuery(
+        "select m from Member m",
+        Member.class)
+    .getResultList();
 for (Member m : members) {
-    m.getTeam().getName();   // 회원마다 팀 SELECT
+    m.getTeam().getName();
+    // 회원마다 팀 SELECT
 }
 
 // 페치 조인: SQL 1개
 List<Member> members = em.createQuery(
-        "select m from Member m join fetch m.team", Member.class)
+        "select m from Member m"
+        + " join fetch m.team",
+        Member.class)
     .getResultList();
 for (Member m : members) {
-    m.getTeam().getName();   // 이미 채워져 있다
+    m.getTeam().getName();
+    // 이미 채워져 있다
 }
 ```
 
@@ -224,7 +265,8 @@ for (Member m : members) {
 ### 4.3 컬렉션 페치 조인과 중복
 
 ```java
-select t from Team t join fetch t.members
+select t from Team t
+  join fetch t.members
 ```
 
 ```
@@ -236,14 +278,14 @@ TEAM JOIN MEMBER (팀A에 회원 2명)
 → SQL 결과는 2행, Team은 같은 인스턴스
 ```
 
-일대다를 페치 조인하면 SQL 결과가 **회원 수만큼** 늘어난다. 조인의 결과 행은 팀과 회원의 쌍이므로 회원이 둘인 팀은 두 행이다. JPA는 이 두 행에서 같은 식별자의 팀을 보고 1차 캐시의 같은 인스턴스를 쓰지만, 목록에는 그 인스턴스가 두 번 들어간다.
+일대다를 페치 조인하면 SQL 결과가 **회원 수만큼** 늘어난다. 조인의 결과 행은 팀과 회원의 쌍이므로 회원이 둘인 팀은 두 행이다. JPA는 이 두 행에서 같은 식별자의 팀을 보고 1차 캐시의 같은 인스턴스를 쓰지만, 목록에는 그 인스턴스가 두 번 들어갈 수 있다.
 
 Hibernate 5까지는 이 중복을 개발자가 `select distinct t ...`로 걸러야 했다. JPQL의 `distinct`가 SQL에 `DISTINCT`를 붙이는 것과 별개로 애플리케이션에서 같은 엔티티를 한 번만 남기는 일까지 했다. Hibernate 6부터는 **페치 조인으로 생긴 부모 엔티티의 중복을 항상 자동으로 제거**하므로 이 용도의 `distinct`는 필요 없어졌고, `distinct`를 쓰면 SQL로 그대로 전달된다. 예전 코드의 `distinct`를 지워도 결과는 같다.
 
 ### 4.4 한계와 그 이유
 
-| 제약 | 이유 |
-|:-----|:-----|
+| 제약 | 왜 |
+|:-----|:---|
 | 페치 조인 대상에 별칭을 주고 조건을 걸지 않는다 | 페치 조인은 객체 그래프를 **완성**하는 것이지 걸러내는 것이 아니다. `join fetch t.members m where m.age > 20`처럼 걸러 담으면 팀의 회원 컬렉션이 실제와 다른 불완전한 상태가 되고, 그 컬렉션을 기준으로 동작하는 변경 감지와 고아 객체 제거가 잘못된 SQL을 만든다 |
 | 컬렉션 페치 조인은 하나까지 | 컬렉션 둘을 함께 조인하면 결과가 카테시안 곱이 된다. 10장에서 본 `MultipleBagFetchException`이 여기서도 난다 |
 | 컬렉션 페치 조인에 페이징을 걸지 않는다 | SQL의 페이징은 행 단위인데 행은 회원 단위로 늘어나 있다. 팀 10개를 원해도 SQL은 회원 10행을 자른다. Hibernate는 이를 알고 페이징을 포기한 채 전부 읽어 메모리에서 자른다. 데이터가 많으면 그대로 메모리 부족이다 |
@@ -253,20 +295,25 @@ Hibernate 5까지는 이 중복을 개발자가 `select distinct t ...`로 걸�
 ```java
 @BatchSize(size = 100)
 @OneToMany(mappedBy = "team")
-private List<Member> members = new ArrayList<>();
+private List<Member> members =
+    new ArrayList<>();
 ```
 
 ```properties
 # 전역으로 켜는 편이 낫다
-spring.jpa.properties.hibernate.default_batch_fetch_size=100
+spring.jpa.properties.hibernate.\
+default_batch_fetch_size=100
 ```
 
 ```sql
--- 팀 10개를 페이징으로 읽은 뒤 첫 팀의 members를 건드리면
-SELECT * FROM MEMBER WHERE TEAM_ID IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+-- 팀 10개를 페이징으로 읽은 뒤
+-- 첫 팀의 members를 건드리면
+SELECT * FROM MEMBER
+ WHERE TEAM_ID IN (?, ?, ?, ?, ?,
+                   ?, ?, ?, ?, ?)
 ```
 
-배치 사이즈는 지연 로딩을 그대로 두되, 프록시 컬렉션 하나를 초기화할 때 **컨텍스트에 있는 같은 종류의 다른 프록시들까지** IN 절 하나로 함께 채운다. 팀은 팀대로 페이징해 읽고(SQL 1개), 회원은 IN 절로 묶어 읽으니(SQL 1개) 합쳐서 두 개다. 페치 조인의 "한 방 쿼리"는 아니지만 N+1이 1+1이 되고 페이징도 그대로 동작한다.
+배치 사이즈는 지연 로딩을 그대로 두되, 프록시 컬렉션 하나를 초기화할 때 **컨텍스트에 있는 같은 종류의 다른 프록시들까지** IN 절 하나로 함께 채운다. 팀은 팀대로 페이징해 읽고(SQL 1개), 회원은 IN 절로 묶어 읽으니(SQL 1개) 합쳐서 두 개다. 페치 조인의 "한 방 쿼리"는 아니지만 N+1이 1+1이 되고 페이징도 그대로 동작한다. 컬렉션뿐 아니라 `@ManyToOne`의 지연 로딩 프록시에도 같은 방식이 적용된다.
 
 {{< callout type="info" >}}
 페치 조인으로도 배치 사이즈로도 부족하면 방법은 **DTO 프로젝션**이다. 엔티티 그래프를 통째로 가져오는 대신 화면에 필요한 컬럼만 `select new ...`로 뽑는다. 엔티티가 아니므로 페치 조인의 제약을 받지 않고, 조인과 페이징을 SQL처럼 자유롭게 쓸 수 있다. 대신 결과가 영속 상태가 아니니 조회 전용이다.
@@ -283,54 +330,74 @@ SELECT * FROM MEMBER WHERE TEAM_ID IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 **서브쿼리.** WHERE와 HAVING 절에서 쓸 수 있다. JPQL 표준은 SELECT와 FROM 절의 서브쿼리를 허용하지 않지만 Hibernate의 HQL은 허용한다.
 
 ```java
-select m from Member m where m.age > (select avg(m2.age) from Member m2)
-select m from Member m where exists (select t from m.team t where t.name = '팀A')
+select m from Member m
+ where m.age > (select avg(m2.age)
+                  from Member m2)
+
+select m from Member m
+ where exists (select t from m.team t
+                where t.name = '팀A')
 ```
 
 **조건식.** SQL과 같은 `case`, `coalesce`, `nullif`를 쓴다.
 
 ```java
-select case when m.age <= 10 then '학생요금'
-            when m.age >= 60 then '경로요금'
-            else '일반요금' end
+select
+  case when m.age <= 10 then '학생요금'
+       when m.age >= 60 then '경로요금'
+       else '일반요금'
+  end
 from Member m
 
-select coalesce(m.username, '이름 없음') from Member m
+select coalesce(m.username, '이름 없음')
+  from Member m
 ```
 
 **함수.** 표준 함수는 방언이 DB에 맞게 번역한다.
 
-| 분류 | 함수 |
-|:-----|:-----|
-| 문자 | `concat`, `substring`, `trim`, `lower`, `upper`, `length`, `locate` |
-| 수학 | `abs`, `sqrt`, `mod`, `size`(컬렉션 크기) |
-| 날짜 | `current_date`, `current_time`, `current_timestamp` |
+| 분류 | 함수 | 왜 |
+|:-----|:-----|:---|
+| 문자 | `concat`, `substring`, `trim`, `lower`, `upper`, `length`, `locate` | DB마다 이름이 다른 문자열 함수를 방언이 번역한다 |
+| 수학 | `abs`, `sqrt`, `mod`, `size`(컬렉션 크기) | `size`는 컬렉션 연관 필드를 `count` 서브쿼리로 바꿔 준다 |
+| 날짜 | `current_date`, `current_time`, `current_timestamp` | DB마다 다른 현재 시각 함수를 하나의 이름으로 쓴다 |
 
 **다형성 쿼리.** [Chapter 09](../09-advanced-mapping)의 상속 매핑과 짝을 이룬다. 부모 타입으로 조회하면 자식이 모두 나오고, `type()`으로 특정 자식만 고르거나 `treat()`로 자식 타입의 필드에 접근할 수 있다.
 
 ```java
-select i from Item i where type(i) in (Book, Movie)
-select i from Item i where treat(i as Book).author = 'kim'
+select i from Item i
+ where type(i) in (Book, Movie)
+
+select i from Item i
+ where treat(i as Book).author = 'kim'
 ```
 
-**Named 쿼리.** 자주 쓰는 JPQL에 이름을 붙여 엔티티에 미리 정의한다. 문자열이 흩어지지 않는 것 외에 실질적인 이점이 하나 있다. 애플리케이션이 시작될 때 전부 **파싱해서 검증**하므로, 오타가 있으면 실행 시점이 아니라 시작 시점에 실패한다.
+**Named 쿼리.** 자주 쓰는 JPQL에 이름을 붙여 엔티티에 미리 정의한다. 문자열이 흩어지지 않는 것 외에 실질적인 이점이 하나 있다. 애플리케이션이 시작될 때 전부 **파싱해서 검증**하므로, 오타가 있으면 실행 시점이 아니라 시작 시점에 실패한다. Hibernate는 `NamedQueryValidationException`으로 부팅을 멈춘다.
 
 ```java
 @Entity
-@NamedQuery(name = "Member.findByUsername",
-            query = "select m from Member m where m.username = :username")
+@NamedQuery(
+    name = "Member.findByUsername",
+    query = "select m from Member m"
+          + " where m.username = :name"
+)
 public class Member { ... }
 
-em.createNamedQuery("Member.findByUsername", Member.class)
-  .setParameter("username", "kim")
+em.createNamedQuery(
+      "Member.findByUsername",
+      Member.class)
+  .setParameter("name", "kim")
   .getResultList();
 ```
 
-**엔티티 직접 사용.** JPQL에서 엔티티를 값처럼 쓰면 SQL에서는 그 엔티티의 **기본 키**가 쓰인다. `count(m)`은 `count(m.id)`가 되고, 파라미터로 엔티티를 넘기면 그 식별자로 비교한다.
+**엔티티 직접 사용.** JPQL에서 엔티티를 값처럼 쓰면 SQL에서는 그 엔티티의 **기본 키**가 쓰인다. `count(m)`은 `count(m.id)`가 되고, 파라미터로 엔티티를 넘기면 그 식별자로 비교한다. 첫째 원리의 또 다른 얼굴이다.
 
 ```java
-select count(m) from Member m                     // SQL: count(m.id)
-select m from Member m where m.team = :team       // SQL: where m.team_id = ?
+select count(m) from Member m
+// SQL: count(m.id)
+
+select m from Member m
+ where m.team = :team
+// SQL: where m.team_id = ?
 ```
 
 ---
@@ -342,10 +409,13 @@ select m from Member m where m.team = :team       // SQL: where m.team_id = ?
 검색 화면에는 조건이 열 개쯤 있고 사용자는 그중 몇 개만 채운다. 채워진 조건만으로 JPQL을 만들려면 문자열을 조립해야 한다.
 
 ```java
-String jpql = "select m from Member m where 1 = 1";
-if (name != null) jpql += " and m.username = :name";
-if (age != null)  jpql += " and m.age > :age";
-// 파라미터도 같은 조건으로 나눠 바인딩해야 한다
+String jpql =
+    "select m from Member m where 1=1";
+if (name != null)
+    jpql += " and m.username = :name";
+if (age != null)
+    jpql += " and m.age > :age";
+// 파라미터도 같은 조건으로 나눠 바인딩
 ```
 
 이 코드는 오타를 실행해 봐야 알고, 조건이 늘수록 공백 하나에 무너진다. JPQL을 **자바 코드로 조립**하면 컴파일러와 IDE가 문법을 검사해 준다. 그것이 Criteria와 QueryDSL이 존재하는 이유이고, 둘 다 결국 JPQL을 만들어 실행한다.
@@ -353,24 +423,31 @@ if (age != null)  jpql += " and m.age > :age";
 ### 6.2 Criteria: 표준이지만 장황하다
 
 ```java
-// select m from Member m where m.username = '회원1' order by m.age desc
-CriteriaBuilder cb = em.getCriteriaBuilder();
-CriteriaQuery<Member> cq = cb.createQuery(Member.class);
+// select m from Member m
+//  where m.username = '회원1'
+//  order by m.age desc
+CriteriaBuilder cb =
+    em.getCriteriaBuilder();
+CriteriaQuery<Member> cq =
+    cb.createQuery(Member.class);
 Root<Member> m = cq.from(Member.class);
 
 cq.select(m)
-  .where(cb.equal(m.get("username"), "회원1"))
+  .where(cb.equal(m.get("username"),
+                  "회원1"))
   .orderBy(cb.desc(m.get("age")));
 
-List<Member> result = em.createQuery(cq).getResultList();
+List<Member> result =
+    em.createQuery(cq).getResultList();
 ```
 
-JPA 표준이라는 것이 유일한 장점이다. 한 줄짜리 JPQL이 여섯 줄이 되고, `m.get("username")`의 문자열은 여전히 컴파일러가 검사하지 못한다. 메타모델 클래스를 생성하면 `Member_.username`으로 바꿀 수 있지만, 그래도 만들어진 코드에서 원래 JPQL을 읽어 내기가 어렵다. 표준을 고집해야 하는 사정이 없다면 고를 이유가 적다.
+JPA 표준이라는 것이 유일한 장점이다. 한 줄짜리 JPQL이 여러 줄이 되고, `m.get("username")`의 문자열은 여전히 컴파일러가 검사하지 못한다. 메타모델 클래스를 생성하면 `Member_.username`으로 바꿀 수 있지만, 그래도 만들어진 코드에서 원래 JPQL을 읽어 내기가 어렵다. 표준을 고집해야 하는 사정이 없다면 고를 이유가 적다.
 
 ### 6.3 QueryDSL: 실무의 선택
 
 ```java
-JPAQueryFactory query = new JPAQueryFactory(em);
+JPAQueryFactory query =
+    new JPAQueryFactory(em);
 QMember m = QMember.member;
 
 List<Member> members = query
@@ -384,17 +461,23 @@ JPQL과 거의 같은 순서로 읽히면서 전부 코드다. `m.username`은 `
 
 ```java
 // 동적 조건: 채워진 것만 붙인다
-BooleanBuilder where = new BooleanBuilder();
-if (name != null) where.and(m.username.contains(name));
-if (age != null)  where.and(m.age.gt(age));
+BooleanBuilder w = new BooleanBuilder();
+if (name != null)
+    w.and(m.username.contains(name));
+if (age != null)
+    w.and(m.age.gt(age));
 
-query.selectFrom(m).where(where).fetch();
+query.selectFrom(m).where(w).fetch();
 
 // 페치 조인
-query.selectFrom(m).join(m.team, t).fetchJoin().fetch();
+query.selectFrom(m)
+     .join(m.team, t).fetchJoin()
+     .fetch();
 
 // DTO 프로젝션
-query.select(Projections.constructor(MemberDTO.class, m.username, m.age))
+query.select(Projections.constructor(
+         MemberDTO.class,
+         m.username, m.age))
      .from(m)
      .fetch();
 ```
@@ -410,10 +493,13 @@ query.select(Projections.constructor(MemberDTO.class, m.username, m.age))
 ## 7. 네이티브 SQL
 
 ```java
-List<Member> members = em.createNativeQuery(
-        "SELECT ID, AGE, NAME, TEAM_ID FROM MEMBER WHERE AGE > ?", Member.class)
-    .setParameter(1, 20)
-    .getResultList();
+List<Member> members =
+    em.createNativeQuery(
+        "SELECT ID, AGE, NAME, TEAM_ID"
+        + " FROM MEMBER WHERE AGE > ?",
+        Member.class)
+      .setParameter(1, 20)
+      .getResultList();
 ```
 
 JPQL로 표현할 수 없는 것이 있다. DB 고유의 힌트, 윈도우 함수, 특정 DB에만 있는 함수 같은 것들이다. 이때 JPA를 버리지 않고 SQL을 직접 쓰는 것이 네이티브 SQL이다. 결과를 엔티티로 받으면 JPQL과 똑같이 **영속 상태**로 관리된다. JPA 입장에서는 SQL을 누가 썼느냐가 아니라 결과에 식별자가 있느냐가 중요하기 때문이다.
@@ -426,9 +512,12 @@ JPQL로 표현할 수 없는 것이 있다. DB 고유의 힌트, 윈도우 함�
 
 ```java
 int updated = em.createQuery(
-        "update Product p set p.price = p.price * 1.1 where p.stockAmount < :stock")
+        "update Product p"
+        + " set p.price = p.price * 1.1"
+        + " where p.stock < :stock")
     .setParameter("stock", 10)
-    .executeUpdate();   // 영향받은 행 수
+    .executeUpdate();
+// 반환값은 영향받은 행 수
 ```
 
 상품 만 개의 가격을 올리는 데 변경 감지를 쓰면 만 개를 조회해서 만 개의 UPDATE를 보낸다. 벌크 연산은 JPQL의 UPDATE와 DELETE를 SQL 한 문장으로 바로 실행한다.
@@ -445,33 +534,41 @@ DB:       price = 1100
 → 둘이 어긋난다 → em.clear()
 ```
 
-벌크 연산 전에 조회해 둔 상품이 컨텍스트에 있으면, 그 객체의 가격은 여전히 1000이다. DB는 1100이다. 이 상태에서 `find()`하면 1차 캐시가 먼저 답하므로 1000이 돌아온다. JPA가 틀린 것이 아니다. 벌크 연산은 컨텍스트가 모르는 곳에서 일어난 변경이고, [Chapter 05](../05-persistence-features)에서 본 대로 컨텍스트는 자기가 아는 것만 안다.
+벌크 연산 전에 조회해 둔 상품이 컨텍스트에 있으면, 그 객체의 가격은 여전히 1000이다. DB는 1100이다. 이 상태에서 `find()`하면 1차 캐시가 먼저 답하므로 1000이 돌아온다. JPA가 틀린 것이 아니다. 벌크 연산은 컨텍스트가 모르는 곳에서 일어난 변경이고, [Chapter 05](../05-persistence-features)에서 본 대로 컨텍스트는 자기가 아는 것만 안다. 셋째 원리가 뒤집힌 경우다.
 
-| 방법 | 설명 |
-|:-----|:-----|
-| 벌크 연산을 먼저 실행 | 컨텍스트에 아무것도 없을 때 실행하면 어긋날 것도 없다 |
-| 벌크 연산 뒤 `em.clear()` | 컨텍스트를 비워 다음 조회가 DB를 보게 한다. 가장 실용적이다 |
-| `em.refresh(entity)` | 특정 엔티티만 DB에서 다시 읽는다 |
+| 방법 | 설명 | 왜 |
+|:-----|:-----|:---|
+| 벌크 연산을 먼저 실행 | 컨텍스트에 아무것도 없을 때 실행하면 어긋날 것도 없다 | 어긋남은 먼저 읽어 둔 객체가 있을 때만 생긴다 |
+| 벌크 연산 뒤 `em.clear()` | 컨텍스트를 비워 다음 조회가 DB를 보게 한다. 가장 실용적이다 | 1차 캐시가 비면 `find()`가 DB로 간다 |
+| `em.refresh(entity)` | 특정 엔티티만 DB에서 다시 읽는다 | 나머지 컨텍스트를 유지해야 할 때 |
 
 ```java
-em.createQuery("update Product p set p.price = p.price * 1.1").executeUpdate();
-em.clear();                                         // 컨텍스트 초기화
-Product product = em.find(Product.class, 1L);       // DB에서 새 값
+em.createQuery(
+      "update Product p"
+      + " set p.price = p.price * 1.1")
+  .executeUpdate();
+em.clear();   // 컨텍스트 초기화
+Product product =
+    em.find(Product.class, 1L);
+// DB에서 새 값
 ```
 
 ---
 
 ## 9. JPQL과 영속성 컨텍스트
 
-JPQL은 항상 DB에 묻는다. 그래서 앞 장들에서 본 세 가지 규칙이 JPQL에 적용된다.
+JPQL은 항상 DB에 묻는다. 그래서 앞 장들에서 본 세 가지 규칙이 JPQL에 적용된다. 셋째 원리의 나머지 조각들이다.
 
-- **결과가 이미 컨텍스트에 있으면 컨텍스트의 인스턴스가 돌아온다.** DB에서 읽은 값은 버려진다. 식별자당 인스턴스 하나를 지키기 위해서이고, 그래서 JPQL로 같은 회원을 두 번 조회해도 `==`가 `true`다. [Chapter 05](../05-persistence-features) 1.3절.
+- **결과가 이미 컨텍스트에 있으면 컨텍스트의 인스턴스가 돌아온다.** DB에서 읽은 값은 버려진다. 식별자당 인스턴스 하나를 지키기 위해서이고, 그래서 `find()`로 읽은 회원을 JPQL로 다시 조회해도 `==`가 `true`다. [Chapter 05](../05-persistence-features) 1.3절.
 - **JPQL 직전에 플러시가 일어난다.** 방금 `persist()`한 엔티티가 결과에서 빠지지 않게 하기 위해서다. 플러시 모드를 `COMMIT`으로 바꾸면 이 보장이 사라진다. [Chapter 06](../06-flush-and-detached) 1.4절.
 - **JPA 밖에서 SQL을 실행할 때는 먼저 플러시한다.** JDBC나 MyBatis는 컨텍스트를 모르므로, 아직 안 나간 변경을 내보내지 않으면 옛 데이터를 읽는다.
 
 ```java
-em.flush();                                   // 컨텍스트의 변경을 먼저 DB로
-Session session = em.unwrap(Session.class);   // Hibernate API로 내려간다
+em.flush();
+// 컨텍스트의 변경을 먼저 DB로
+Session session =
+    em.unwrap(Session.class);
+// Hibernate API로 내려간다
 session.doWork(connection -> {
     // JDBC로 직접 작업
 });
@@ -479,7 +576,7 @@ session.doWork(connection -> {
 
 ---
 
-## 요약
+## 핵심 정리
 
 | 항목 | 핵심 | 왜 |
 |:-----|:-----|:---|
@@ -494,10 +591,19 @@ session.doWork(connection -> {
 | Criteria, QueryDSL | JPQL을 코드로 조립 | 동적 쿼리의 문자열 조립을 컴파일 시점으로 |
 | 네이티브 SQL | JPQL로 안 될 때의 탈출구 | 결과 엔티티는 똑같이 영속 |
 | 벌크 연산 | SQL 한 문장, 실행 후 `clear()` | 컨텍스트를 거치지 않는다 |
+| 선택 순서 | JPQL → 동적 조건은 QueryDSL → DB 고유 기능은 네이티브 SQL → 그래도 안 되면 JDBC·MyBatis 병행 | 매핑을 아는 쪽부터 쓰고, 밖으로 나갈 때마다 잃는 것이 있다 |
 
-```
-JPQL로 되는가?      → JPQL
-동적 조건이 많은가? → QueryDSL
-DB 고유 기능인가?   → 네이티브 SQL
-그래도 안 되는가?   → JDBC·MyBatis 병행
-```
+{{< callout type="info" >}}
+**용어 정리**
+- **JPQL**: 엔티티와 필드를 대상으로 하는 객체지향 쿼리 언어. 매핑 정보로 SQL이 된다
+- **프로젝션**: SELECT 절에 무엇을 적는가. 엔티티, 임베디드 타입, 스칼라, DTO
+- **경로 표현식 / 묵시적 조인**: `.`으로 객체 그래프를 따라가는 것 / 그때 자동으로 생기는 내부 조인
+- **페치 조인(`join fetch`)**: 조인한 상대를 결과 객체에 채우는 JPQL 전용 조인
+- **N+1**: 쿼리 하나의 결과 N건마다 연관 조회가 하나씩 더 나가는 문제
+- **배치 사이즈(`@BatchSize`, `default_batch_fetch_size`)**: 지연 로딩을 IN 절 하나로 묶는 Hibernate 설정
+- **DTO 프로젝션**: `select new`로 필요한 값만 담는 조회. 영속 상태가 아니다
+- **Criteria / QueryDSL**: JPQL을 자바 코드로 조립하는 표준 API / 외부 라이브러리
+- **네이티브 SQL**: JPA를 통해 SQL을 직접 실행하는 것. 엔티티 결과는 영속이다
+- **벌크 연산**: JPQL의 UPDATE·DELETE를 SQL 한 문장으로 바로 실행하는 것. 컨텍스트를 거치지 않는다
+- **Named 쿼리**: 엔티티에 미리 정의해 시작 시점에 검증되는 JPQL
+{{< /callout >}}
