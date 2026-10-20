@@ -5,7 +5,7 @@ title_format: "{NN}. 제목"
 style_ref: 06-file-search-and-commands.md
 
 # 참고사항
-- 파일 번호 = 챕터 번호 (01~07)
+- 파일 번호 = 챕터 번호 (01~08)
 - weight = 파일 번호
 
 # 스타일 컨벤션 (06·07 기준)

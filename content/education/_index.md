@@ -125,6 +125,8 @@ cascade:
 | [파일 시스템](linux/04-files-and-directories) | 경로와 파일 조작 |
 | [파일 조작의 기본](linux/05-file-manipulation-basics) | 파일 조작 기본 명령어 |
 | [파일 검색과 명령어](linux/06-file-search-and-commands) | find, locate, man |
+| [텍스트 에디터](linux/07-text-editor) | Vim 모드와 편집 |
+| [배시 설정](linux/08-bash-config) | alias, 셸·환경 변수, .bashrc |
 
 ### Architecture
 
