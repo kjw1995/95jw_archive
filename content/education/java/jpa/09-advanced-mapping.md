@@ -4,7 +4,7 @@ date: 2025-12-25
 weight: 9
 ---
 
-[Chapter 07](../07-entity-mapping)과 [Chapter 08](../08-various-relationships)에서 매핑의 기본 도구를 익혔다. 이 장은 그 도구만으로는 매끄럽게 풀리지 않는 네 가지 상황을 다룬다. 객체에는 있는데 테이블에는 없는 **상속**, 매핑 정보는 물려받되 테이블은 만들고 싶지 않은 **공통 속성**, 기본 키가 여러 컬럼인 **복합 키**, 그리고 외래 키 대신 별도 테이블로 관계를 표현하는 **조인 테이블**이다. 넷을 관통하는 질문은 하나다. 객체 모델과 테이블 모델이 어긋나는 지점을 어느 쪽에 맞춰 풀 것인가.
+[Chapter 07](../07-entity-mapping)과 [Chapter 08](../08-various-relationships)에서 매핑의 기본 도구를 익혔다. 이 장은 그 도구만으로는 매끄럽게 풀리지 않는 네 가지 상황을 다룬다. 객체에는 있는데 테이블에는 없는 **상속**, 매핑 정보는 물려받되 테이블은 만들고 싶지 않은 **공통 속성**, 기본 키가 여러 컬럼인 **복합 키**, 그리고 외래 키 대신 별도 테이블로 관계를 표현하는 **조인 테이블**이다. 넷을 관통하는 질문은 하나다. 객체 모델과 테이블 모델이 어긋나는 지점을 어느 쪽에 맞춰 풀 것인가. 답을 고르는 원리는 셋이다. 첫째, **테이블에는 상속이 없으므로 흉내 내는 방법을 골라야 하고, 기준은 "부모 타입으로 다룰 일이 있는가"다.** 있으면 상속 매핑 전략 중 하나를, 없으면 테이블 없이 매핑만 물려주는 `@MappedSuperclass`를 쓴다. 둘째, **JPA는 식별자를 값 하나로 다루고 그 값은 바뀌지 않아야 한다.** 복합 키에 식별자 클래스와 `equals()`가 필요한 이유, 그리고 식별 관계보다 비식별 관계와 대리 키를 권하는 이유가 전부 여기서 나온다. 셋째, **테이블을 나누면 NULL이 줄고 조인이 늘어난다.** 조인 전략과 단일 테이블, 조인 컬럼과 조인 테이블, `@SecondaryTable`과 일대일 엔티티 둘은 모두 이 교환의 어느 지점을 택할지의 문제다.
 
 ---
 
@@ -14,13 +14,13 @@ weight: 9
 
 [Chapter 01](../01-jpa-intro)에서 봤듯 관계형 DB에는 상속이 없다. 가장 비슷한 것이 슈퍼타입-서브타입 모델링인데, 이것은 하나의 정답이 아니라 **흉내 내는 방법의 묶음**이다. 부모와 자식을 각각 테이블로 만들어 조인할 수도 있고, 전부 한 테이블에 넣을 수도 있고, 자식마다 부모 컬럼을 복사해 독립 테이블을 만들 수도 있다. 세 방법은 정규화, 조회 성능, 단순함 가운데 무엇을 우선하느냐가 다르다. JPA는 셋을 모두 지원하고 선택을 개발자에게 맡긴다.
 
-| 전략 | `@Inheritance(strategy = ...)` | 테이블 | 우선하는 것 |
-|:-----|:-------------------------------|:-------|:------------|
-| 조인 | `JOINED` | 부모 1 + 자식 N | 정규화 |
-| 단일 테이블 | `SINGLE_TABLE` (기본값) | 1 | 조회 성능, 단순함 |
-| 구현 클래스별 테이블 | `TABLE_PER_CLASS` | 자식 N | 자식 테이블의 독립성 |
+| 전략 | `@Inheritance(strategy = ...)` | 테이블 | 우선하는 것 | 왜 |
+|:-----|:-------------------------------|:-------|:------------|:---|
+| 조인 | `JOINED` | 부모 1 + 자식 N | 정규화 | 공통 컬럼은 한 곳에, 고유 컬럼은 각자에 두면 NULL이 없다 |
+| 단일 테이블 | `SINGLE_TABLE` (기본값) | 1 | 조회 성능, 단순함 | 조인이 없으니 가장 빠르다 |
+| 구현 클래스별 테이블 | `TABLE_PER_CLASS` | 자식 N | 자식 테이블의 독립성 | 자식만 보면 완전한 테이블이지만, 부모 타입 조회는 UNION이 된다 |
 
-세 전략은 어노테이션 세 개를 공유한다. 부모 클래스에 `@Inheritance`로 전략을 정하고, `@DiscriminatorColumn`으로 **구분 컬럼**을 두고, 자식 클래스에 `@DiscriminatorValue`로 그 컬럼에 들어갈 값을 정한다. 구분 컬럼이 필요한 이유는 조회 때문이다. `em.find(Item.class, 1L)`처럼 부모 타입으로 조회하면 JPA는 1번 행이 앨범인지 영화인지 알아야 그에 맞는 객체를 만들 수 있다. 행에 적힌 구분 값이 그 답이다.
+세 전략은 어노테이션 세 개를 공유한다. 부모 클래스에 `@Inheritance`로 전략을 정하고, `@DiscriminatorColumn`으로 **구분 컬럼**을 두고, 자식 클래스에 `@DiscriminatorValue`로 그 컬럼에 들어갈 값을 정한다. 구분 컬럼이 필요한 이유는 조회 때문이다. `em.find(Item.class, 1L)`처럼 부모 타입으로 조회하면 JPA는 1번 행이 앨범인지 영화인지 알아야 그에 맞는 객체를 만들 수 있다. 행에 적힌 구분 값이 그 답이다. 아래 코드는 `InheritanceType`의 상수를 static import해서 `JOINED`, `SINGLE_TABLE`처럼 짧게 쓴다.
 
 ### 1.2 조인 전략 (JOINED)
 
@@ -42,7 +42,7 @@ weight: 9
 
 ```java
 @Entity
-@Inheritance(strategy = InheritanceType.JOINED)
+@Inheritance(strategy = JOINED)
 @DiscriminatorColumn(name = "DTYPE")
 public abstract class Item {
     @Id @GeneratedValue
@@ -68,7 +68,8 @@ public class Movie extends Item {
 
 @Entity
 @DiscriminatorValue("B")
-@PrimaryKeyJoinColumn(name = "BOOK_ID")   // 자식 테이블의 키 컬럼 이름을 바꿀 때
+// 자식 테이블의 키 컬럼 이름을 바꿀 때
+@PrimaryKeyJoinColumn(name = "BOOK_ID")
 public class Book extends Item {
     private String author;
     private String isbn;
@@ -79,13 +80,19 @@ public class Book extends Item {
 
 ```sql
 -- em.persist(album)
-INSERT INTO ITEM (ITEM_ID, NAME, PRICE, DTYPE) VALUES (?, ?, ?, 'A');
-INSERT INTO ALBUM (ITEM_ID, ARTIST) VALUES (?, ?);
+INSERT INTO ITEM
+  (ITEM_ID, NAME, PRICE, DTYPE)
+  VALUES (?, ?, ?, 'A');
+INSERT INTO ALBUM (ITEM_ID, ARTIST)
+  VALUES (?, ?);
 
 -- em.find(Album.class, 1L)
-SELECT ... FROM ALBUM A JOIN ITEM I ON A.ITEM_ID = I.ITEM_ID WHERE I.ITEM_ID = ?;
+SELECT ... FROM ALBUM A
+  JOIN ITEM I ON A.ITEM_ID = I.ITEM_ID
+ WHERE I.ITEM_ID = ?;
 
--- em.find(Item.class, 1L): 어느 자식인지 모른다
+-- em.find(Item.class, 1L)
+-- 어느 자식인지 모른다
 SELECT ... FROM ITEM I
   LEFT OUTER JOIN ALBUM A ON ...
   LEFT OUTER JOIN MOVIE M ON ...
@@ -93,11 +100,14 @@ SELECT ... FROM ITEM I
  WHERE I.ITEM_ID = ?;
 ```
 
-| 장점 | 단점 |
-|:-----|:-----|
-| 테이블이 정규화되어 있다 | 조회에 조인이 따라온다 |
-| 외래 키 참조 무결성을 쓸 수 있다 | 저장할 때 INSERT가 두 번 나간다 |
-| 자식 컬럼에 NOT NULL을 걸 수 있다 | 자식이 많으면 부모 타입 조회의 조인이 길어진다 |
+| 측면 | 조인 전략에서는 | 왜 |
+|:-----|:----------------|:---|
+| 정규화 | 테이블이 정규화되어 있다 | 공통 컬럼과 고유 컬럼이 각자의 자리에 있다 |
+| 무결성 | 외래 키 참조 무결성을 쓸 수 있다 | 자식 키가 곧 부모 키를 참조하는 외래 키다 |
+| 제약 | 자식 컬럼에 NOT NULL을 걸 수 있다 | 자식 테이블에는 그 자식의 행만 있다 |
+| 조회 | 조인이 따라온다 | 객체 하나가 두 테이블에 나뉘어 있다 |
+| 저장 | INSERT가 두 번 나간다 | 행도 두 테이블에 생긴다 |
+| 확장 | 자식이 많으면 부모 타입 조회의 조인이 길어진다 | 어느 자식인지 모르니 전부 외부 조인한다 |
 
 조인 전략에서 구분 컬럼은 선택이다. Hibernate는 조인 결과에서 어느 자식 테이블에 행이 있는지를 보고 타입을 알아낼 수 있다. 그래도 `DTYPE`을 두는 것이 좋다. SQL로 테이블을 직접 볼 때 한눈에 타입을 알 수 있고, 다른 도구가 데이터를 읽을 때도 그렇다.
 
@@ -117,7 +127,7 @@ SELECT ... FROM ITEM I
 
 ```java
 @Entity
-@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@Inheritance(strategy = SINGLE_TABLE)
 @DiscriminatorColumn(name = "DTYPE")
 public abstract class Item { ... }
 
@@ -130,9 +140,9 @@ public class Album extends Item {
 
 부모와 모든 자식의 컬럼을 테이블 하나에 몰아넣는다. 저장은 INSERT 한 번, 조회는 조인 없이 끝난다. JPA가 이 전략을 **기본값**으로 둔 이유가 그것이다. 조인이 없으니 가장 빠르고 SQL도 단순하다.
 
-대가는 두 가지다. 첫째, **자식 고유 컬럼은 전부 NULL을 허용해야 한다.** `ARTIST`는 앨범 행에만 값이 있고 영화 행에서는 비어 있어야 하니, DB 수준에서 `ARTIST NOT NULL`을 걸 방법이 없다. 둘째, 자식 종류와 컬럼이 늘수록 테이블이 넓어지고 대부분의 칸이 비게 된다. 넓은 테이블은 그 자체로 조회 성능을 갉아먹으므로, 자식이 많고 서로 다른 컬럼이 많다면 이 전략의 장점이 사라진다.
+대가는 두 가지다. 첫째, **자식 고유 컬럼은 전부 NULL을 허용해야 한다.** `ARTIST`는 앨범 행에만 값이 있고 영화 행에서는 비어 있어야 하니, DB 수준에서 `ARTIST NOT NULL`을 걸 방법이 없다. 셋째 원리의 한쪽 끝이다. 둘째, 자식 종류와 컬럼이 늘수록 테이블이 넓어지고 대부분의 칸이 비게 된다. 넓은 테이블은 그 자체로 조회 성능을 갉아먹으므로, 자식이 많고 서로 다른 컬럼이 많다면 이 전략의 장점이 사라진다.
 
-이 전략에서 구분 컬럼은 **필수**다. 테이블이 하나뿐이라 행이 어느 타입인지 알려 줄 다른 단서가 없다. `@DiscriminatorColumn`을 생략해도 Hibernate가 `DTYPE`이라는 이름으로 만들어 준다.
+이 전략에서 구분 컬럼은 **필수**다. 테이블이 하나뿐이라 행이 어느 타입인지 알려 줄 다른 단서가 없다. `@DiscriminatorColumn`을 생략해도 Hibernate가 `DTYPE`이라는 이름으로 만들어 주고, `@DiscriminatorValue`를 생략하면 엔티티 이름이 구분 값으로 들어간다.
 
 ### 1.4 구현 클래스별 테이블 전략 (TABLE_PER_CLASS)
 
@@ -151,11 +161,13 @@ public class Album extends Item {
 
 ```java
 @Entity
-@Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
+@Inheritance(strategy = TABLE_PER_CLASS)
 public abstract class Item { ... }
 
 @Entity
-public class Album extends Item {   // 구분 값이 필요 없다. 테이블이 곧 타입이다
+public class Album extends Item {
+    // 구분 값이 필요 없다.
+    // 테이블이 곧 타입이다
     private String artist;
 }
 ```
@@ -164,20 +176,20 @@ public class Album extends Item {   // 구분 값이 필요 없다. 테이블이
 
 문제는 부모 타입으로 다룰 때 터진다. `em.find(Item.class, 1L)`은 1번이 어느 테이블에 있는지 모르므로 세 테이블을 **UNION**으로 전부 뒤져야 한다. JPQL로 `select i from Item i`를 실행해도 마찬가지다. 자식이 늘수록 UNION이 길어지고, 통합 조회가 느려진다.
 
-더 근본적인 제약도 있다. 세 테이블에 흩어진 행이 모두 "아이템"이므로 기본 키가 테이블 사이에서도 겹치지 않아야 한다. 앨범 1번과 영화 1번이 동시에 있으면 `Item` 1번이 둘이 된다. 그래서 테이블마다 따로 번호를 매기는 IDENTITY 전략은 이 방식과 함께 쓸 수 없고, 시퀀스처럼 테이블 밖에서 번호를 만드는 전략이 필요하다. DB 설계자와 ORM 개발자 모두 권하지 않는 전략이다.
+더 근본적인 제약도 있다. 세 테이블에 흩어진 행이 모두 "아이템"이므로 기본 키가 테이블 사이에서도 겹치지 않아야 한다. 앨범 1번과 영화 1번이 동시에 있으면 `Item` 1번이 둘이 된다. 그래서 테이블마다 따로 번호를 매기는 IDENTITY 전략은 이 방식과 함께 쓸 수 없다. Hibernate는 그 조합을 시작 단계에서 거부한다. 시퀀스처럼 테이블 밖에서 번호를 만드는 전략을 계층 전체가 공유해야 한다. DB 설계자와 ORM 개발자 모두 권하지 않는 전략이다.
 
 ### 1.5 어느 전략을 고를 것인가
 
-| 기준 | 조인 | 단일 테이블 | 클래스별 테이블 |
-|:-----|:-----|:------------|:----------------|
-| 테이블 수 | 부모 + 자식 | 1 | 자식 수 |
-| 조회 | 조인 | 없음 | UNION |
-| 저장 | INSERT 2회 | INSERT 1회 | INSERT 1회 |
-| 자식 컬럼 NOT NULL | 가능 | 불가 | 가능 |
-| 구분 컬럼 | 선택 | 필수 | 불필요 |
-| IDENTITY 키 | 가능 | 가능 | 불가 |
+| 기준 | 조인 | 단일 테이블 | 클래스별 테이블 | 왜 |
+|:-----|:-----|:------------|:----------------|:---|
+| 테이블 수 | 부모 + 자식 | 1 | 자식 수 | 공통 컬럼을 어디에 두는가의 차이다 |
+| 조회 | 조인 | 없음 | UNION | 객체 하나가 몇 테이블에 걸쳐 있는가 |
+| 저장 | INSERT 2회 | INSERT 1회 | INSERT 1회 | 행이 몇 테이블에 생기는가 |
+| 자식 컬럼 NOT NULL | 가능 | 불가 | 가능 | 한 테이블에 다른 타입의 행이 섞이면 NULL이 필요하다 |
+| 구분 컬럼 | 선택 | 필수 | 불필요 | 행의 타입을 알 다른 단서가 있는가 |
+| IDENTITY 키 | 가능 | 가능 | 불가 | 테이블마다 따로 번호를 매기면 부모 타입 안에서 키가 겹친다 |
 
-기준은 자식 고유 컬럼의 양이다. 자식마다 컬럼이 몇 개 안 되고 조회가 잦다면 단일 테이블이 단순하고 빠르다. 자식이 서로 크게 다르고 NULL로 뒤덮인 넓은 테이블이 걱정된다면 조인 전략이 낫다. 클래스별 테이블은 부모 타입으로 다룰 일이 전혀 없다는 확신이 있을 때만 고려할 수 있는데, 그런 경우라면 애초에 상속으로 매핑할 이유도 약하다.
+기준은 자식 고유 컬럼의 양이다. 자식마다 컬럼이 몇 개 안 되고 조회가 잦다면 단일 테이블이 단순하고 빠르다. 자식이 서로 크게 다르고 NULL로 뒤덮인 넓은 테이블이 걱정된다면 조인 전략이 낫다. 클래스별 테이블은 부모 타입으로 다룰 일이 전혀 없다는 확신이 있을 때만 고려할 수 있는데, 그런 경우라면 애초에 상속으로 매핑할 이유도 약하다. 첫째 원리의 기준을 그대로 적용하면 된다.
 
 {{< callout type="info" >}}
 전략은 부모 클래스에서 한 번 정하고 계층 전체에 적용된다. 처음에 단일 테이블로 시작했다가 조인 전략으로 바꾸는 것은 테이블 구조를 뒤집는 마이그레이션이다. 자식이 몇 개나 될지, 각 자식에 어떤 컬럼이 붙을지를 먼저 그려 보고 고르는 것이 좋다.
@@ -215,29 +227,38 @@ public abstract class BaseEntity {
     private LocalDateTime updatedAt;
 }
 
+// MEMBER 테이블: id, created_at,
+//               updated_at, email
 @Entity
-public class Member extends BaseEntity {   // MEMBER: id, created_at, updated_at, email
+public class Member extends BaseEntity {
     private String email;
 }
 
+// SELLER 테이블: id, created_at,
+//               updated_at, shop_name
 @Entity
-public class Seller extends BaseEntity {   // SELLER: id, created_at, updated_at, shop_name
+public class Seller extends BaseEntity {
     private String shopName;
 }
 ```
 
 ### 2.2 왜 조회 대상이 될 수 없는가
 
-`BaseEntity`는 엔티티가 아니다. 테이블이 없으니 `em.find(BaseEntity.class, 1L)`은 어느 테이블을 볼지 정할 수 없고, `select b from BaseEntity b`도 FROM에 놓을 테이블이 없다. 연관관계의 대상이 될 수도 없다. `@ManyToOne BaseEntity`처럼 참조하면 외래 키가 가리킬 테이블이 없기 때문이다. 반대로 `BaseEntity` 안에서 다른 엔티티를 참조하는 것은 가능하다. 그 참조는 자식 테이블의 외래 키 컬럼이 된다.
+`BaseEntity`는 엔티티가 아니다. 테이블이 없으니 `em.find(BaseEntity.class, 1L)`은 어느 테이블을 볼지 정할 수 없어 예외가 나고, 명세상 `select b from BaseEntity b`처럼 JPQL의 FROM에 놓을 수도 없다. Hibernate는 구현체 확장으로 이런 쿼리를 받아 주기는 한다. `BaseEntity`를 상속한 엔티티마다 SELECT를 따로 실행해 결과를 합치는데, 표준이 보장하는 동작이 아니고 자식 테이블 수만큼 쿼리가 나간다. 연관관계의 대상이 될 수도 없다. `@ManyToOne BaseEntity`처럼 참조하면 외래 키가 가리킬 테이블이 없기 때문이다. 반대로 `BaseEntity` 안에서 다른 엔티티를 참조하는 것은 가능하다. 그 참조는 자식 테이블의 외래 키 컬럼이 된다.
 
-이 제약이 곧 1절 상속 매핑과의 차이다. 1절의 부모는 엔티티라서 부모 타입으로 다형적 조회가 되고, 2절의 부모는 매핑 정보의 묶음일 뿐이라 조회가 안 된다. "부모 타입으로 조회할 일이 있는가"가 둘을 가르는 질문이다.
+이 제약이 곧 1절 상속 매핑과의 차이다. 1절의 부모는 엔티티라서 부모 타입으로 다형적 조회가 되고, 2절의 부모는 매핑 정보의 묶음일 뿐이라 식별자로 찾을 수 없다. "부모 타입으로 조회할 일이 있는가"가 둘을 가르는 질문이고, 그것이 첫째 원리다.
 
 물려받은 컬럼 이름을 자식에서 바꾸고 싶으면 `@AttributeOverride`를 쓴다.
 
 ```java
 @Entity
-@AttributeOverride(name = "id", column = @Column(name = "MEMBER_ID"))
-public class Member extends BaseEntity { ... }
+@AttributeOverride(
+    name = "id",
+    column = @Column(name = "MEMBER_ID")
+)
+public class Member extends BaseEntity {
+    ...
+}
 ```
 
 {{< callout type="info" >}}
@@ -266,42 +287,51 @@ public class Member extends BaseEntity { ... }
   CHILD.CHILD_ID(PK), PARENT_ID(FK)
 ```
 
-**식별 관계**는 부모의 기본 키를 자식의 기본 키에 포함시킨다. 자식은 부모 없이 식별되지 않는다는 뜻이 구조에 새겨진다. 자식의 기본 키는 자연히 두 컬럼 이상의 **복합 키**가 된다. **비식별 관계**는 부모의 기본 키를 외래 키로만 받고, 자식은 자기만의 기본 키를 따로 갖는다. 비식별 관계는 다시 외래 키에 NULL을 허용하지 않는 **필수적** 관계와 허용하는 **선택적** 관계로 나뉜다. 전자는 내부 조인, 후자는 외부 조인을 써야 하므로 이 차이가 JPQL에도 영향을 준다.
+**식별 관계**는 부모의 기본 키를 자식의 기본 키에 포함시킨다. 자식은 부모 없이 식별되지 않는다는 뜻이 구조에 새겨진다. 자식의 기본 키는 자연히 두 컬럼 이상의 **복합 키**가 된다. **비식별 관계**는 부모의 기본 키를 외래 키로만 받고, 자식은 자기만의 기본 키를 따로 갖는다. 비식별 관계는 다시 외래 키에 NULL을 허용하지 않는 **필수적** 관계와 허용하는 **선택적** 관계로 나뉜다. 전자는 내부 조인, 후자는 외부 조인을 써야 하므로 이 차이가 SQL에도 드러난다. `@ManyToOne(optional = false)`로 필수적 관계라고 알려 주면 Hibernate는 연관 엔티티를 함께 읽을 때 내부 조인을 쓰고, 기본값인 선택적 관계에서는 외부 조인을 쓴다.
 
 ### 3.2 복합 키에는 왜 별도의 클래스가 필요한가
 
-JPA는 식별자를 **값 하나**로 다룬다. `em.find(Member.class, 1L)`의 두 번째 인자가 그렇고, [Chapter 03](../03-persistence-context)에서 본 1차 캐시가 식별자를 키로 쓰는 맵이라는 것도 그렇다. 기본 키가 두 컬럼이면 두 값을 하나로 묶은 객체가 필요하다. 그것이 식별자 클래스다.
+JPA는 식별자를 **값 하나**로 다룬다. `em.find(Member.class, 1L)`의 두 번째 인자가 그렇고, [Chapter 03](../03-persistence-context)에서 본 1차 캐시가 식별자를 키로 쓰는 맵이라는 것도 그렇다. 둘째 원리다. 기본 키가 두 컬럼이면 두 값을 하나로 묶은 객체가 필요하다. 그것이 식별자 클래스다.
 
 식별자 클래스에 붙는 요구사항은 전부 이 역할에서 나온다.
 
-| 요구사항 | 이유 |
-|:---------|:-----|
+| 요구사항 | 왜 |
+|:---------|:---|
 | `equals()`, `hashCode()` 재정의 | 1차 캐시는 맵이다. 같은 키를 같은 키로 알아보지 못하면 동일성 보장이 깨진다 |
 | `Serializable` 구현 | 식별자는 직렬화되어 전달·캐시될 수 있어야 한다는 것이 명세의 요구다 |
 | 기본 생성자 | JPA가 조회 결과로 식별자 객체를 리플렉션으로 만든다 |
 | `public` 클래스 | JPA가 접근할 수 있어야 한다 |
 
-첫 줄이 가장 중요하다. `equals()`를 재정의하지 않으면 `new ParentId("a", "b")` 두 개는 서로 다른 객체이고, 맵은 둘을 다른 키로 본다. 같은 행을 두 번 조회하면 1차 캐시에 두 번 들어가고, 3장에서 본 "식별자당 인스턴스 하나"가 무너진다. 두 값을 모두 사용해서 정의해야 한다.
+첫 줄이 가장 중요하다. `equals()`를 재정의하지 않으면 `new ParentId("a", "b")` 두 개는 서로 다른 객체이고, 맵은 둘을 다른 키로 본다. 같은 행을 두 번 조회하면 1차 캐시에 두 번 들어가고, 3장에서 본 "식별자당 인스턴스 하나"가 무너진다. 두 값을 모두 사용해서 정의해야 한다. Hibernate는 재정의하지 않은 식별자 클래스를 발견하면 시작 때 경고 로그를 남긴다.
 
 복합 키를 매핑하는 방법은 두 가지다.
 
-| 방법 | 식별자 클래스 | 엔티티 쪽 | 관점 |
-|:-----|:--------------|:----------|:-----|
-| `@IdClass` | 평범한 클래스. 필드 이름이 엔티티의 `@Id` 필드와 같아야 한다 | `@Id`를 여러 필드에 붙인다 | 테이블 중심 |
-| `@EmbeddedId` | `@Embeddable` 클래스. 컬럼 매핑을 여기서 한다 | `@EmbeddedId` 필드 하나 | 객체 중심 |
+| 방법 | 식별자 클래스 | 엔티티 쪽 | 관점 | 왜 |
+|:-----|:--------------|:----------|:-----|:---|
+| `@IdClass` | 평범한 클래스. 필드 이름이 엔티티의 `@Id` 필드와 같아야 한다 | `@Id`를 여러 필드에 붙인다 | 테이블 중심 | 키 컬럼이 엔티티에 낱개로 드러나 테이블 구조가 그대로 보인다 |
+| `@EmbeddedId` | `@Embeddable` 클래스. 컬럼 매핑을 여기서 한다 | `@EmbeddedId` 필드 하나 | 객체 중심 | 식별자가 엔티티 안에서도 객체 하나로 다뤄진다 |
 
 ### 3.3 @IdClass
 
 ```java
-public class ParentId implements Serializable {
-    private String id1;   // Parent.id1 과 이름이 같아야 한다
-    private String id2;   // Parent.id2
+public class ParentId
+        implements Serializable {
+    private String id1;
+    // Parent.id1과 이름이 같아야 한다
+    private String id2;
+    // Parent.id2
 
     public ParentId() {}
-    public ParentId(String id1, String id2) { ... }
+    public ParentId(String id1,
+                    String id2) { ... }
 
-    @Override public boolean equals(Object o) { ... }   // id1, id2 모두 비교
-    @Override public int hashCode() { ... }
+    // id1, id2를 모두 비교한다
+    @Override
+    public boolean equals(Object o) {
+        ...
+    }
+    @Override
+    public int hashCode() { ... }
 }
 
 @Entity
@@ -321,9 +351,12 @@ public class Parent {
 Parent parent = new Parent();
 parent.setId1("a");
 parent.setId2("b");
-em.persist(parent);                       // 엔티티에는 필드 두 개로 넣고
+em.persist(parent);
+// 엔티티에는 필드 두 개로 넣고
 
-Parent found = em.find(Parent.class, new ParentId("a", "b"));   // 조회할 때만 식별자 객체를 쓴다
+Parent found = em.find(Parent.class,
+    new ParentId("a", "b"));
+// 조회할 때만 식별자 객체를 쓴다
 ```
 
 엔티티에는 키 컬럼이 낱개 필드로 그대로 드러나고, 식별자 클래스는 조회할 때만 등장한다. 테이블 구조가 그대로 보이는 방식이라 레거시 테이블을 옮길 때 편하다. 대신 같은 두 필드를 엔티티와 식별자 클래스에 중복해서 선언해야 하고, 이름까지 맞춰야 하는 제약이 있다.
@@ -332,7 +365,8 @@ Parent found = em.find(Parent.class, new ParentId("a", "b"));   // 조회할 때
 
 ```java
 @Embeddable
-public class ParentId implements Serializable {
+public class ParentId
+        implements Serializable {
     @Column(name = "PARENT_ID1")
     private String id1;
 
@@ -345,7 +379,8 @@ public class ParentId implements Serializable {
 @Entity
 public class Parent {
     @EmbeddedId
-    private ParentId id;   // 식별자가 객체 하나로 드러난다
+    private ParentId id;
+    // 식별자가 객체 하나로 드러난다
 
     private String name;
 }
@@ -356,7 +391,8 @@ Parent parent = new Parent();
 parent.setId(new ParentId("a", "b"));
 em.persist(parent);
 
-Parent found = em.find(Parent.class, new ParentId("a", "b"));
+Parent found = em.find(Parent.class,
+    new ParentId("a", "b"));
 ```
 
 식별자가 엔티티 안에서도 객체 하나로 다뤄진다. 컬럼 매핑이 식별자 클래스 한 곳에 모이고 중복 선언이 없다. JPQL에서는 `p.id.id1`처럼 한 단계 더 들어가야 한다는 점이 `@IdClass`의 `p.id1`과 다르다. 둘 중 무엇이 낫다고 말하기는 어렵고, 객체를 중심에 두는 설계라면 `@EmbeddedId`가 자연스럽다.
@@ -375,8 +411,11 @@ public class Parent {
 }
 
 @Embeddable
-public class ChildId implements Serializable {
-    private String parentId;          // @MapsId가 채운다. 컬럼 매핑은 연관관계 쪽에
+public class ChildId
+        implements Serializable {
+    private String parentId;
+    // @MapsId가 채운다.
+    // 컬럼 매핑은 연관관계 쪽에 있다
 
     @Column(name = "CHILD_ID")
     private String id;
@@ -388,7 +427,8 @@ public class Child {
     @EmbeddedId
     private ChildId id;
 
-    @MapsId("parentId")               // ChildId.parentId ← parent의 기본 키
+    // 부모의 기본 키 → ChildId.parentId
+    @MapsId("parentId")
     @ManyToOne
     @JoinColumn(name = "PARENT_ID")
     private Parent parent;
@@ -399,9 +439,12 @@ public class Child {
 
 ```java
 Child child = new Child();
-child.setParent(parent);                          // 연관관계만 설정하면
-child.setId(new ChildId(null, "c1"));             // parentId는 비워 둬도
-em.persist(child);                                // 저장 시점에 JPA가 채운다
+child.setParent(parent);
+// 연관관계만 설정하면
+child.setId(new ChildId(null, "c1"));
+// parentId는 비워 둬도
+em.persist(child);
+// 저장 시점에 JPA가 채운다
 ```
 
 연관관계를 설정하면 JPA가 부모의 기본 키를 식별자의 `parentId`에 넣어 준다. 개발자가 같은 값을 두 곳에 넣는 실수를 구조적으로 막는 장치다.
@@ -410,15 +453,15 @@ em.persist(child);                                // 저장 시점에 JPA가 채
 
 식별 관계는 부모 없이 자식이 존재할 수 없다는 규칙을 구조로 강제하고, 자식 테이블에 부모 키가 있으니 조인 없이 부모 기준으로 조회하기도 좋다. 그런데도 실무에서는 대체로 비식별 관계를 택한다. 이유를 정리하면 이렇다.
 
-| 관점 | 식별 관계 | 비식별 관계 |
-|:-----|:----------|:------------|
-| 기본 키 | 세대가 내려갈수록 컬럼이 늘어난다 (자식 2개, 손자 3개) | 어디서나 컬럼 하나 |
-| 키의 성격 | 부모 키가 업무 의미를 갖는 자연 키인 경우가 많다 | 의미 없는 대리 키 |
-| 요구사항 변화 | 부모-자식 규칙이 바뀌면 기본 키가 바뀐다 | 외래 키만 바뀐다 |
-| JPA 매핑 | 식별자 클래스, `@MapsId`, `equals`·`hashCode` | `@Id @GeneratedValue Long` |
-| 조인 | 부모 키 조건은 조인 없이 가능 | 조인 한 번 더 |
+| 관점 | 식별 관계 | 비식별 관계 | 왜 |
+|:-----|:----------|:------------|:---|
+| 기본 키 | 세대가 내려갈수록 컬럼이 늘어난다 (자식 2개, 손자 3개) | 어디서나 컬럼 하나 | 식별 관계는 부모 키를 계속 물려받는다 |
+| 키의 성격 | 부모 키가 업무 의미를 갖는 자연 키인 경우가 많다 | 의미 없는 대리 키 | 식별 관계는 기존 테이블 설계의 키를 그대로 끌어들인다 |
+| 요구사항 변화 | 부모-자식 규칙이 바뀌면 기본 키가 바뀐다 | 외래 키만 바뀐다 | 기본 키는 영속 엔티티에서 바꿀 수 없는 값이다 |
+| JPA 매핑 | 식별자 클래스, `@MapsId`, `equals`·`hashCode` | `@Id @GeneratedValue Long` | 값 하나로 다루는 식별자에 컬럼 둘을 담아야 한다 |
+| 조인 | 부모 키 조건은 조인 없이 가능 | 조인 한 번 더 | 자식 테이블에 부모 키가 있는지의 차이다 |
 
-[Chapter 07](../07-entity-mapping)에서 대리 키를 권한 이유가 여기서 그대로 커진다. 복합 키는 자연 키를 끌어들이고, 자연 키는 바뀌고, 식별자가 바뀌는 것은 JPA가 가장 다루기 어려운 일이다. 조인 한 번을 아끼는 것보다 구조가 단순하고 변화에 견디는 편이 오래 간다.
+[Chapter 07](../07-entity-mapping)에서 대리 키를 권한 이유가 여기서 그대로 커진다. 복합 키는 자연 키를 끌어들이고, 자연 키는 바뀌고, 식별자가 바뀌는 것은 JPA가 가장 다루기 어려운 일이다. 둘째 원리다. 조인 한 번을 아끼는 것보다 구조가 단순하고 변화에 견디는 편이 오래 간다.
 
 {{< callout type="info" >}}
 권장 조합은 **비식별 관계 + `Long` 대리 키 + 필수적 관계**다. 외래 키에 `nullable = false`를 걸어 선택적 관계를 피하면 NULL 처리와 외부 조인이 사라지고, JPA가 내부 조인으로 더 단순한 SQL을 만든다. 복합 키가 꼭 필요한 레거시 테이블에서만 3.3~3.5절의 도구를 꺼내면 된다.
@@ -442,7 +485,7 @@ em.persist(child);                                // 저장 시점에 JPA가 채
   사물함이 없으면 행이 없다
 ```
 
-조인 테이블을 고르는 이유는 대부분 **NULL을 피하기 위해서**다. 사물함이 없는 회원이 대다수라면 `MEMBER.LOCKER_ID`는 거의 비어 있는 컬럼이 되고, 조회할 때마다 NULL을 신경 써야 한다. 조인 테이블에서는 관계가 있을 때만 행이 생기므로 "없음"이 NULL이 아니라 "행 없음"으로 표현된다. 대가는 테이블이 하나 늘고, 관계를 따라갈 때마다 조인이 한 번 더 붙는다는 것이다. 그래서 기본은 조인 컬럼이고, 조인 테이블은 선택적 관계가 드물게 성립하는 경우에 고려한다.
+조인 테이블을 고르는 이유는 대부분 **NULL을 피하기 위해서**다. 사물함이 없는 회원이 대다수라면 `MEMBER.LOCKER_ID`는 거의 비어 있는 컬럼이 되고, 조회할 때마다 NULL을 신경 써야 한다. 조인 테이블에서는 관계가 있을 때만 행이 생기므로 "없음"이 NULL이 아니라 "행 없음"으로 표현된다. 대가는 테이블이 하나 늘고, 관계를 따라갈 때마다 조인이 한 번 더 붙는다는 것이다. 셋째 원리 그대로다. 그래서 기본은 조인 컬럼이고, 조인 테이블은 선택적 관계가 드물게 성립하는 경우에 고려한다.
 
 ### 4.2 @JoinTable
 
@@ -455,9 +498,16 @@ public class Parent {
 
     @OneToOne
     @JoinTable(
-        name = "PARENT_CHILD",                                // 관계를 담는 테이블
-        joinColumns = @JoinColumn(name = "PARENT_ID"),        // 이 엔티티를 가리키는 외래 키
-        inverseJoinColumns = @JoinColumn(name = "CHILD_ID")   // 상대를 가리키는 외래 키
+        name = "PARENT_CHILD",
+        // 관계를 담는 테이블
+        joinColumns =
+            @JoinColumn(
+                name = "PARENT_ID"),
+        // 이 엔티티를 가리키는 외래 키
+        inverseJoinColumns =
+            @JoinColumn(
+                name = "CHILD_ID")
+        // 상대를 가리키는 외래 키
     )
     private Child child;
 }
@@ -475,11 +525,11 @@ public class Child {
 
 `@JoinColumn` 자리에 `@JoinTable`을 쓰면 나머지는 같다. 주인과 `mappedBy`의 규칙도 그대로다. 다중성에 따라 조인 테이블에 걸어야 할 유니크 제약이 다르고, DDL을 자동 생성하면 JPA가 이를 만들어 준다.
 
-| 관계 | 조인 테이블의 유니크 제약 | 이유 |
-|:-----|:--------------------------|:-----|
-| 1:1 | 두 외래 키 각각 | 양쪽 모두 한 번씩만 등장해야 한다 |
-| 1:N | N 쪽 외래 키 | 자식 하나는 부모 하나에만 속한다 |
-| N:N | 두 외래 키를 묶어서 | 같은 쌍이 두 번 들어가지 않게 |
+| 관계 | 조인 테이블의 제약 | 왜 |
+|:-----|:-------------------|:---|
+| 1:1 | 두 외래 키 각각 유니크 | 양쪽 모두 한 번씩만 등장해야 한다 |
+| 1:N | N 쪽 외래 키 유니크 | 자식 하나는 부모 하나에만 속한다 |
+| N:N | 두 외래 키를 묶은 기본 키 (`Set`일 때) | 같은 쌍이 두 번 들어가지 않게. 인덱스 없는 `List`에는 아무 제약도 걸지 않는다 |
 
 ---
 
@@ -490,22 +540,26 @@ public class Child {
 @Table(name = "BOARD")
 @SecondaryTable(
     name = "BOARD_DETAIL",
-    pkJoinColumns = @PrimaryKeyJoinColumn(name = "BOARD_DETAIL_ID")
+    pkJoinColumns =
+        @PrimaryKeyJoinColumn(
+            name = "BOARD_DETAIL_ID")
 )
 public class Board {
     @Id @GeneratedValue
     private Long id;
 
-    private String title;                  // BOARD
+    private String title;
+    // BOARD 테이블
 
-    @Column(table = "BOARD_DETAIL")        // BOARD_DETAIL
+    @Column(table = "BOARD_DETAIL")
     private String content;
+    // BOARD_DETAIL 테이블
 }
 ```
 
 `@SecondaryTable`은 엔티티 하나의 필드를 두 테이블에 나눠 담는다. 게시글 목록에는 제목만 필요하고 본문은 상세 화면에서만 쓰이는 식으로, 테이블은 나누고 싶지만 객체는 하나로 두고 싶을 때 쓰라고 만든 것이다.
 
-그런데 이 목적은 잘 달성되지 않는다. 엔티티가 하나이므로 JPA는 조회할 때 **두 테이블을 항상 조인**한다. 목록 화면에서 제목만 필요해도 본문 테이블까지 읽는다. 테이블을 나눈 이유가 사라지는 것이다. 같은 구조를 `Board`와 `BoardDetail` 두 엔티티의 일대일 관계로 매핑하면 필요할 때만 상세를 조회할 수 있고 지연 로딩도 쓸 수 있다.
+그런데 이 목적은 잘 달성되지 않는다. 엔티티가 하나이므로 JPA는 조회할 때 **두 테이블을 항상 조인**한다. 목록 화면에서 제목만 필요해도 본문 테이블까지 읽고, 저장할 때도 INSERT가 두 번 나간다. 테이블을 나눈 이유가 사라지는 것이다. 같은 구조를 `Board`와 `BoardDetail` 두 엔티티의 일대일 관계로 매핑하면 필요할 때만 상세를 조회할 수 있고 지연 로딩도 쓸 수 있다. 테이블을 나눴으면 조인을 언제 할지도 개발자가 정할 수 있어야 한다는 것이 셋째 원리의 마지막 교훈이다.
 
 {{< callout type="warning" >}}
 `@SecondaryTable`보다 **테이블마다 엔티티를 두고 일대일로 매핑**하는 편이 낫다. 두 테이블을 항상 조인하는 구조는 나중에 최적화할 여지를 남기지 않는다.
@@ -513,46 +567,30 @@ public class Board {
 
 ---
 
-## 요약
+## 핵심 정리
 
-| 상황 | 도구 | 핵심 | 왜 |
-|:-----|:-----|:-----|:---|
-| 객체 상속 | `@Inheritance` | 단일 테이블이 기본, 자식이 크게 다르면 조인 전략 | 테이블에는 상속이 없어 흉내 내는 방법이 여럿이다 |
-| 클래스별 테이블 | `TABLE_PER_CLASS` | 피한다 | 부모 타입 조회가 UNION, IDENTITY 불가 |
-| 공통 속성 | `@MappedSuperclass` | 매핑만 물려주고 테이블은 없음 | 부모 타입으로 조회할 일이 없다 |
-| 복합 키 | `@IdClass`, `@EmbeddedId` | 식별자 클래스에 `equals`·`hashCode`·`Serializable` | 1차 캐시가 식별자를 키로 쓰는 맵이다 |
-| 식별 관계 | `@MapsId` | 외래 키가 식별자를 채운다 | 한 컬럼을 두 번 매핑하지 않기 위해 |
-| 관계 설계 | 비식별 + `Long` 대리 키 + 필수적 | 기본 선택 | 단순하고 변화에 견딘다 |
-| 조인 테이블 | `@JoinTable` | 선택적 관계에서 NULL을 피할 때 | 관계가 있을 때만 행이 생긴다 |
-| 여러 테이블 | `@SecondaryTable` | 대신 일대일 엔티티 둘 | 항상 조인하게 된다 |
+| 항목 | 핵심 | 왜 |
+|:-----|:-----|:---|
+| 객체 상속 (`@Inheritance`) | 단일 테이블이 기본, 자식이 크게 다르면 조인 전략 | 테이블에는 상속이 없어 흉내 내는 방법이 여럿이다 |
+| 클래스별 테이블 (`TABLE_PER_CLASS`) | 피한다 | 부모 타입 조회가 UNION이고 IDENTITY를 못 쓴다 |
+| 구분 컬럼 | 단일 테이블은 필수, 조인은 선택, 클래스별은 불필요 | 행의 타입을 알 다른 단서가 있는가의 차이다 |
+| 공통 속성 (`@MappedSuperclass`) | 매핑만 물려주고 테이블은 없음 | 부모 타입으로 조회할 일이 없다 |
+| 복합 키 (`@IdClass`, `@EmbeddedId`) | 식별자 클래스에 `equals`·`hashCode`·`Serializable` | 1차 캐시가 식별자를 키로 쓰는 맵이다 |
+| 식별 관계 (`@MapsId`) | 외래 키가 식별자를 채운다 | 한 컬럼을 두 번 매핑하지 않기 위해 |
+| 관계 설계 | 비식별 + `Long` 대리 키 + 필수적 관계가 기본 | 단순하고 변화에 견디며 내부 조인을 쓴다 |
+| 조인 테이블 (`@JoinTable`) | 선택적 관계에서 NULL을 피할 때 | 관계가 있을 때만 행이 생긴다. 대신 조인이 하나 더 붙는다 |
+| 여러 테이블 (`@SecondaryTable`) | 대신 일대일 엔티티 둘 | 엔티티가 하나라 항상 조인하게 된다 |
 
-### 핵심 코드
-
-```java
-// 상속: 부모에 전략과 구분 컬럼, 자식에 구분 값
-@Entity
-@Inheritance(strategy = InheritanceType.JOINED)
-@DiscriminatorColumn(name = "DTYPE")
-public abstract class Item { ... }
-
-@Entity
-@DiscriminatorValue("A")
-public class Album extends Item { ... }
-
-// 공통 속성: 테이블 없이 매핑만 상속
-@MappedSuperclass
-public abstract class BaseEntity { ... }
-
-// 복합 키: 식별자 객체 하나로 다룬다
-@Entity
-public class Parent {
-    @EmbeddedId
-    private ParentId id;
-}
-
-// 식별 관계: 연관관계가 식별자를 채운다
-@MapsId("parentId")
-@ManyToOne
-@JoinColumn(name = "PARENT_ID")
-private Parent parent;
-```
+{{< callout type="info" >}}
+**용어 정리**
+- **슈퍼타입-서브타입**: 관계형 모델에서 상속을 흉내 내는 모델링 기법
+- **구분 컬럼(`@DiscriminatorColumn`) / 구분 값(`@DiscriminatorValue`)**: 행이 어느 자식 타입인지 적어 두는 컬럼과 그 값
+- **조인 / 단일 테이블 / 클래스별 테이블 전략**: 부모·자식 테이블을 조인 / 한 테이블에 전부 / 자식마다 완전한 테이블
+- **`@MappedSuperclass`**: 테이블 없이 필드와 매핑 정보만 물려주는 부모 클래스
+- **식별 관계 / 비식별 관계**: 부모 키를 자식의 기본 키에 포함하는가 / 외래 키로만 받는가
+- **필수적 / 선택적 관계**: 외래 키가 NULL을 허용하지 않는가 / 허용하는가. 내부 조인과 외부 조인으로 갈린다
+- **식별자 클래스**: 복합 키의 값들을 하나로 묶은 객체. `@IdClass`로 지정하거나 `@Embeddable`로 만든다
+- **`@MapsId`**: 연관관계의 외래 키 값으로 식별자의 필드를 채우는 선언
+- **조인 컬럼 / 조인 테이블**: 외래 키 컬럼으로 관계를 표현 / 관계만 담는 별도 테이블로 표현
+- **`@SecondaryTable`**: 엔티티 하나의 필드를 두 테이블에 나눠 담는 매핑
+{{< /callout >}}
