@@ -4,470 +4,673 @@ date: 2025-12-19
 weight: 3
 ---
 
-## 1. 데이터베이스 시스템의 정의
+[DBMS 개요](../dbms-overview)에서 응용 프로그램과 데이터 사이에 들어선 중개자, DBMS를 봤다. 이 장은 시야를 넓혀 그 중개자를 둘러싼 전체, 데이터베이스 시스템을 다룬다. 시스템이 무엇으로 이루어지는지에서 시작해, 앞 장에서 뼈대만 본 3단계 구조가 SQL에서 어떤 모습인지, DBMS가 스키마를 어디에 적어 두고 언제 읽는지, 누가 어떤 언어로 요청하고 그 요청이 DBMS 안에서 어떤 길을 지나는지를 본다. 원리는 셋이다. 첫째, **데이터베이스 시스템은 데이터베이스, DBMS, 사용자, 데이터 언어, 컴퓨터가 맞물린 전체다.** 데이터를 담는 곳, 중개하는 소프트웨어, 요청하는 사람, 요청에 쓰는 말, 그 모두를 돌리는 기계 가운데 하나만 빠져도 시스템은 돌지 않는다. 둘째, **3단계 구조의 세 스키마는 SQL에서 각각 뷰, 테이블, 인덱스와 저장 구조라는 실체를 가진다.** 그래서 데이터 독립성도 추상적인 약속이 아니라 "뷰 정의만 고친다", "인덱스를 바꿔도 질의는 그대로다"라는 구체적인 작업으로 드러난다. 셋째, **DBMS는 스키마를 데이터 사전에 적어 두고, 모든 요청을 처리할 때 그것부터 읽는다.** 사용자가 "무엇을"만 말하는 비절차적 언어가 통하는 것도, 질의 처리기가 실행 계획을 고를 수 있는 것도 DBMS가 구조와 통계를 알고 있기 때문이다.
 
-DBS(Database System)는 데이터베이스와 DBMS, 사용자, 데이터 언어, 하드웨어를 포함한 전체 시스템을 가리킨다.
+## 1. 데이터베이스 시스템의 구성
+
+데이터베이스 시스템(DBS, Database System)은 데이터를 데이터베이스에 저장하고 관리해 조직에 필요한 정보를 만들어 내는 시스템이다. 구성요소는 다섯이고, 첫째 원리대로 서로 맞물려 있다.
 
 ```text
- ┌────────────────────┐
- │    사용자           │
- │ DBA, 개발자, 사용자 │
- └────────┬───────────┘
-          │ SQL
-          ▼
- ┌────────────────────┐
- │       DBMS         │
- │ 질의 처리기        │
- │ 저장 데이터 관리자  │
- └────────┬───────────┘
-          ▼
- ┌────────────────────┐
- │   데이터베이스      │
- │ 사용자 데이터       │
- │ + 데이터 사전       │
- └────────┬───────────┘
-          ▼
-     컴퓨터 (HW)
+           사용자
+  (DBA·개발자·최종 사용자)
+              │
+              │ 데이터 언어 (SQL)
+              ▼
+ ┌──────────────────────────┐
+ │ DBMS                     │
+ │  질의 처리기             │
+ │  저장 데이터 관리자      │
+ └────────────┬─────────────┘
+              ▼
+ ┌──────────────────────────┐
+ │ 데이터베이스             │
+ │  사용자 데이터           │
+ │  데이터 사전             │
+ └────────────┬─────────────┘
+              ▼
+ 컴퓨터 (디스크·메모리·CPU)
 ```
 
-| 용어 | 정의 |
-|:---|:---|
-| 데이터베이스 (DB) | 저장된 데이터의 집합 |
-| DBMS | DB를 관리하는 소프트웨어 |
-| 데이터베이스 시스템 (DBS) | DB + DBMS + 사용자 + 언어 + HW 전체 |
+| 구성요소 | 역할 | 왜 |
+|:---|:---|:---|
+| 데이터베이스 | 사용자 데이터와 데이터 사전을 저장 | 함께 쓰는 데이터가 한곳에 모여 있어야 통합이 된다 |
+| DBMS | 요청을 해석·실행하고 데이터를 관리 | 사용자가 데이터를 직접 만지지 않아야 통제가 된다 |
+| 사용자 | DBA, 응용 프로그래머, 최종 사용자 | 하는 일이 다르니 쓰는 언어와 권한도 다르다 |
+| 데이터 언어 | DDL, DML, DCL | 사람의 요청이 DBMS에 전달되려면 약속된 말이 있어야 한다 |
+| 컴퓨터 | 디스크, 메모리, 프로세서 | 데이터는 결국 디스크에 있고, 처리는 메모리와 CPU에서 일어난다 |
+
+세 용어가 자주 섞여 쓰이니 범위를 분명히 해 두자.
+
+| 용어 | 범위 | 예 |
+|:---|:---|:---|
+| 데이터베이스 (DB) | 저장된 데이터의 집합 | MySQL 안에 만든 `shop` |
+| DBMS | DB를 관리하는 소프트웨어 | MySQL |
+| 데이터베이스 시스템 (DBS) | DB + DBMS + 사용자 + 언어 + 컴퓨터 | `shop`과 MySQL, 그것을 관리하는 DBA와 주문 서비스를 만드는 개발자, 그들이 쓰는 SQL, MySQL이 도는 서버 전부 |
+
+"MySQL은 데이터베이스다"라는 말은 엄밀히는 틀렸다. MySQL은 DBMS이고, 데이터베이스는 MySQL이 관리하는 대상이다. 하나의 DBMS가 여러 데이터베이스를 관리할 수 있다는 점을 떠올리면 구분이 쉽다.
 
 ## 2. 스키마와 인스턴스
 
-스키마는 구조와 제약조건을 정의하고, 인스턴스는 특정 시점의 실제 값이다.
+앞 장에서 본 대로 스키마는 구조와 제약조건의 정의이고, 인스턴스는 어느 한 시점에 실제로 저장된 값이다. 여기서 다시 꺼내는 이유는 둘이 **사는 곳**이 다르기 때문이다. 스키마는 데이터 사전에, 인스턴스는 사용자 데이터베이스에 저장된다. 그리고 스키마는 단순한 설명서가 아니라 들어오는 인스턴스를 검사하는 규칙으로 쓰인다.
 
 ```text
-[Schema] 정적
+[스키마] 데이터 사전에 저장
 CREATE TABLE orders (
   id INT PRIMARY KEY,
   customer_id INT NOT NULL,
   amount DECIMAL(10,2)
-    CHECK(amount > 0),
+    CHECK (amount > 0),
   status VARCHAR(20)
     DEFAULT 'pending'
 );
-        │
+        │ 틀에 맞는 값만
         ▼
-[Instance] 동적
- 1│101│50000│completed
- 2│102│30000│pending
- 3│101│15000│shipped
+[인스턴스] 사용자 DB, 어느 한 시점
+ id │ customer_id │ amount │ status
+ 1  │ 101         │ 50000  │ completed
+ 2  │ 102         │ 30000  │ pending
+ 3  │ 101         │ 15000  │ shipped
 ```
 
-| 구분 | 스키마 | 인스턴스 |
-|:---|:---|:---|
-| 성격 | 정적 (구조) | 동적 (값) |
-| 정의 | DDL | DML |
-| 변경 빈도 | 거의 변하지 않음 | 수시로 변경 |
-| 저장 위치 | 데이터 사전 | 데이터베이스 |
+스키마에 적어 둔 규칙은 값이 들어오는 순간 적용된다.
+
+```sql
+-- CHECK 위반: 거부된다
+INSERT INTO orders
+       (id, customer_id, amount)
+VALUES (4, 103, -500);
+
+-- status 생략: DEFAULT가 채운다
+INSERT INTO orders
+       (id, customer_id, amount)
+VALUES (5, 103, 20000);
+-- 5 │ 103 │ 20000 │ pending
+```
+
+{{< callout type="warning" >}}
+MySQL은 8.0.16 이전까지 `CHECK`를 문법으로만 받아들이고 실제로 검사하지 않았다. 오래된 MySQL에서 만든 테이블이라면 `CHECK`가 있어도 음수 금액이 이미 들어가 있을 수 있다.
+{{< /callout >}}
+
+| 구분 | 스키마 | 인스턴스 | 왜 |
+|:---|:---|:---|:---|
+| 성격 | 정적 (구조) | 동적 (값) | 틀은 가끔 바뀌고 내용은 매 순간 바뀐다 |
+| 다루는 언어 | DDL | DML | 틀을 만드는 일과 값을 바꾸는 일은 다른 요청이다 |
+| 저장 위치 | 데이터 사전 | 사용자 데이터베이스 | DBMS는 값을 다루기 전에 틀부터 읽어야 한다 |
+| 변경 비용 | 크다 | 작다 | 틀이 바뀌면 그 틀에 기대는 모든 프로그램이 영향을 받는다 |
+
+관계 모델에서는 같은 짝을 릴레이션 내포(intension)와 외연(extension)이라 부른다([관계 데이터 모델](../relational-model)). 표의 마지막 줄이 다음 절의 출발점이다. 스키마 변경을 막을 수 없다면, 변경이 번지는 범위라도 줄여야 한다.
 
 ## 3. 3단계 데이터베이스 구조 (ANSI/SPARC)
 
-ANSI/SPARC 3단계 구조는 사용자 관점, 조직 전체 관점, 저장 장치 관점을 분리해 서로 다른 변경 축을 독립적으로 다루게 한다.
+ANSI/SPARC 3단계 구조는 하나의 데이터베이스를 세 관점으로 나눈다. 개별 사용자가 보는 외부 단계, 조직 전체가 보는 개념 단계, 저장 장치가 보는 내부 단계다. 단계마다 스키마가 있고, 단계 사이를 사상(mapping)이 잇는다. 앞 장에서는 이 구조의 뼈대를 봤는데, 둘째 원리는 세 스키마가 SQL에서 저마다 실체를 갖는다는 것이다.
 
 ```text
  ┌──────────────────────────┐
- │ 외부 단계 (사용자 뷰)     │
- │ 외부 스키마 1..N          │
- └────────┬─────────────────┘
-          │ 외부/개념 사상
-          │ (논리적 독립성)
- ┌────────┴─────────────────┐
- │ 개념 단계 (조직 전체 뷰)  │
- │ 개념 스키마 (1개)         │
- └────────┬─────────────────┘
-          │ 개념/내부 사상
-          │ (물리적 독립성)
- ┌────────┴─────────────────┐
- │ 내부 단계 (저장 뷰)       │
- │ 내부 스키마 (1개)         │
- └────────┬─────────────────┘
-          ▼
-       저장 장치
+ │ 외부 단계    CREATE VIEW │
+ │ 외부 스키마 N개          │
+ └────────────┬─────────────┘
+              │ 외부/개념 사상
+              │ = 뷰 정의
+ ┌────────────┴─────────────┐
+ │ 개념 단계   CREATE TABLE │
+ │ 개념 스키마 1개          │
+ └────────────┬─────────────┘
+              │ 개념/내부 사상
+              │ = DBMS가 관리
+ ┌────────────┴─────────────┐
+ │ 내부 단계   CREATE INDEX │
+ │ 내부 스키마 1개          │
+ └────────────┬─────────────┘
+              ▼
+          저장 장치
 ```
 
-| 단계 | 스키마 | 개수 | 관점 | 정의 내용 |
-|:---|:---|:---|:---|:---|
-| 외부 | 외부 스키마(서브 스키마) | 여러 개 | 개별 사용자 | 사용자별 필요 데이터 |
-| 개념 | 개념 스키마 | 1개 | 조직 전체 | 전체 논리 구조·제약·보안 |
-| 내부 | 내부 스키마 | 1개 | 저장 장치 | 레코드 구조·인덱스·접근 경로 |
+| 단계 | 스키마 | 개수 | 관점 | SQL의 실체 | 왜 |
+|:---|:---|:---|:---|:---|:---|
+| 외부 | 외부 스키마 (서브 스키마) | 여러 개 | 개별 사용자 | 뷰 (`CREATE VIEW`) | 사용자마다 필요한 데이터와 봐도 되는 데이터가 다르다 |
+| 개념 | 개념 스키마 | 1개 | 조직 전체 | 테이블과 제약조건 (`CREATE TABLE`) | 조직의 데이터는 하나로 통합된 그림이어야 한다 |
+| 내부 | 내부 스키마 | 1개 | 저장 장치 | 인덱스, 파티션, 테이블스페이스 | 실제로 저장하는 방식은 하나로 정해져 있어야 한다 |
+
+| 사상 | 별칭 | SQL의 실체 | 왜 |
+|:---|:---|:---|:---|
+| 외부/개념 사상 | 응용 인터페이스 | 뷰 정의의 `AS SELECT ...` | 뷰의 열이 테이블의 어느 열에서 오는지 알아야 한다 |
+| 개념/내부 사상 | 저장 인터페이스 | DBMS가 관리하는 테이블과 파일·인덱스의 대응 | 논리적인 행이 디스크 어디에 있는지 알아야 한다 |
 
 {{< callout type="info" >}}
 3단계 구조는 단순한 설계 이론이 아니라 **변경 비용을 낮추는 아키텍처 원칙**이다. 저장 장치 교체가 응용 프로그램에 영향을 주지 않도록 하고, 테이블 구조 변경이 기존 사용자 뷰를 깨지 않도록 한다.
 {{< /callout >}}
 
-### 개념 스키마 예제
+### 개념 스키마: 테이블
 
 ```sql
 CREATE TABLE employees (
     id INT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
-    ssn VARCHAR(20),
-    salary DECIMAL(12,2),
+    ssn VARCHAR(20) UNIQUE,
+    salary DECIMAL(12,2)
+        CHECK (salary > 0),
     department VARCHAR(50),
-    hire_date DATE
+    hire_date DATE NOT NULL
 );
 ```
 
-### 외부 스키마 예제
+조직 전체가 합의한 하나의 정의다. 인사팀이 보든 개발팀이 보든 `employees` 테이블은 하나이고, 열과 타입, 제약조건까지 여기서 정한다. 개념 스키마가 하나여야 하는 이유는 [기본 개념](../db-fundamentals)에서 본 통합과 같다. 정의가 둘이면 같은 직원에 대한 사실도 둘이 된다.
+
+### 외부 스키마: 뷰
 
 ```sql
--- 인사팀용 (전체 정보)
+-- 인사팀용: 전체 정보
 CREATE VIEW hr_view AS
-SELECT id, name, ssn, salary, department, hire_date
-FROM employees;
+SELECT id, name, ssn, salary,
+       department, hire_date
+  FROM employees;
 
--- 일반 직원용 (민감 정보 숨김)
+-- 일반 직원용: 민감 정보 제외
 CREATE VIEW employee_view AS
-SELECT id, name, department, hire_date
-FROM employees;
+SELECT id, name, department,
+       hire_date
+  FROM employees;
 
--- 부서별 통계용
+-- 경영진용: 부서별 통계
 CREATE VIEW dept_stats_view AS
 SELECT department,
-       COUNT(*) as emp_count,
-       AVG(salary) as avg_salary
-FROM employees
-GROUP BY department;
+       COUNT(*) AS emp_count,
+       AVG(salary) AS avg_salary
+  FROM employees
+ GROUP BY department;
 ```
 
-### 내부 스키마 예제
+세 뷰는 같은 테이블을 서로 다른 모양으로 보여 준다. 일반 직원용 뷰에는 주민번호와 급여가 없고, 경영진용 뷰는 행이 아니라 집계를 내놓는다. 외부 스키마는 개념 스키마의 부분집합일 수도, 가공된 모습일 수도 있다. 각 뷰 정의의 `AS SELECT ...` 부분이 곧 외부/개념 사상이다. 뷰로 민감한 열을 숨기는 기법은 [보안과 권한 관리](../security-authorization)에서 다시 쓰인다.
+
+### 내부 스키마: 인덱스와 저장 구조
 
 ```sql
--- 인덱스
-CREATE INDEX idx_emp_dept ON employees(department);
-CREATE INDEX idx_emp_name ON employees(name);
+-- 접근 경로: 인덱스
+CREATE INDEX idx_emp_dept
+    ON employees(department);
+CREATE INDEX idx_emp_name
+    ON employees(name);
 
--- 파티셔닝 (MySQL)
-CREATE TABLE orders (
+-- 저장 배치: 파티션 (MySQL)
+CREATE TABLE order_log (
     id INT,
     order_date DATE,
-    amount DECIMAL(10,2)
+    amount DECIMAL(10,2),
+    PRIMARY KEY (id, order_date)
 )
 PARTITION BY RANGE (YEAR(order_date)) (
-    PARTITION p2022 VALUES LESS THAN (2023),
-    PARTITION p2023 VALUES LESS THAN (2024),
-    PARTITION p2024 VALUES LESS THAN (2025)
+  PARTITION p2025
+    VALUES LESS THAN (2026),
+  PARTITION p2026
+    VALUES LESS THAN (2027),
+  PARTITION pmax
+    VALUES LESS THAN MAXVALUE
 );
 ```
+
+인덱스는 행을 빨리 찾는 길을, 파티션은 행을 디스크에 어떻게 나누어 둘지를 정한다. 둘 다 어떤 데이터가 있는지는 바꾸지 않고 어떻게 저장하고 찾는지만 바꾼다. 인덱스 문법이 제품마다 조금씩 다른 것도 같은 이유다. SQL 표준에는 인덱스가 아예 없다. 표준은 테이블과 뷰, 즉 개념과 외부 단계까지 정하고 내부 단계는 제품에 맡긴다. 내부 스키마를 무엇으로 채울지 정하는 일이 [데이터베이스 설계](../database-design)의 물리적 설계다.
+
+{{< callout type="warning" >}}
+MySQL은 파티션 키 열이 기본키를 포함한 모든 유니크 키에 들어 있어야 한다. 그래서 기본키가 `id` 하나가 아니라 `(id, order_date)`다. 저장 방식을 정하려다 논리 구조인 기본키를 건드리게 되는 경우로, 단계 분리가 현실에서 완벽하지는 않다는 예다. 또 `pmax`처럼 `MAXVALUE` 파티션을 두지 않으면 범위를 벗어난 행(2027년 주문)이 들어오는 순간 넣을 파티션이 없어 `INSERT`가 실패한다.
+{{< /callout >}}
 
 ## 4. 데이터 독립성
 
+3단계 구조가 노리는 것이 데이터 독립성이다. 하위 단계의 스키마가 바뀌어도 상위 단계의 스키마는 그대로인 성질이고, 바뀐 만큼은 두 단계 사이의 사상이 흡수한다. 정의는 앞 장에서 봤으니 여기서는 3절의 SQL로 실제 작업을 해 본다.
+
 ### 논리적 데이터 독립성
 
-개념 스키마가 바뀌어도 외부 스키마는 영향을 받지 않는다. 사상(매핑)이 흡수하기 때문이다.
+개념 스키마가 바뀌어도 외부 스키마와 응용 프로그램은 그대로다. 사내 용어가 바뀌어 `hire_date` 열을 `start_date`로 바꾸기로 했다고 하자.
 
 ```sql
--- 컬럼명 변경
-ALTER TABLE employees RENAME COLUMN name TO full_name;
+-- 개념 스키마 변경
+ALTER TABLE employees
+  RENAME COLUMN hire_date
+             TO start_date;
 
--- 외부/개념 사상으로 기존 이름 유지
+-- 외부/개념 사상만 고친다
 CREATE OR REPLACE VIEW employee_view AS
-SELECT id, full_name AS name, department, hire_date
-FROM employees;
+SELECT id, name, department,
+       start_date AS hire_date
+  FROM employees;
+
+-- 응용 프로그램의 질의는 그대로
+SELECT name, hire_date
+  FROM employee_view;
 ```
 
-```text
-변경 전: employees.name
-변경 후: employees.full_name
+테이블의 열 이름은 바뀌었지만 뷰는 여전히 `hire_date`라는 열을 내놓는다. `employee_view`를 쓰는 프로그램은 변경이 있었다는 사실조차 모른다. 고친 곳은 뷰 정의, 즉 외부/개념 사상뿐이다. `hire_date`를 쓰는 뷰가 여럿이면(`hr_view`도 그렇다) 그 뷰들을 전부 다시 정의해야 하지만, 그래도 고치는 곳은 뷰 정의이지 프로그램이 아니다.
 
-사상이 full_name → name 매핑
-→ 사용자는 변경 사실을 모름
-```
+{{< callout type="warning" >}}
+열 이름을 바꾼 직후 기존 뷰가 어떻게 되는지는 제품마다 다르다. PostgreSQL은 뷰의 열 이름을 그대로 둔 채 참조만 새 열로 바꿔 준다. SQLite는 뷰 정의 안의 이름까지 새 이름으로 고쳐 써서 뷰의 열 이름이 `start_date`로 바뀌고, MySQL은 뷰를 그대로 두어 다음 조회에서 오류가 난다. 어느 쪽이든 사상을 직접 다시 정의해 두어야 외부 스키마의 열 이름이 확실히 유지된다.
+{{< /callout >}}
 
 ### 물리적 데이터 독립성
 
-내부 스키마가 바뀌어도 개념 스키마는 그대로다.
+내부 스키마가 바뀌어도 개념 스키마는 그대로다. 개발팀의 고액 연봉자를 자주 찾는다면 부서 인덱스를 부서와 급여를 함께 담은 인덱스로 바꿀 수 있다.
 
 ```sql
-CREATE INDEX idx_salary ON employees(salary);
-DROP INDEX idx_emp_dept;
+-- 내부 스키마 변경 (MySQL)
+DROP INDEX idx_emp_dept
+  ON employees;
+CREATE INDEX idx_emp_dept_sal
+    ON employees(department,
+                 salary);
 
--- 테이블스페이스 이동
-ALTER TABLE employees MOVE TABLESPACE new_storage;
-
--- 응용 쿼리는 그대로
-SELECT * FROM employees;
+-- 개념 스키마와 질의는 그대로
+SELECT name
+  FROM employees
+ WHERE department = '개발팀'
+   AND salary > 50000;
 ```
+
+```text
+같은 질의, 다른 실행 계획
+
+교체 전
+  idx_emp_dept로 개발팀을 찾고
+  급여는 행마다 다시 확인
+교체 후
+  idx_emp_dept_sal 하나로
+  부서와 급여를 함께 좁힌다
+
+결과는 같고 속도만 다르다
+```
+
+테이블 정의도, 질의도 한 글자 바뀌지 않았다. 바뀐 것은 개념/내부 사상, 즉 "이 테이블의 행을 어떤 길로 찾는가"뿐이다. 어느 인덱스를 탈지는 질의 처리기가 데이터 사전의 인덱스 정보를 보고 정한다.
+
+{{< callout type="info" >}}
+사상이 변경을 흡수한다고 해서 공짜는 아니다. Oracle에서 `ALTER TABLE employees MOVE TABLESPACE fast_ssd`로 테이블을 다른 저장 공간으로 옮기면 행의 물리 주소(ROWID)가 바뀌어 그 테이블의 인덱스가 `UNUSABLE` 상태가 된다. 질의는 그대로지만 DBA가 인덱스를 `REBUILD`해야 한다(12.2부터는 `ONLINE`이나 `UPDATE INDEXES`를 붙여 이동과 함께 유지할 수 있다). 응용 프로그램은 몰라도 되지만 DBA는 알아야 한다.
+{{< /callout >}}
 
 ### 두 독립성 비교
 
-| 구분 | 논리적 독립성 | 물리적 독립성 |
-|:---|:---|:---|
-| 보호 대상 | 외부 스키마 | 개념 스키마 |
-| 변경 축 | 개념 스키마 변경 | 내부 스키마 변경 |
-| 흡수 사상 | 외부/개념 사상 | 개념/내부 사상 |
-| 예시 상황 | 테이블 구조 변경 | 인덱스·저장 방식 변경 |
-| 결과 | 앱 수정 불필요 | 논리 구조 수정 불필요 |
+| 구분 | 논리적 독립성 | 물리적 독립성 | 왜 |
+|:---|:---|:---|:---|
+| 바뀌는 것 | 개념 스키마 | 내부 스키마 | 바뀌는 단계가 다르다 |
+| 지켜지는 것 | 외부 스키마, 응용 프로그램 | 개념 스키마와 그 위 전부 | 바뀐 단계 바로 위가 보호된다 |
+| 흡수하는 사상 | 외부/개념 사상 | 개념/내부 사상 | 두 단계 사이의 사상만 고치면 된다 |
+| 작업 예 | 열 이름 변경 + 뷰 재정의 | 인덱스 교체, 저장 공간 이동 | 3절의 SQL 실체가 그대로 작업 단위다 |
+| 지키기 | 어렵다 | 비교적 쉽다 | 응용 프로그램이 뷰를 거치지 않고 테이블을 직접 조회하는 경우가 많다 |
+
+마지막 줄이 실무에서 중요하다. 물리적 독립성은 DBMS가 사상을 관리하니 대부분 저절로 지켜지지만, 논리적 독립성은 응용 프로그램이 뷰를 거칠 때만 성립한다. 테이블을 직접 조회하는 프로그램 앞에서는 열 이름 하나만 바꿔도 프로그램을 고쳐야 한다.
 
 ## 5. 데이터 사전 (시스템 카탈로그)
 
-데이터 사전은 메타데이터(데이터에 대한 데이터)를 저장하는 시스템 DB다. 사용자 데이터와 분리돼 DBMS가 관리한다.
+셋째 원리의 자리다. 데이터 사전은 데이터베이스에 저장된 데이터에 관한 데이터, 즉 메타데이터를 저장하는 시스템 데이터베이스다. [기본 개념](../db-fundamentals)에서 본 메타데이터가 DBMS 안에서 모이는 곳이 여기이고, 3절의 세 스키마와 두 사상이 전부 여기에 기록된다.
 
 ```text
- ┌──────────────────────────┐
- │      데이터베이스         │
- ├──────────┬───────────────┤
- │ 사용자   │ 시스템 DB     │
- │ 데이터    │ (데이터 사전) │
- │          │ (데이터 디렉터리)
- └──────────┴───────────────┘
+ ┌────────────────────────────┐
+ │        데이터베이스        │
+ ├─────────────┬──────────────┤
+ │ 사용자 DB   │ 시스템 DB    │
+ │             │              │
+ │ 업무 데이터 │ 데이터 사전  │
+ │ (인스턴스)  │ 데이터       │
+ │             │ 디렉터리     │
+ └─────────────┴──────────────┘
 ```
 
-사용자는 데이터 사전을 **읽기 전용으로 조회**할 수 있고, 데이터 디렉터리는 시스템 전용으로 실제 데이터 위치 정보를 관리한다.
+| 구분 | 담는 것 | 읽는 쪽 | 쓰는 쪽 | 왜 |
+|:---|:---|:---|:---|:---|
+| 사용자 데이터베이스 | 실제 업무 데이터 (인스턴스) | 사용자, DBMS | 사용자 (DML) | 사용자가 다루려고 만든 데이터다 |
+| 데이터 사전 | 메타데이터 (스키마, 사상, 제약조건, 권한, 통계) | 사용자, DBMS | DBMS만 | 사용자가 직접 고치면 기록된 구조와 실제 구조가 어긋난다 |
+| 데이터 디렉터리 | 데이터 사전의 데이터에 실제로 접근하는 데 필요한 위치 정보 | DBMS만 | DBMS만 | 위치 정보는 저장 구조의 일부라 사용자가 알 필요가 없다 |
 
-### 데이터 사전이 저장하는 정보
-
-| 정보 유형 | 내용 |
-|:---|:---|
-| 스키마 정보 | 테이블/뷰/인덱스 구조 정의 |
-| 사상 정보 | 외부/개념, 개념/내부 매핑 |
-| 제약조건 | PRIMARY KEY, FOREIGN KEY, CHECK |
-| 사용자 정보 | 계정, 권한, 역할 |
-| 통계 정보 | 테이블 크기, 행 수, 인덱스 통계 |
-
-{{< callout type="info" >}}
-통계 정보는 질의 최적화기(Query Optimizer)가 실행 계획을 세울 때 핵심적으로 사용된다. 통계가 오래되면 엉뚱한 실행 계획이 선택될 수 있어 주기적인 `ANALYZE` / 통계 수집이 필요하다.
-{{< /callout >}}
-
-### 데이터 사전 조회 예제
+데이터 사전은 사용자도 조회할 수 있지만 직접 수정할 수는 없다. `CREATE`, `ALTER`, `DROP`을 실행하면 DBMS가 사전을 대신 고친다. DDL 한 문장이 사전에 행을 추가하는 모습을 보면 이 관계가 분명해진다.
 
 ```sql
 -- MySQL
-SELECT table_name, table_rows, create_time
-FROM information_schema.tables
-WHERE table_schema = 'mydb';
+CREATE TABLE memo (
+    id INT PRIMARY KEY,
+    body VARCHAR(200)
+);
 
-SELECT column_name, data_type, is_nullable, column_default
-FROM information_schema.columns
-WHERE table_name = 'employees';
+SELECT column_name, data_type
+  FROM information_schema.columns
+ WHERE table_schema = DATABASE()
+   AND table_name = 'memo'
+ ORDER BY ordinal_position;
+-- id   │ int
+-- body │ varchar
+```
 
-SELECT constraint_name, constraint_type
-FROM information_schema.table_constraints
-WHERE table_name = 'employees';
+`memo`에 행을 하나도 넣지 않았는데 사전에는 이미 두 행이 생겼다. 인스턴스는 비어 있어도 스키마는 기록된다.
+
+### 데이터 사전이 저장하는 정보
+
+| 정보 유형 | 내용 | 왜 |
+|:---|:---|:---|
+| 스키마 정보 | 테이블·뷰·인덱스 구조 정의 | 질의에 적힌 테이블과 열이 실제로 있는지 확인한다 |
+| 사상 정보 | 뷰 정의, 테이블과 저장 파일의 대응 | 뷰를 테이블 질의로 펼치고 행이 디스크 어디에 있는지 찾는다 |
+| 제약조건 | PRIMARY KEY, FOREIGN KEY, CHECK | 들어오는 값이 규칙을 지키는지 검사한다 |
+| 사용자 정보 | 계정, 권한, 역할 | 요청한 사람에게 그럴 권한이 있는지 본다 |
+| 통계 정보 | 행 수, 값 분포, 인덱스 통계 | 실행 계획마다 비용을 어림해 가장 싼 것을 고른다 |
+
+오른쪽 열이 전부 DBMS가 요청을 처리하면서 하는 일이다. 사전은 사람이 읽으라고 만든 문서이기 전에 DBMS 자신이 매번 펼쳐 보는 참고서다. 그 쓰임은 9절의 처리 흐름에서 단계별로 다시 본다.
+
+{{< callout type="info" >}}
+통계 정보는 질의 최적화기가 실행 계획을 고를 때 쓰는 근거다. 통계가 실제 데이터와 어긋나면 인덱스를 타야 할 질의가 전체 스캔을 하는 식으로 엉뚱한 계획이 선택된다. 요즘 DBMS는 대부분 통계를 자동으로 갱신하지만(MySQL InnoDB의 자동 재계산, PostgreSQL의 autovacuum), 대량 적재 직후처럼 데이터가 한꺼번에 바뀌었다면 `ANALYZE TABLE`(MySQL)이나 `ANALYZE`(PostgreSQL)로 직접 수집하는 편이 안전하다.
+{{< /callout >}}
+
+### 제품별 데이터 사전 조회
+
+```sql
+-- MySQL: information_schema
+SELECT table_name, table_rows,
+       create_time
+  FROM information_schema.tables
+ WHERE table_schema = 'mydb';
+
+SELECT column_name, data_type,
+       is_nullable, column_default
+  FROM information_schema.columns
+ WHERE table_schema = 'mydb'
+   AND table_name = 'employees';
+
+-- 외부/개념 사상도 사전에 있다
+SELECT view_definition
+  FROM information_schema.views
+ WHERE table_schema = 'mydb'
+   AND table_name = 'employee_view';
 ```
 
 ```sql
--- PostgreSQL
-SELECT tablename, tableowner FROM pg_catalog.pg_tables
-WHERE schemaname = 'public';
+-- PostgreSQL: pg_catalog
+SELECT tablename, tableowner
+  FROM pg_catalog.pg_tables
+ WHERE schemaname = 'public';
 
-SELECT attname, typname FROM pg_catalog.pg_attribute a
-JOIN pg_catalog.pg_type t ON a.atttypid = t.oid
-WHERE attrelid = 'employees'::regclass;
+SELECT a.attname, t.typname
+  FROM pg_catalog.pg_attribute a
+  JOIN pg_catalog.pg_type t
+    ON a.atttypid = t.oid
+ WHERE a.attrelid =
+       'employees'::regclass
+   AND a.attnum > 0
+   AND NOT a.attisdropped;
 ```
 
 ```sql
--- Oracle
-SELECT table_name, num_rows FROM user_tables;
-SELECT column_name, data_type FROM user_tab_columns
-WHERE table_name = 'EMPLOYEES';
+-- Oracle: 데이터 사전 뷰
+SELECT table_name, num_rows
+  FROM user_tables;
+
+SELECT column_name, data_type
+  FROM user_tab_columns
+ WHERE table_name = 'EMPLOYEES';
 
 -- DBA 전용
-SELECT username, account_status FROM dba_users;
+SELECT username, account_status
+  FROM dba_users;
 ```
+
+이름은 달라도 하는 일은 같다. 표준은 `information_schema`이고 MySQL은 사전을 이 이름으로 보여 준다. PostgreSQL도 `information_schema`를 제공하지만 실제 사전은 `pg_catalog`이고, Oracle은 `USER_`(내 객체), `ALL_`(접근 가능한 객체), `DBA_`(전체) 접두사가 붙은 뷰를 쓴다. 몇 가지는 사전의 성격을 보여 준다.
+
+- PostgreSQL 조회의 `attnum > 0`은 `ctid` 같은 시스템 열을 빼고, `NOT attisdropped`는 삭제한 열을 뺀다. 열을 지워도 사전에는 흔적이 남는다는 뜻이다.
+- Oracle 조회에서 테이블 이름을 대문자 `'EMPLOYEES'`로 쓰는 이유는 따옴표 없이 만든 이름을 사전에 대문자로 저장하기 때문이다.
+- MySQL InnoDB의 `table_rows`와 Oracle의 `num_rows`는 통계에서 온 값이라 `COUNT(*)`와 다를 수 있다. Oracle은 통계를 한 번도 모으지 않았다면 `NULL`이다.
 
 ## 6. 데이터베이스 사용자
 
-| 사용자 | 역할 | 주요 언어 |
-|:---|:---|:---|
-| DBA | 설계·운영·보안·튜닝 | DDL, DCL |
-| 응용 프로그래머 | 앱 개발, SQL 임베딩 | DML, 호스트 언어 |
-| 최종 사용자(캐주얼) | SQL 직접 사용 | DML |
-| 최종 사용자(초보) | GUI·앱을 통한 접근 | 간접 DML |
+사용자는 데이터베이스를 쓰는 목적과 방법에 따라 셋으로 나뉜다. 사람의 직함보다 무엇을 다루는지로 나누면 쉽다. DBA는 틀(스키마와 권한)을 다루고, 응용 프로그래머는 틀 안의 데이터를 프로그램으로 다루며, 최종 사용자는 그 데이터를 직접 또는 프로그램을 통해 다룬다.
+
+| 사용자 | 하는 일 | 주로 쓰는 언어 | 왜 |
+|:---|:---|:---|:---|
+| DBA | 설계·운영·보안·튜닝 | DDL, DCL | 시스템 전체의 스키마와 권한을 책임진다 |
+| 응용 프로그래머 | 응용 프로그램 개발 | DML (호스트 언어 안에서) | 반복되는 업무를 프로그램으로 만들어 최종 사용자에게 준다 |
+| 최종 사용자 (캐주얼) | 질의로 직접 조회·분석 | DML | SQL을 알고 그때그때 필요한 질문을 던진다 |
+| 최종 사용자 (초보) | 화면과 메뉴로 업무 처리 | 간접 DML | 응용 프로그램이 만든 SQL이 대신 실행된다 |
 
 ### DBA 주요 업무
 
-| 업무 | 설명 | SQL/도구 |
-|:---|:---|:---|
-| 스키마 정의 | DB 구조 설계·생성 | `CREATE TABLE/INDEX` |
-| 접근 권한 관리 | 사용자별 권한 부여·회수 | `GRANT`, `REVOKE` |
-| 무결성 관리 | 제약조건 정의 | `PRIMARY KEY`, `CHECK` |
-| 백업/복구 | 데이터 보호 | `mysqldump`, `pg_dump` |
-| 성능 튜닝 | 쿼리/인덱스 최적화 | `EXPLAIN`, 실행 계획 |
-| 모니터링 | 시스템 상태 감시 | 모니터링 도구 |
+| 업무 | 설명 | SQL·도구 | 왜 |
+|:---|:---|:---|:---|
+| 스키마 정의 | 세 단계 스키마 설계·생성 | `CREATE TABLE/VIEW/INDEX` | 3절의 세 스키마를 실제로 만드는 사람이다 |
+| 권한 관리 | 사용자별 권한 부여·회수 | `GRANT`, `REVOKE` | 함께 쓰는 데이터라 누가 무엇을 할지 정해야 한다 |
+| 무결성 관리 | 제약조건 정의 | `PRIMARY KEY`, `FOREIGN KEY`, `CHECK` | 규칙을 스키마에 두면 모든 프로그램에 같은 규칙이 걸린다 |
+| 백업·복구 | 장애 대비 | `mysqldump`, `pg_dump` | 디스크는 언젠가 고장 난다 |
+| 성능 튜닝 | 질의·인덱스 최적화 | `EXPLAIN`, 실행 계획 | 내부 스키마는 응용 프로그래머가 아니라 DBA가 바꾼다 |
+| 모니터링 | 사용 현황·장애 감시 | 모니터링 도구, 데이터 사전 | 문제가 커지기 전에 알아야 한다 |
 
 ```sql
--- 사용자·권한
-CREATE USER 'developer'@'localhost' IDENTIFIED BY 'password';
-GRANT SELECT, INSERT, UPDATE ON mydb.* TO 'developer'@'localhost';
+-- MySQL: 사용자와 권한
+CREATE USER 'developer'@'localhost'
+  IDENTIFIED BY 'change-me';
+GRANT SELECT, INSERT, UPDATE
+   ON mydb.*
+   TO 'developer'@'localhost';
 
--- 제약조건
+-- 무결성: 외래키
 ALTER TABLE orders
-ADD CONSTRAINT fk_customer
-FOREIGN KEY (customer_id) REFERENCES customers(id);
+  ADD CONSTRAINT fk_customer
+  FOREIGN KEY (customer_id)
+  REFERENCES customers(id);
 
--- 성능 분석
-EXPLAIN SELECT * FROM orders WHERE customer_id = 100;
+-- 성능: 실행 계획과 인덱스
+EXPLAIN SELECT * FROM orders
+ WHERE customer_id = 101;
 SHOW INDEX FROM orders;
 ```
 
+MySQL은 계정을 `'이름'@'호스트'`로 식별한다. 이름이 같아도 접속하는 곳이 다르면 다른 계정이다. 외래키를 걸면 InnoDB는 `customer_id`에 인덱스가 없을 경우 자동으로 만든다. 그래서 바로 아래 `EXPLAIN`의 `possible_keys`에 그 인덱스가 잡히고, `SHOW INDEX`에도 보인다. 무결성 규칙(개념 스키마)을 하나 정했더니 접근 경로(내부 스키마)가 따라 생긴 셈이다. 권한의 세부는 [보안과 권한 관리](../security-authorization)에서 다룬다.
+
 ## 7. 데이터 언어
 
-SQL은 DDL, DML, DCL, TCL로 구성된다.
+사용자가 DBMS에 요청하는 수단이 데이터 언어다. 앞 장에서 정의·조작·제어 세 기능에 DDL, DML, DCL이 대응한다는 것을 봤다. 여기서는 트랜잭션 제어를 떼어 낸 네 분류와, DML이 처리 방법을 누가 정하느냐에 따라 둘로 나뉜다는 점을 본다. 문법은 [SQL](../sql)에서 자세히 다룬다.
 
-| 분류 | 역할 | 대표 명령 |
-|:---|:---|:---|
-| DDL | 스키마 정의/수정 | `CREATE`, `ALTER`, `DROP`, `TRUNCATE` |
-| DML | 데이터 조작 | `SELECT`, `INSERT`, `UPDATE`, `DELETE` |
-| DCL | 보안·권한 | `GRANT`, `REVOKE` |
-| TCL | 트랜잭션 제어 | `COMMIT`, `ROLLBACK` |
+| 분류 | 역할 | 대표 명령 | 왜 |
+|:---|:---|:---|:---|
+| DDL | 스키마 정의·수정·삭제 | `CREATE`, `ALTER`, `DROP`, `TRUNCATE` | 결과가 데이터 사전에 기록된다 |
+| DML | 인스턴스 조회·삽입·수정·삭제 | `SELECT`, `INSERT`, `UPDATE`, `DELETE` | 결과가 사용자 데이터베이스에 반영된다 |
+| DCL | 권한 부여·회수 | `GRANT`, `REVOKE` | 함께 쓰는 데이터의 접근 범위를 정한다 |
+| TCL | 트랜잭션 확정·취소 | `COMMIT`, `ROLLBACK`, `SAVEPOINT` | 여러 문장을 한 작업으로 묶는다 |
 
-### 절차적 vs 비절차적 DML
+{{< callout type="warning" >}}
+`TRUNCATE`는 행을 지우는데도 DDL로 분류된다. 행을 하나씩 지우는 `DELETE`와 달리 테이블의 저장 공간을 통째로 비우기 때문이다. 그래서 MySQL과 Oracle에서는 `TRUNCATE`가 암묵적으로 커밋되어 `ROLLBACK`으로 되돌릴 수 없다. PostgreSQL은 트랜잭션 안에서 실행했다면 되돌릴 수 있다.
+{{< /callout >}}
 
-| 구분 | 절차적 DML | 비절차적 DML |
-|:---|:---|:---|
-| 설명 방식 | What + How | What만 |
-| 사용자 | 어떻게 처리할지 직접 명시 | DBMS에 처리 방법 위임 |
-| 예시 | PL/SQL, 커서 반복 | SQL `SELECT` 등 |
-| 별칭 | - | 선언적(Declarative) 언어 |
+### 절차적 DML과 비절차적 DML
+
+DML은 처리 방법을 누가 정하느냐로 나뉜다. 절차적 DML은 사용자가 무엇을 얻을지와 어떻게 얻을지를 함께 적고, 비절차적 DML은 무엇을 얻을지만 적고 방법은 DBMS에 맡긴다. SQL의 `SELECT`가 대표적인 비절차적 언어다. 맡길 수 있는 이유는 셋째 원리에 있다. DBMS는 데이터 사전에서 테이블 구조와 인덱스, 통계를 알고 있으니 방법을 정할 근거가 있다.
+
+| 구분 | 절차적 DML | 비절차적 DML | 왜 |
+|:---|:---|:---|:---|
+| 적는 것 | 무엇을 + 어떻게 | 무엇을 | 원하는 결과만 말하면 질의가 짧고, 저장 구조가 바뀌어도 그대로다 |
+| 방법을 정하는 쪽 | 사용자 | DBMS (최적화기) | DBMS는 사전의 인덱스와 통계를 보고 방법을 고를 수 있다 |
+| 처리 단위 | 한 번에 한 레코드 | 한 번에 집합 | 레코드를 하나씩 꺼내는 순서가 곧 "어떻게"다 |
+| 예 | PL/SQL 커서 반복 | SQL `SELECT` | 같은 결과를 두 방식으로 얻을 수 있다 |
+| 별칭 | - | 선언적(declarative) 언어 | 결과를 선언하고 과정은 맡긴다 |
 
 ```sql
--- 비절차적 (선언적)
+-- 비절차적: 무엇을만 말한다
 SELECT name, salary
-FROM employees
-WHERE department = '개발팀'
-ORDER BY salary DESC;
+  FROM employees
+ WHERE department = '개발팀'
+ ORDER BY salary DESC;
 ```
 
 ```sql
--- 절차적 (PL/SQL 커서)
+-- 절차적: 어떻게까지 적는다
+-- (Oracle PL/SQL)
 DECLARE
-    CURSOR emp_cursor IS
-        SELECT name, salary FROM employees
-        WHERE department = '개발팀';
-    v_name employees.name%TYPE;
-    v_salary employees.salary%TYPE;
+  CURSOR c_emp IS
+    SELECT name, salary
+      FROM employees
+     WHERE department = '개발팀'
+     ORDER BY salary DESC;
+  v_name   employees.name%TYPE;
+  v_salary employees.salary%TYPE;
 BEGIN
-    OPEN emp_cursor;
-    LOOP
-        FETCH emp_cursor INTO v_name, v_salary;
-        EXIT WHEN emp_cursor%NOTFOUND;
-        DBMS_OUTPUT.PUT_LINE(v_name || ': ' || v_salary);
-    END LOOP;
-    CLOSE emp_cursor;
+  OPEN c_emp;
+  LOOP
+    FETCH c_emp
+     INTO v_name, v_salary;
+    EXIT WHEN c_emp%NOTFOUND;
+    DBMS_OUTPUT.PUT_LINE(
+      v_name || ': ' || v_salary);
+  END LOOP;
+  CLOSE c_emp;
 END;
 ```
 
-### DCL의 제어 기능
+커서 안에도 `SELECT`가 있다는 점이 흥미롭다. 어떤 행을 고를지는 여전히 DBMS에 맡기고, 고른 행을 한 줄씩 꺼내 처리하는 순서(`OPEN`, `FETCH`, `EXIT WHEN`, `CLOSE`)를 사용자가 적는다. 절차적이냐 비절차적이냐는 언어 이름이 아니라 그 순서를 누가 쥐고 있느냐의 문제다.
 
-| 특성 | 설명 | 구현 방법 |
-|:---|:---|:---|
-| 무결성 | 정확·유효한 데이터 유지 | 제약조건, 트리거 |
-| 보안 | 허가된 사용자만 접근 | GRANT, REVOKE |
-| 회복 | 장애 시 일관성 유지 | 트랜잭션, 로그 |
-| 동시성 | 여러 사용자 동시 접근 | 락, 격리 수준 |
+### 제어 기능은 여러 언어에 걸친다
+
+앞 장에서는 제어 기능을 DCL 하나로 묶었지만, 실제로 제어할 대상은 넷이고 쓰는 수단도 제각각이다.
+
+| 제어 대상 | 목표 | 구현 수단 | 왜 |
+|:---|:---|:---|:---|
+| 무결성 | 정확하고 유효한 값만 유지 | 제약조건(DDL), 트리거 | 규칙을 스키마에 두면 모든 요청에 같은 규칙이 적용된다 |
+| 보안 | 허가된 사용자만 접근 | `GRANT`·`REVOKE`(DCL), 뷰 | 함께 쓰는 데이터라 보여 줄 범위를 나눠야 한다 |
+| 회복 | 장애 뒤 일관된 상태로 복구 | 트랜잭션(TCL), 로그 | 커밋된 것만 남기고 나머지는 되돌려야 한다 |
+| 병행 제어 | 동시에 접근해도 결과가 올바름 | 트랜잭션(TCL), 잠금, 격리 수준 | 여러 트랜잭션이 같은 행을 동시에 바꿀 수 있다 |
 
 ```sql
--- 무결성
+-- 무결성 (DDL)
 ALTER TABLE products
-ADD CONSTRAINT chk_price CHECK (price > 0);
+  ADD CONSTRAINT chk_price
+  CHECK (price > 0);
 
--- 보안
-GRANT SELECT ON employees TO public_user;
-REVOKE DELETE ON employees FROM public_user;
+-- 보안 (DCL)
+GRANT SELECT, DELETE ON employees
+   TO public_user;
+REVOKE DELETE ON employees
+  FROM public_user;
 
--- 회복·동시성
-BEGIN TRANSACTION;
-UPDATE accounts SET balance = balance - 10000 WHERE id = 1;
-UPDATE accounts SET balance = balance + 10000 WHERE id = 2;
+-- 회복·병행 제어 (TCL)
+START TRANSACTION;
+UPDATE accounts
+   SET balance = balance - 10000
+ WHERE id = 1;
+UPDATE accounts
+   SET balance = balance + 10000
+ WHERE id = 2;
 COMMIT;
 ```
 
+무결성은 DDL로, 보안은 DCL로, 회복과 병행 제어는 TCL과 DBMS 내부의 로그·잠금으로 구현된다. 제어 기능이 언어 하나가 아니라 DBMS 전체에 퍼져 있다는 뜻이고, 다음 절의 트랜잭션 관리자가 그 대부분을 맡는다. 로그와 잠금의 구조는 [회복과 병행 제어](../recovery-concurrency)에서 다룬다.
+
 ## 8. DBMS 구성요소
 
+이제 요청을 받는 쪽, DBMS 안을 본다. DBMS는 크게 질의 처리기와 저장 데이터 관리자로 나뉜다. 질의 처리기는 사용자의 요청을 해석하고 실행하며, 저장 데이터 관리자는 디스크에 있는 사용자 데이터베이스와 데이터 사전에 실제로 접근한다.
+
 ```text
+  DDL · DML · 응용 프로그램
+              │
+              ▼
  ┌──────────────────────────┐
- │        DBMS              │
- │ ┌──────────────────────┐ │
- │ │ 질의 처리기           │ │
- │ │  DDL 컴파일러         │ │
- │ │  DML 프리컴파일러     │ │
- │ │  DML 컴파일러         │ │
- │ │         │             │ │
- │ │ 런타임 DB 처리기      │ │
- │ │         │             │ │
- │ │ 트랜잭션 관리자       │ │
- │ └─────────┬────────────┘ │
- │           ▼              │
- │ ┌──────────────────────┐ │
- │ │ 저장 데이터 관리자    │ │
- │ └─────────┬────────────┘ │
- └───────────┼──────────────┘
-             ▼
-       데이터베이스
-     + 데이터 사전
+ │ 질의 처리기              │
+ │  DDL 컴파일러            │
+ │  DML 프리컴파일러        │
+ │  DML 컴파일러            │
+ │  런타임 DB 처리기        │
+ │  트랜잭션 관리자         │
+ └────────────┬─────────────┘
+              ▼
+ ┌──────────────────────────┐
+ │ 저장 데이터 관리자       │
+ └────────────┬─────────────┘
+              │ 운영체제
+       ┌──────┴──────┐
+       ▼             ▼
+   사용자 DB    데이터 사전
 ```
 
-| 구성요소 | 역할 |
-|:---|:---|
-| DDL 컴파일러 | 스키마 정의 해석 → 데이터 사전 저장 |
-| DML 프리컴파일러 | 응용 프로그램에서 SQL 추출 |
-| DML 컴파일러 | SQL 해석 → 실행 계획 생성 |
-| 런타임 DB 처리기 | 실제 데이터 처리 실행 |
-| 트랜잭션 관리자 | 권한·무결성·동시성·회복 관리 |
-| 저장 데이터 관리자 | 물리 저장소 접근 (OS 연동) |
+| 구성요소 | 하는 일 | 데이터 사전과의 관계 | 왜 |
+|:---|:---|:---|:---|
+| DDL 컴파일러 | DDL로 적은 스키마 정의를 내부 형태로 바꾼다 | 결과를 사전에 쓴다 | 정의가 사전에 기록되어야 이후 모든 요청의 근거가 된다 |
+| DML 프리컴파일러 | 응용 프로그램 코드에 삽입된 DML을 뽑아낸다 | - | 호스트 언어의 컴파일러는 SQL을 모른다 |
+| DML 컴파일러 | DML을 해석해 실행 계획으로 바꾼다 | 구조·뷰 정의·통계를 읽는다 | "무엇을"만 받은 요청을 "어떻게"로 바꾸려면 구조와 통계가 필요하다 |
+| 런타임 DB 처리기 | 실행 계획대로 데이터베이스 접근을 수행한다 | 저장 데이터 관리자를 거쳐 접근한다 | 실제 읽기와 쓰기는 한 길로만 지나가야 통제된다 |
+| 트랜잭션 관리자 | 권한·무결성을 검사하고 회복·병행 제어를 맡는다 | 권한과 제약조건을 읽는다 | 함께 쓰는 데이터를 지키는 검사가 모든 접근의 길목에 있어야 한다 |
+| 저장 데이터 관리자 | 디스크의 사용자 DB와 데이터 사전에 실제로 접근한다 | 사전도 이것을 거쳐 읽고 쓴다 | 디스크 접근은 운영체제의 도움을 받는 가장 아래층의 일이다 |
+
+{{< callout type="info" >}}
+DML 프리컴파일러는 C 코드 안에 SQL을 직접 적는 Pro*C 같은 내장 SQL(embedded SQL) 방식의 이야기다. 자바 프로그램은 JDBC로 SQL 문자열을 실행 시점에 보내므로 프리컴파일 단계 없이 곧바로 DML 컴파일러로 간다.
+{{< /callout >}}
 
 ## 9. SQL 처리 흐름
 
-```text
- SELECT * FROM employees
- WHERE salary > 50000;
+마지막으로 SQL 한 문장이 8절의 구성요소를 어떤 순서로 지나는지 따라가 본다. 3절의 `employee_view`를 조회하는 질의를 예로 들면 셋째 원리가 단계마다 보인다.
 
- ① DML 컴파일러
-    파싱·구문 검사
-    데이터 사전으로 객체 확인
+```text
+ SELECT name
+   FROM employee_view
+  WHERE department = '개발팀';
         │
- ② 트랜잭션 관리자
-    권한·무결성 확인
+ ① 파싱
+    문법 검사, 구문 트리 생성
         │
- ③ 쿼리 최적화
-    실행 계획 수립
-    (인덱스·조인 순서)
+ ② 의미 검사          ← 사전
+    뷰와 열이 있는가
+    조회 권한이 있는가
         │
- ④ 런타임 DB 처리기
-    저장 데이터 관리자로
-    디스크 read
+ ③ 뷰 펼치기          ← 사전
+    뷰 정의로 바꿔 쓴다
         │
- ⑤ 결과 반환
+ ④ 최적화             ← 통계
+    인덱스·조인 순서 선택
+        │
+ ⑤ 실행과 반환        ← 디렉터리
+    저장 데이터 관리자가
+    페이지를 읽고 결과를 낸다
 ```
+
+③에서 뷰는 자기 정의로 바뀐다. 뷰에는 데이터가 없으니 테이블 질의로 바꿔야 실행할 수 있다. 단순한 뷰라면 정의가 질의 안으로 녹아들어 실제로 최적화되는 것은 다음 질의다.
+
+```sql
+-- 뷰를 펼친 뒤의 질의
+SELECT name
+  FROM employees
+ WHERE department = '개발팀';
+```
+
+| 단계 | 맡는 구성요소 | 읽는 사전 정보 | 왜 |
+|:---|:---|:---|:---|
+| ① 파싱 | DML 컴파일러 | - | 문법이 틀리면 더 볼 것이 없다 |
+| ② 의미 검사 | DML 컴파일러, 트랜잭션 관리자 | 스키마, 권한 | 없는 열이나 권한 없는 요청은 실행 전에 걸러야 한다 |
+| ③ 뷰 펼치기 | DML 컴파일러 | 뷰 정의 (외부/개념 사상) | 외부 스키마의 질의를 개념 스키마의 질의로 옮긴다 |
+| ④ 최적화 | DML 컴파일러 (최적화기) | 인덱스, 통계 | 같은 결과를 내는 방법 가운데 가장 싼 것을 고른다 |
+| ⑤ 실행과 반환 | 런타임 DB 처리기, 트랜잭션 관리자, 저장 데이터 관리자 | 저장 위치 (데이터 디렉터리) | 계획을 실제 디스크 접근으로 옮기고, 그동안 잠금으로 다른 트랜잭션과의 충돌을 막는다 |
+
+다섯 단계 가운데 셋이 데이터 사전을, 하나가 데이터 디렉터리를 읽는다. 사용자는 뷰 이름과 조건만 말했고, 그 뷰가 어느 테이블의 어느 열인지, 어느 인덱스를 탈지, 행이 디스크 어디에 있는지는 전부 DBMS가 사전에서 찾아냈다. 비절차적 언어가 통하고 3단계 구조의 사상이 실제로 작동하는 것은 이 때문이다. 질의가 내부에서 바뀌어 다뤄지는 형태인 관계 대수는 [관계 데이터 연산](../relational-operation)에서 본다.
 
 ## 핵심 정리
 
-| 개념 | 설명 |
-|:---|:---|
-| DBS | DB + DBMS + 사용자 + 언어 + HW |
-| 스키마 / 인스턴스 | 구조 정의 / 실제 값 |
-| 외부 / 개념 / 내부 스키마 | 사용자 / 조직 / 저장 장치 관점 |
-| 논리적 독립성 | 개념 변경 → 외부 영향 없음 |
-| 물리적 독립성 | 내부 변경 → 개념 영향 없음 |
-| 데이터 사전 | 메타데이터 시스템 카탈로그 |
-| 데이터 디렉터리 | 실제 데이터 위치 정보 (시스템 전용) |
-| DDL/DML/DCL/TCL | 정의/조작/제어/트랜잭션 제어 |
-| 절차적/비절차적 DML | What+How / What |
-| 질의 처리기 | SQL 해석·최적화·실행 |
-| 저장 데이터 관리자 | 물리 저장소 접근 담당 |
+| 항목 | 핵심 | 왜 |
+|:---|:---|:---|
+| 데이터베이스 시스템 | DB + DBMS + 사용자 + 데이터 언어 + 컴퓨터 | 하나만 빠져도 시스템이 돌지 않는다 |
+| 스키마 / 인스턴스 | 데이터 사전의 틀 / 사용자 DB의 값 | 틀이 값을 검사하고, 틀을 바꾸는 비용은 크다 |
+| 3단계 구조 | 외부(뷰)·개념(테이블)·내부(인덱스·저장 구조) | 단계마다 바뀌는 이유가 달라 따로 두어야 한다 |
+| 두 사상 | 뷰 정의 / 테이블과 저장 구조의 대응 | 변경을 흡수하는 자리다 |
+| 논리적 독립성 | 개념이 바뀌어도 외부는 그대로 | 뷰 정의만 고친다. 프로그램이 뷰를 거칠 때만 성립한다 |
+| 물리적 독립성 | 내부가 바뀌어도 개념은 그대로 | 인덱스를 바꿔도 질의는 같고 실행 계획만 달라진다 |
+| 데이터 사전 | 메타데이터 시스템 DB, 사용자는 조회만 | DBMS가 모든 요청을 처리하며 먼저 읽는다 |
+| 데이터 디렉터리 | 실제 위치 정보, 시스템 전용 | 저장 위치는 사용자가 알 필요가 없다 |
+| 사용자 | DBA · 응용 프로그래머 · 최종 사용자 | 다루는 대상이 틀이냐 값이냐, 직접이냐 간접이냐로 나뉜다 |
+| DDL/DML/DCL/TCL | 정의·조작·권한·트랜잭션 제어 | 결과가 기록되는 곳과 목적이 다르다 |
+| 비절차적 DML | 무엇을만 말하고 방법은 DBMS가 정한다 | DBMS가 사전의 구조와 통계를 안다 |
+| 질의 처리기 / 저장 데이터 관리자 | 해석·실행 / 디스크 접근 | 요청 해석과 물리 접근을 나눠 각자 바뀔 수 있게 한다 |
 
 {{< callout type="info" >}}
 **용어 정리**
-- **DBS**: 데이터베이스 시스템 전체
-- **스키마 / 인스턴스**: 구조 정의 / 실제 데이터 값
-- **외부 스키마 (서브 스키마)**: 사용자별 노출 구조
-- **개념 스키마**: 전체 논리 구조 (1개)
-- **내부 스키마**: 물리적 저장 구조 (1개)
-- **외부/개념 사상**: 외부와 개념 스키마 사이의 매핑
-- **개념/내부 사상**: 개념과 내부 스키마 사이의 매핑
-- **논리적 독립성**: 개념 변경이 외부에 영향 없음
-- **물리적 독립성**: 내부 변경이 개념에 영향 없음
-- **데이터 사전**: 메타데이터 저장소 (시스템 카탈로그)
-- **데이터 디렉터리**: 실제 데이터 위치 정보, 시스템 전용
-- **DBA / 응용 프로그래머 / 최종 사용자**: DB 사용자 유형
-- **DDL / DML / DCL / TCL**: 정의·조작·제어·트랜잭션 제어 언어
-- **절차적 / 비절차적 DML**: 처리 방식 명시 여부
-- **질의 처리기 / 저장 데이터 관리자**: DBMS 내부 핵심 모듈
-- **트랜잭션 관리자**: 권한·무결성·동시성·회복을 담당
+- **데이터베이스 시스템 (DBS)**: DB, DBMS, 사용자, 데이터 언어, 컴퓨터를 아우르는 전체
+- **스키마 / 인스턴스**: 구조 정의 / 어느 시점의 실제 값. 관계 모델에서는 내포 / 외연
+- **외부 스키마 (서브 스키마)**: 사용자별로 보이는 구조. SQL에서는 뷰
+- **개념 스키마**: 조직 전체의 논리 구조 (1개). SQL에서는 테이블과 제약조건
+- **내부 스키마**: 물리적 저장 구조 (1개). 인덱스, 파티션, 테이블스페이스
+- **외부/개념 사상 (응용 인터페이스)**: 외부와 개념 스키마의 대응. 뷰 정의
+- **개념/내부 사상 (저장 인터페이스)**: 개념과 내부 스키마의 대응
+- **논리적 / 물리적 독립성**: 개념 변경이 외부에, 내부 변경이 개념에 영향을 주지 않는 성질
+- **데이터 사전 (시스템 카탈로그)**: 메타데이터를 담는 시스템 DB. 사용자는 조회만
+- **데이터 디렉터리**: 사전의 데이터에 접근하기 위한 위치 정보. 시스템 전용
+- **DBA / 응용 프로그래머 / 최종 사용자**: 데이터베이스 사용자 유형. 최종 사용자는 캐주얼과 초보로 나뉜다
+- **DDL / DML / DCL / TCL**: 정의·조작·권한 제어·트랜잭션 제어 언어
+- **절차적 / 비절차적 DML**: 처리 방법을 사용자가 적는가, DBMS에 맡기는가
+- **질의 처리기**: DDL·DML 컴파일러, 프리컴파일러, 런타임 DB 처리기, 트랜잭션 관리자의 묶음
+- **저장 데이터 관리자**: 디스크의 사용자 DB와 데이터 사전에 실제로 접근하는 모듈
+- **뷰 펼치기**: 뷰를 조회하는 질의를 뷰 정의로 바꿔 테이블 질의로 만드는 단계
+- **통계 정보**: 최적화기가 실행 계획의 비용을 어림하는 근거
 {{< /callout >}}
